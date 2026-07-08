@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Scotia Tire and Alignment — Pricing</title>
+<style>
+  @page { size: 8.5in 11in; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 8.5in;
+    height: 11in;
+    background: #0a0a0a;
+    font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;
+    color: #ffffff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sheet {
+    position: relative;
+    width: 8.5in;
+    height: 11in;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 900px 500px at 85% -5%, rgba(220,38,38,0.16), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 5% 105%, rgba(220,38,38,0.10), transparent 60%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 10px),
+      #0a0a0a;
+    padding: 0.5in 0.55in 0.4in 0.55in;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Header ---------- */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid rgba(220,38,38,0.35);
+    padding-bottom: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 9px;
+    background: linear-gradient(160deg, #dc2626, #7f1d1d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(220,38,38,0.35);
+  }
+  .brand-mark svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .brand-text .name {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 800;
+    font-style: italic;
+    font-size: 22px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    line-height: 1.05;
+  }
+  .brand-text .name span { color: #ef4444; }
+  .brand-text .sub {
+    margin-top: 3px;
+    font-size: 9.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    font-weight: 600;
+  }
+
+  .header-right { text-align: right; }
+  .header-right .title {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 800;
+    font-style: italic;
+    font-size: 26px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .header-right .title .accent { color: #ef4444; }
+  .header-right .tag {
+    margin-top: 3px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.4px;
+  }
+
+  /* ---------- Hero card ---------- */
+  .hero {
+    position: relative;
+    margin-top: 22px;
+    border: 1px solid rgba(220,38,38,0.4);
+    border-radius: 14px;
+    padding: 22px 26px;
+    background: linear-gradient(135deg, rgba(220,38,38,0.14), rgba(220,38,38,0.03) 55%), rgba(255,255,255,0.02);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  .best-value-badge {
+    position: absolute;
+    top: -12px;
+    right: 26px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(220,38,38,0.5);
+  }
+
+  .hero-left { display: flex; gap: 16px; align-items: flex-start; max-width: 4.6in; }
+  .hero-icon {
+    width: 52px; height: 52px; border-radius: 11px; flex-shrink: 0;
+    background: rgba(220,38,38,0.16);
+    border: 1px solid rgba(220,38,38,0.35);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hero-icon svg { width: 25px; height: 25px; stroke: #ef4444; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .hero-left h2 {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    margin-bottom: 6px;
+  }
+  .hero-left p {
+    font-size: 10.5px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.62);
+  }
+
+  .hero-right { text-align: right; flex-shrink: 0; padding-left: 18px; }
+  .price { font-weight: 800; color: #ef4444; line-height: 1; }
+  .price .cur { font-size: 20px; vertical-align: top; position: relative; top: 4px; margin-right: 2px; }
+  .price .num { font-size: 52px; }
+  .hero-right .note {
+    margin-top: 6px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    max-width: 1.9in;
+  }
+
+  /* ---------- Grid ---------- */
+  .grid {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .card {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px 22px;
+    background: rgba(255,255,255,0.025);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card .icon {
+    width: 40px; height: 40px; border-radius: 9px;
+    background: rgba(220,38,38,0.14);
+    border: 1px solid rgba(220,38,38,0.3);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .card .icon svg { width: 20px; height: 20px; stroke: #ef4444; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .card h3 { font-size: 15.5px; font-weight: 800; margin-bottom: 8px; }
+  .card p {
+    font-size: 10.5px;
+    line-height: 1.62;
+    color: rgba(255,255,255,0.58);
+  }
+
+  .card .price-row {
+    margin-top: 16px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding-top: 12px;
+  }
+  .card .price-row .price .num { font-size: 32px; }
+  .card .price-row .price .cur { font-size: 15px; top: 2px; }
+  .card .price-row .note { font-size: 9px; color: rgba(255,255,255,0.4); text-align: right; max-width: 1.6in; }
+
+  /* ---------- Feature strip ---------- */
+  .features {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 18px 4px;
+  }
+  .feature { display: flex; align-items: flex-start; gap: 10px; }
+  .feature .f-icon {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: rgba(220,38,38,0.12);
+    border: 1px solid rgba(220,38,38,0.28);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .feature .f-icon svg { width: 15px; height: 15px; stroke: #ef4444; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .feature h4 { font-size: 10.5px; font-weight: 800; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .feature p { font-size: 9px; line-height: 1.45; color: rgba(255,255,255,0.5); }
+
+  /* ---------- Footer ---------- */
+  .footer {
+    margin-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer .contact { display: flex; gap: 22px; }
+  .footer .contact-item { display: flex; align-items: center; gap: 7px; }
+  .footer .contact-item svg { width: 14px; height: 14px; stroke: #ef4444; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .footer .contact-item span { font-size: 9.5px; color: rgba(255,255,255,0.65); }
+
+  .footer .fine-print {
+    font-size: 8px;
+    color: rgba(255,255,255,0.32);
+    text-align: right;
+    max-width: 2.6in;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+  <div class="sheet">
+
+    <div class="header">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+        </div>
+        <div class="brand-text">
+          <div class="name">SCOTIA <span>TIRE</span> &amp; ALIGNMENT</div>
+          <div class="sub">Commercial &middot; Fleet &middot; Trailer Services</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="title">Pricing <span class="accent">Sheet</span></div>
+        <div class="tag">Alignment &amp; Mobile Tire Services &mdash; Greater Toronto Area</div>
+      </div>
+    </div>
+
+    <!-- Hero: Full 3-Axle Alignment -->
+    <div class="hero">
+      <div class="best-value-badge">Best Value</div>
+      <div class="hero-left">
+        <div class="hero-icon">
+          <svg viewBox="0 0 24 24"><path d="M10 17h4V6H3v11h3"/><path d="M14 10h4.5l2.5 3v4h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        </div>
+        <div>
+          <h2>Full 3-Axle Alignment</h2>
+          <p>Complete computerized multi-axle alignment with Hunter 3D measurement, full adjustment, and a digital before/after report on completion. Parts additional if required.</p>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="price"><span class="cur">$</span><span class="num">270</span></div>
+        <div class="note">+ $110 mobile service call &middot; Plus any required parts</div>
+      </div>
+    </div>
+
+    <!-- Grid of remaining services -->
+    <div class="grid">
+
+      <div class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><path d="M10 17h4V6H3v11h3"/><path d="M14 10h4.5l2.5 3v4h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        </div>
+        <h3>Trailer Alignment</h3>
+        <p>Trailer axle alignment to eliminate dog-tracking and prevent uneven tire wear. Covers tandem and single trailer axle configurations. Digital report included.</p>
+        <div class="price-row">
+          <div class="price"><span class="cur">$</span><span class="num">95</span></div>
+          <div class="note">+ $110 mobile service call<br/>Parts additional if needed</div>
+        </div>
+      </div>
+
+      <div class="card single-axle">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v3M12 17.5v3M4.4 7.8l2.6 1.5M17 14.7l2.6 1.5M4.4 16.2l2.6-1.5M17 9.3l2.6-1.5"/></svg>
+        </div>
+        <h3>Single Axle Alignment</h3>
+        <p>Precision single-axle alignment for trucks and light commercial vehicles. Corrects camber, caster, and toe to extend tire life and improve handling.</p>
+        <div class="price-row">
+          <div class="price"><span class="cur">$</span><span class="num">110</span></div>
+          <div class="note">+ $110 mobile service call<br/>Parts additional if needed</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <h3>Mobile Service Call</h3>
+        <p>Flat dispatch fee for all mobile visits. Covers fuel, travel, and full Hunter 3D equipment mobilization to your fleet yard anywhere in the GTA. Waived for walk-in visits at McAdam Rd.</p>
+        <div class="price-row">
+          <div class="price"><span class="cur">$</span><span class="num">110</span></div>
+          <div class="note">Flat fee per mobile dispatch<br/>Waived for in-shop walk-ins</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        </div>
+        <h3>24/7 Emergency Roadside</h3>
+        <p>Flat tire, breakdown, or urgent alignment issue? Our Tire Service Network deploys a technician to your location within 90 minutes, anywhere in the GTA &mdash; day or night.</p>
+        <div class="price-row">
+          <div class="price"><span class="cur">$</span><span class="num">110</span></div>
+          <div class="note">Service call + labour<br/>Available 24/7 always</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></div>
+        <div>
+          <h4>Hunter 3D Equipment</h4>
+          <p>Computerized precision alignment with full digital before/after reporting.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div>
+          <h4>Certified Technicians</h4>
+          <p>Experienced with fleet, trailer, and heavy commercial vehicles.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>
+        <div>
+          <h4>GTA-Wide Coverage</h4>
+          <p>Mobile dispatch to your yard or roadside, anywhere in the Greater Toronto Area.</p>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="f-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+        <div>
+          <h4>24/7 Availability</h4>
+          <p>Emergency roadside and urgent alignment support, day or night.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="contact">
+        <div class="contact-item">
+          <svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>Shop &amp; walk-ins: McAdam Rd &mdash; mobile service available anywhere in the GTA</span>
+        </div>
+        <div class="contact-item">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+          <span>24/7 emergency dispatch available</span>
+        </div>
+      </div>
+      <div class="fine-print">Prices in CAD, subject to change without notice.<br/>Parts and applicable taxes are additional unless stated.</div>
+    </div>
+
+  </div>
+</body>
+</html>
