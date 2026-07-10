@@ -243,53 +243,58 @@ h1.slide-title {
 .sol-strip h4 { font-family: var(--display); font-size: 12.5px; font-weight: 700; margin-bottom: 5px; color: var(--gold2); }
 .sol-strip p { font-size: 10px; line-height: 1.55; color: var(--ink2); }
 
-/* ================= PRODUCT + MOCKUP ================= */
-.prod-grid { margin-top: 22px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px; align-items: stretch; }
-.browser {
-  border-radius: 16px; border: 1px solid rgba(232,195,106,0.22);
-  background: var(--bg2); overflow: hidden;
-  box-shadow: 0 34px 80px rgba(0,0,0,0.55), 0 0 60px rgba(212,168,67,0.08), inset 0 1px 0 rgba(255,255,255,0.06);
-  display: flex; flex-direction: column;
+/* ================= PRODUCT + APP MOCKUP (matches real UI) ================= */
+.app {
+  margin-top: 18px;
+  border-radius: 14px; border: 1px solid rgba(232,195,106,0.22);
+  background: #0d0d11; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(0,0,0,0.55), 0 0 60px rgba(212,168,67,0.07), inset 0 1px 0 rgba(255,255,255,0.05);
+  font-family: var(--body);
 }
-.b-top { display: flex; align-items: center; gap: 12px; padding: 11px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--line); }
-.b-dots { display: flex; gap: 6px; }
-.b-dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.14); }
-.b-url {
-  flex: 1; max-width: 3.4in; font-family: var(--mono); font-size: 8.5px; color: var(--ink3);
-  background: rgba(255,255,255,0.05); border-radius: 100px; padding: 5px 14px; letter-spacing: 0.6px;
-}
-.b-tabs { display: flex; gap: 4px; padding: 12px 16px 0; }
-.b-tab { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase;
-  padding: 7px 14px; border-radius: 8px 8px 0 0; color: var(--ink3); background: rgba(255,255,255,0.025); border: 1px solid transparent; }
-.b-tab.on { color: var(--gold2); background: var(--gold-dim); border: 1px solid var(--gold-border); border-bottom-color: transparent; }
-.b-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); flex: 1; }
-.b-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.b-lbl { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink3); }
-.b-pill { font-family: var(--mono); font-size: 8px; letter-spacing: 0.8px; color: var(--gold2); background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 5px; padding: 4px 9px; }
-.b-pill.ok::after { content: " ✓"; }
-.b-script { font-family: var(--mono); font-size: 8.5px; line-height: 1.7; color: var(--ink2); background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 9px; padding: 10px 13px; }
-.b-script b { color: var(--gold2); font-weight: 600; }
-.b-gen {
-  margin-top: 2px; text-align: center; font-family: var(--display); font-weight: 800; font-size: 13px; letter-spacing: 1.5px;
-  color: #14100a; background: linear-gradient(160deg, var(--gold3), var(--gold) 60%, #a97f2e);
-  border-radius: 10px; padding: 11px; box-shadow: 0 6px 22px rgba(212,168,67,0.35);
-}
-.b-clips { display: flex; gap: 8px; }
-.b-clip { flex: 1; aspect-ratio: 16/9; border-radius: 8px; position: relative; border: 1px solid var(--line); }
-.b-clip::after { content: "▶"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.75); font-size: 11px; }
-.b-clip.c1 { background: linear-gradient(150deg, #3a2d14, #171008); }
-.b-clip.c2 { background: linear-gradient(150deg, #14283a, #081017); }
-.b-clip.c3 { background: linear-gradient(150deg, #2e143a, #120817); }
-.b-timeline { display: flex; gap: 2px; height: 12px; border-radius: 5px; overflow: hidden; }
-.b-timeline i { display: block; height: 100%; }
-.b-timeline .t1 { width: 34%; background: linear-gradient(90deg, #8a6a20, #d4a843); }
-.b-timeline .t2 { width: 26%; background: linear-gradient(90deg, #45607a, #7a9cc0); }
-.b-timeline .t3 { width: 40%; background: linear-gradient(90deg, #6d4a7a, #a97ac0); }
-.prod-list { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
-.prod-item { display: flex; gap: 14px; align-items: flex-start; padding: 13px 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--card); }
-.prod-item .num { font-family: var(--display); font-weight: 800; font-size: 17px; color: var(--gold2); line-height: 1; min-width: 24px; padding-top: 1px; }
-.prod-item h4 { font-family: var(--display); font-size: 12.5px; font-weight: 700; margin-bottom: 3px; }
-.prod-item p { font-size: 9.5px; line-height: 1.5; color: var(--ink2); }
+.a-top { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--line); background: #0a0a0e; }
+.a-logo { font-family: var(--display); font-weight: 800; font-size: 13px; letter-spacing: 1.5px; margin-right: 8px; }
+.a-logo span { color: var(--gold2); }
+.a-btn { font-size: 8.5px; font-weight: 600; color: var(--ink2); background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 7px; padding: 5px 12px; }
+.a-btn.gold { color: #14100a; background: linear-gradient(160deg, var(--gold3), var(--gold)); border-color: transparent; font-weight: 700; }
+.a-top .a-file { margin-left: auto; font-family: var(--mono); font-size: 8px; color: var(--gold); letter-spacing: 0.8px; }
+.a-set { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.a-lbl { font-family: var(--mono); font-size: 7px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--ink3); }
+.a-dd { display: flex; align-items: center; gap: 14px; font-size: 8.5px; font-weight: 600; color: var(--ink); background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; }
+.a-dd::after { content: "▾"; color: var(--ink3); font-size: 7px; }
+.a-stat { font-family: var(--mono); font-size: 8px; color: var(--ink2); letter-spacing: 0.6px; margin-left: 6px; }
+.a-main { display: grid; grid-template-columns: 1fr 2.45in; }
+.a-left { padding: 10px 14px 12px; border-right: 1px solid var(--line); min-width: 0; }
+.a-sec { font-family: var(--mono); font-size: 7.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink2); font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+.a-sec .r { color: var(--gold); letter-spacing: 0.6px; text-transform: none; }
+.a-ruler { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 6.5px; color: var(--ink3); margin-bottom: 5px; padding: 0 2px; }
+.a-clips { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.a-clip { border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: #121218; position: relative; }
+.a-clip.sel { border-color: var(--gold2); box-shadow: 0 0 10px rgba(212,168,67,0.25); }
+.a-clip .st { position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: #4ade80; }
+.a-clip .st.pend { background: rgba(255,255,255,0.25); }
+.a-clip .id { font-family: var(--mono); font-size: 6px; letter-spacing: 1px; color: var(--ink3); padding: 5px 7px 3px; }
+.a-clip .thumb { height: 30px; margin: 0 5px; border-radius: 4px; background: linear-gradient(150deg, #232330, #101016); }
+.a-clip .thumb.ph1 { background: linear-gradient(150deg, #35405a, #14161f); }
+.a-clip .thumb.ph2 { background: linear-gradient(150deg, #4a3a28, #171008); }
+.a-clip .thumb.ph3 { background: linear-gradient(150deg, #2c4038, #0e1512); }
+.a-clip .cap { font-size: 7.5px; font-weight: 600; color: var(--ink); padding: 5px 7px 1px; white-space: nowrap; overflow: hidden; }
+.a-clip .dur { font-family: var(--mono); font-size: 6px; color: var(--ink3); padding: 0 7px 6px; }
+.a-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.a-chip { font-family: var(--mono); font-size: 6.5px; font-weight: 600; letter-spacing: 0.8px; color: var(--ink); background: rgba(255,255,255,0.07); border-radius: 100px; padding: 4px 9px; }
+.a-right { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; background: #0f0f14; }
+.a-right .ttl { font-family: var(--display); font-weight: 700; font-size: 10.5px; color: var(--ink); }
+.a-box { font-family: var(--mono); font-size: 7px; line-height: 1.55; color: var(--ink2); background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+.a-acc { font-family: var(--mono); font-size: 6.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink2); background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
+.a-cta { text-align: center; font-size: 9px; font-weight: 700; border-radius: 7px; padding: 7px; }
+.a-cta.gen { color: #14100a; background: linear-gradient(160deg, var(--gold3), var(--gold)); box-shadow: 0 4px 14px rgba(212,168,67,0.3); margin-top: 2px; }
+.a-cta-row { display: flex; gap: 6px; }
+.a-cta.ghostbtn { flex: 1; color: var(--ink2); background: rgba(255,255,255,0.05); border: 1px solid var(--line); font-weight: 600; }
+.a-cta.appr { color: #4ade80; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.35); }
+.prod-row { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.prod-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--card); }
+.prod-item .num { font-family: var(--display); font-weight: 800; font-size: 14px; color: var(--gold2); line-height: 1.1; }
+.prod-item h4 { font-family: var(--display); font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+.prod-item p { font-size: 8.5px; line-height: 1.45; color: var(--ink2); }
 
 /* ================= ENGINE ================= */
 .agent-chips { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; max-width: 10.8in; }
@@ -496,47 +501,67 @@ table.comp tr.us td { background: linear-gradient(120deg, rgba(212,168,67,0.2), 
   <div class="ghost">04</div>
   <div class="kicker">The Product</div>
   <h1 class="slide-title">The Generation Hub — <span class="g">a working studio, already built.</span></h1>
-  <div class="prod-grid">
-    <div class="browser">
-      <div class="b-top">
-        <div class="b-dots"><i></i><i></i><i></i></div>
-        <div class="b-url">shotbreak.io/app — generation hub</div>
-      </div>
-      <div class="b-tabs">
-        <div class="b-tab">Script</div>
-        <div class="b-tab">Characters</div>
-        <div class="b-tab on">Generate</div>
-        <div class="b-tab">Edit / Upscale</div>
-      </div>
-      <div class="b-body">
-        <div class="b-script"><b>SCENE 4 · SHOT 2</b> — EXT. RAIN-SOAKED STREET, NEON NIGHT · Mara sprints toward the idling truck, camera tracking low and fast…</div>
-        <div class="b-row">
-          <span class="b-lbl">Agents</span>
-          <span class="b-pill ok">CINEMATOGRAPHER</span>
-          <span class="b-pill ok">LIGHTING</span>
-          <span class="b-pill ok">CONTINUITY</span>
-          <span class="b-pill ok">ENVIRONMENT</span>
-          <span class="b-pill">+78</span>
+  <div class="app">
+    <div class="a-top">
+      <div class="a-logo">SHOT<span>BREAK</span></div>
+      <div class="a-btn">Import</div>
+      <div class="a-btn gold">✎ Script</div>
+      <div class="a-btn">+ Clip</div>
+      <div class="a-btn gold">Generate All</div>
+      <div class="a-file">Untitled Film · kylef</div>
+    </div>
+    <div class="a-set">
+      <span class="a-lbl">Settings</span>
+      <span class="a-dd">Sora 2</span>
+      <span class="a-dd">16:9</span>
+      <span class="a-dd">~4s</span>
+      <span class="a-dd">720p</span>
+      <span class="a-stat">109 lines · 4,263 chars · 57 clips</span>
+    </div>
+    <div class="a-main">
+      <div class="a-left">
+        <div class="a-sec"><span>Timeline</span><span class="r">57 clips · 3:54</span></div>
+        <div class="a-ruler"><span>0:00</span><span>0:07</span><span>0:14</span><span>0:21</span><span>0:28</span><span>0:35</span><span>0:42</span></div>
+        <div class="a-clips">
+          <div class="a-clip sel"><span class="st"></span><div class="id">CLIP 01</div><div class="thumb ph1"></div><div class="cap">Opening scene</div><div class="dur">~4s</div></div>
+          <div class="a-clip"><span class="st"></span><div class="id">CLIP 02</div><div class="thumb ph2"></div><div class="cap">Character intro</div><div class="dur">~4s</div></div>
+          <div class="a-clip"><span class="st"></span><div class="id">CLIP 03</div><div class="thumb ph3"></div><div class="cap">Dialogue</div><div class="dur">~4s</div></div>
+          <div class="a-clip"><span class="st"></span><div class="id">CLIP 04</div><div class="thumb ph1"></div><div class="cap">Action beat</div><div class="dur">~4s</div></div>
+          <div class="a-clip"><span class="st"></span><div class="id">CLIP 05</div><div class="thumb ph2"></div><div class="cap">Reaction shot</div><div class="dur">~4s</div></div>
+          <div class="a-clip"><span class="st pend"></span><div class="id">CLIP 06</div><div class="thumb"></div><div class="cap">Scene transition</div><div class="dur">~4s</div></div>
+          <div class="a-clip"><span class="st pend"></span><div class="id">CLIP 07</div><div class="thumb"></div><div class="cap">Climax</div><div class="dur">~4s</div></div>
         </div>
-        <div class="b-row">
-          <span class="b-lbl">Render</span>
-          <span class="b-pill">SEEDANCE 2.0</span>
-          <span class="b-pill">1080P</span>
-          <span class="b-pill">16:9</span>
-          <span class="b-pill">5S</span>
-          <span class="b-pill">REFS: MARA 🔒 + STREET 🔒</span>
+        <div class="a-sec" style="margin-top:10px;"><span>Characters</span><span class="r">7/8 chars · 2 loc</span></div>
+        <div class="a-chips">
+          <span class="a-chip">VORSANGER</span>
+          <span class="a-chip">BRANT</span>
+          <span class="a-chip">CRUMB</span>
+          <span class="a-chip">RAMSEY</span>
+          <span class="a-chip">MICHAEL RAMSEY</span>
+          <span class="a-chip">CROWD_CLONES</span>
+          <span class="a-chip">+ Add Character</span>
         </div>
-        <div class="b-gen">⚡ GENERATE ALL SHOTS</div>
-        <div class="b-clips"><div class="b-clip c1"></div><div class="b-clip c2"></div><div class="b-clip c3"></div></div>
-        <div class="b-timeline"><i class="t1"></i><i class="t2"></i><i class="t3"></i></div>
+        <div class="a-sec" style="margin-top:10px;"><span>Vorsanger — Description</span><span class="r">locked 🔒</span></div>
+        <div class="a-box" style="margin-top:0;">50s, short military haircut, dark blue jacket, sunglasses, ex-military build; prominent white VORSANGER nametag on left chest; visually identical to the other eighty-nine men except for the nametag</div>
+      </div>
+      <div class="a-right">
+        <div class="ttl">Clip 01 · Opening scene</div>
+        <div class="a-box">A large jet zooms overhead and lands at Pierre Trudeau International Airport.</div>
+        <div class="a-acc">Emotion — Neutral ▾</div>
+        <div class="a-acc">AI Prompt</div>
+        <div class="a-acc">Scene &amp; Setting</div>
+        <div class="a-acc">Camera · Atmosphere</div>
+        <div class="a-cta gen">Generate</div>
+        <div class="a-cta-row"><div class="a-cta ghostbtn">Regenerate</div><div class="a-cta ghostbtn">Preview</div></div>
+        <div class="a-cta appr">Approve</div>
       </div>
     </div>
-    <div class="prod-list">
-      <div class="prod-item"><div class="num">01</div><div><h4>Script</h4><p>Import .fountain, .fdx, .docx, .txt — or paste rough ideas and auto-format to screenplay. One click parses scenes &amp; shots.</p></div></div>
-      <div class="prod-item"><div class="num">02</div><div><h4>Characters &amp; Locations</h4><p>AI-extracted character bible; generate variants and lock the definitive look. Location library with time-of-day, weather &amp; crowd presets.</p></div></div>
-      <div class="prod-item"><div class="num">03</div><div><h4>Generate</h4><p>Per-shot detail boxes built by specialist agents; model, resolution, aspect &amp; duration per shot; draft mode; consistency pass.</p></div></div>
-      <div class="prod-item"><div class="num">04</div><div><h4>Edit / Upscale</h4><p>Timeline with trim &amp; crossfades, auto-stitch to scenes or the whole film, in-browser export via FFmpeg.wasm, quality &amp; upscale panel.</p></div></div>
-    </div>
+  </div>
+  <div class="prod-row">
+    <div class="prod-item"><div class="num">01</div><div><h4>Script</h4><p>Import or paste any script format; one click parses it into scenes &amp; clips with durations.</p></div></div>
+    <div class="prod-item"><div class="num">02</div><div><h4>Characters &amp; Locations</h4><p>Auto-extracted cast with locked descriptions &amp; reference looks, injected into every clip.</p></div></div>
+    <div class="prod-item"><div class="num">03</div><div><h4>Generate</h4><p>Per-clip prompt, scene, camera &amp; atmosphere controls; render every clip with one button.</p></div></div>
+    <div class="prod-item"><div class="num">04</div><div><h4>Review &amp; Export</h4><p>Preview, regenerate, approve clip by clip — then stitch and export the finished film.</p></div></div>
   </div>
   <div class="foot"><span class="fb"><b>SHOTBREAK</b> · PREMARKET INVESTMENT DECK</span><span class="pg"><span>04 / 12</span><span class="bar"><i style="width:33%"></i></span></span></div>
 </section>
