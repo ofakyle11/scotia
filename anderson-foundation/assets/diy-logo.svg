@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 200" role="img" aria-label="The Princess Margaret Cancer Foundation UHN — D.I.Y.">
+  <defs>
+    <linearGradient id="diyGrad" x1="0.15" y1="0" x2="0.05" y2="1">
+      <stop offset="0" stop-color="#584D7C"/>
+      <stop offset="0.5" stop-color="#96607A"/>
+      <stop offset="1" stop-color="#EE8A55"/>
+    </linearGradient>
+  </defs>
+  <circle cx="96" cy="100" r="90" fill="url(#diyGrad)"/>
+  <g stroke="#FFFFFF" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M81,131 C 62,119 51,103 53,84 C 55,61 73,45 96,45 C 119,45 137,61 139,84 C 141,103 130,119 111,131 L 111,136 L 81,136 Z" stroke-width="9"/>
+    <path d="M96,56 C 90,64 87,78 92,90 C 94,95 97,100 106,120" stroke-width="7"/>
+    <path d="M96,56 C 102,64 105,78 100,90 C 98,95 95,100 86,120" stroke-width="7"/>
+  </g>
+  <g fill="#FFFFFF">
+    <rect x="74" y="146" width="44" height="9" rx="4.5"/>
+    <rect x="74" y="160" width="44" height="9" rx="4.5"/>
+    <rect x="81" y="174" width="30" height="9" rx="4.5"/>
+  </g>
+  <g fill="#3D4043">
+    <text x="212" y="52" font-family="Georgia, 'Times New Roman', serif" font-size="35">The Princess Margaret</text>
+    <text x="212" y="93" font-family="Georgia, 'Times New Roman', serif" font-size="35">Cancer Foundation</text>
+    <path transform="translate(524,78) scale(1.25)" d="M0,-13 L3,-6.5 L8.5,-9.5 L7,-2.5 L14,-3.5 L9.5,2.5 L13,6.5 L5.5,6.5 L6.5,13 L0.9,8.5 L0.9,16 L-0.9,16 L-0.9,8.5 L-6.5,13 L-5.5,6.5 L-13,6.5 L-9.5,2.5 L-14,-3.5 L-7,-2.5 L-8.5,-9.5 L-3,-6.5 Z"/>
+    <text x="548" y="93" font-family="Arial, 'Helvetica Neue', sans-serif" font-size="34" font-weight="800">UHN</text>
+    <text x="206" y="186" font-family="'Arial Black', 'Arial Bold', Arial, sans-serif" font-size="104" font-weight="900" letter-spacing="4">D.I.Y.</text>
+  </g>
+</svg>

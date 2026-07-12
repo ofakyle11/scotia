@@ -7,12 +7,12 @@
 
 /* ---------- 1. Design tokens ---------- */
 :root {
-  /* palette — "Tree of Life": green = growth & hope, warm cream ground */
-  --green-900: #14452F;
-  --green-700: #1E6B47;
-  --green-600: #257A52;
-  --green-100: #E3F0E8;
-  --green-050: #F0F7F2;
+  /* palette — "Deep Sapphire": diamond blue = clarity & calm, warm cream ground */
+  --brand-900: #0E3A5F;
+  --brand-700: #17629B;
+  --brand-600: #1F77B8;
+  --brand-100: #E1EEF7;
+  --brand-050: #F0F7FB;
   --amber-500: #E8A33D;  /* reserved for Donate CTAs only */
   --amber-600: #D9922B;
   --cream:     #FAF7F2;
@@ -38,7 +38,7 @@
 
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow: 0 1px 3px rgb(20 69 47 / .08), 0 4px 16px rgb(20 69 47 / .06);
+  --shadow: 0 1px 3px rgb(14 58 95 / .08), 0 4px 16px rgb(14 58 95 / .06);
   --maxw: 72rem;
   --prose: 65ch;
 }
@@ -75,26 +75,26 @@ h1, h2, h3, h4 {
   font-family: var(--font-head);
   font-weight: 600;
   line-height: 1.15;
-  color: var(--green-900);
+  color: var(--brand-900);
   text-wrap: balance;
 }
 h1 { font-size: clamp(2rem, 5.5vw, 3.25rem); }
 h2 { font-size: clamp(1.5rem, 3.5vw, 2.125rem); }
 h3 { font-size: clamp(1.2rem, 2.5vw, 1.4rem); }
-a { color: var(--green-700); text-underline-offset: 3px; }
-a:hover { color: var(--green-900); }
+a { color: var(--brand-700); text-underline-offset: 3px; }
+a:hover { color: var(--brand-900); }
 :focus-visible {
-  outline: 3px solid var(--green-700);
+  outline: 3px solid var(--brand-700);
   outline-offset: 2px;
   border-radius: 4px;
 }
-::selection { background: var(--green-100); }
+::selection { background: var(--brand-100); }
 
 .skip-link {
   position: absolute;
   left: -9999px;
   top: 0;
-  background: var(--green-900);
+  background: var(--brand-900);
   color: #fff;
   padding: var(--space-3) var(--space-5);
   z-index: 100;
@@ -122,8 +122,8 @@ a:hover { color: var(--green-900); }
 .prose { max-width: var(--prose); }
 .prose p + p { margin-top: var(--space-4); }
 .section { padding-block: var(--space-8); }
-.section--tint { background: var(--green-100); }
-.section--dark { background: var(--green-900); color: #fff; }
+.section--tint { background: var(--brand-100); }
+.section--dark { background: var(--brand-900); color: #fff; }
 .section--dark h2, .section--dark h3 { color: #fff; }
 .section-head { max-width: 44rem; margin-bottom: var(--space-6); }
 .section-head p { color: var(--muted); margin-top: var(--space-2); font-size: 1.125rem; }
@@ -152,20 +152,20 @@ a:hover { color: var(--green-900); }
 }
 .btn--donate {
   background: var(--amber-500);
-  color: var(--green-900);
+  color: var(--brand-900);
 }
-.btn--donate:hover { background: var(--amber-600); color: var(--green-900); }
+.btn--donate:hover { background: var(--amber-600); color: var(--brand-900); }
 .btn--primary {
-  background: var(--green-700);
+  background: var(--brand-700);
   color: #fff;
 }
-.btn--primary:hover { background: var(--green-900); color: #fff; }
+.btn--primary:hover { background: var(--brand-900); color: #fff; }
 .btn--ghost {
-  border-color: var(--green-700);
-  color: var(--green-700);
+  border-color: var(--brand-700);
+  color: var(--brand-700);
   background: transparent;
 }
-.btn--ghost:hover { background: var(--green-100); color: var(--green-900); }
+.btn--ghost:hover { background: var(--brand-100); color: var(--brand-900); }
 .section--dark .btn--ghost { border-color: rgb(255 255 255 / .7); color: #fff; }
 .section--dark .btn--ghost:hover { background: rgb(255 255 255 / .12); }
 
@@ -189,9 +189,9 @@ a:hover { color: var(--green-900); }
   align-items: center;
   gap: var(--space-3);
   text-decoration: none;
-  color: var(--green-900);
+  color: var(--brand-900);
 }
-.brand svg { width: 40px; height: 40px; flex: none; }
+.brand svg, .brand img { width: 40px; height: 40px; flex: none; }
 .brand-name {
   font-family: var(--font-head);
   font-weight: 700;
@@ -213,7 +213,7 @@ a:hover { color: var(--green-900); }
   border: 0;
   padding: var(--space-2);
   cursor: pointer;
-  color: var(--green-900);
+  color: var(--brand-900);
 }
 .site-nav ul {
   display: flex;
@@ -229,10 +229,10 @@ a:hover { color: var(--green-900); }
   color: var(--ink);
   padding-block: var(--space-2);
 }
-.site-nav a:not(.btn):hover { color: var(--green-700); }
+.site-nav a:not(.btn):hover { color: var(--brand-700); }
 .site-nav a[aria-current="page"] {
-  color: var(--green-700);
-  box-shadow: inset 0 -2px 0 var(--green-700);
+  color: var(--brand-700);
+  box-shadow: inset 0 -2px 0 var(--brand-700);
 }
 @media (max-width: 899px) {
   .nav-toggle { display: block; }
@@ -253,7 +253,7 @@ a:hover { color: var(--green-900); }
 
 /* ---------- 8. Footer ---------- */
 .site-footer {
-  background: var(--green-900);
+  background: var(--brand-900);
   color: rgb(255 255 255 / .85);
   padding-block: var(--space-7) var(--space-6);
   margin-top: var(--space-8);
@@ -300,8 +300,8 @@ a:hover { color: var(--green-900); }
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: var(--green-100);
-  color: var(--green-700);
+  background: var(--brand-100);
+  color: var(--brand-700);
   display: grid;
   place-items: center;
   margin-bottom: var(--space-4);
@@ -320,8 +320,8 @@ a:hover { color: var(--green-900); }
 }
 .hero-kicker {
   display: inline-block;
-  background: var(--green-100);
-  color: var(--green-900);
+  background: var(--brand-100);
+  color: var(--brand-900);
   font-size: .85rem;
   font-weight: 600;
   letter-spacing: .05em;
@@ -343,11 +343,11 @@ a:hover { color: var(--green-900); }
   margin-top: var(--space-6);
 }
 .hero-art { display: grid; place-items: center; }
-.hero-art svg { width: min(100%, 380px); height: auto; }
+.hero-art svg, .hero-art img { width: min(100%, 380px); height: auto; }
 
 /* page hero (inner pages) */
 .page-hero {
-  background: var(--green-100);
+  background: var(--brand-100);
   padding-block: var(--space-7);
 }
 .page-hero p {
@@ -358,7 +358,7 @@ a:hover { color: var(--green-900); }
 }
 
 /* ---------- 11. Campaign banner (home) ---------- */
-.campaign-banner { background: var(--green-900); }
+.campaign-banner { background: var(--brand-900); }
 .campaign-banner .container {
   display: flex;
   flex-wrap: wrap;
@@ -380,8 +380,8 @@ a:hover { color: var(--green-900); }
 
 /* ---------- 12. Misc content patterns ---------- */
 .quote {
-  border-left: 4px solid var(--green-700);
-  background: var(--green-050);
+  border-left: 4px solid var(--brand-700);
+  background: var(--brand-050);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding: var(--space-4) var(--space-5);
   font-style: italic;
@@ -408,7 +408,7 @@ a:hover { color: var(--green-900); }
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 50%;
-  background: var(--green-700);
+  background: var(--brand-700);
   -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>') center / contain no-repeat;
   mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>') center / contain no-repeat;
 }
@@ -419,7 +419,7 @@ a:hover { color: var(--green-900); }
   font-family: var(--font-head);
   font-weight: 600;
   font-size: 1.2rem;
-  color: var(--green-700);
+  color: var(--brand-700);
   white-space: nowrap;
 }
 .event-card {
@@ -430,8 +430,8 @@ a:hover { color: var(--green-900); }
   .event-card { grid-template-columns: auto 1fr auto; align-items: center; }
 }
 .event-date {
-  background: var(--green-100);
-  color: var(--green-900);
+  background: var(--brand-100);
+  color: var(--brand-900);
   border-radius: var(--radius-sm);
   text-align: center;
   padding: var(--space-3) var(--space-4);
@@ -452,8 +452,8 @@ a:hover { color: var(--green-900); }
   line-height: 1.1;
 }
 .notice {
-  background: var(--green-050);
-  border: 1px dashed var(--green-700);
+  background: var(--brand-050);
+  border: 1px dashed var(--brand-700);
   border-radius: var(--radius-sm);
   padding: var(--space-4) var(--space-5);
   color: var(--muted);
@@ -462,7 +462,7 @@ a:hover { color: var(--green-900); }
 
 /* ---------- 13. Dashboard ---------- */
 .dash-hero {
-  background: var(--green-900);
+  background: var(--brand-900);
   color: #fff;
   padding-block: var(--space-7);
   text-align: center;
@@ -549,14 +549,14 @@ a:hover { color: var(--green-900); }
   border-radius: 50%;
   flex: none;
   overflow: hidden;
-  border: 3px solid var(--green-100);
+  border: 3px solid var(--brand-100);
 }
 .runner-avatar img, .runner-avatar svg { width: 100%; height: 100%; object-fit: cover; }
 .runner-raised {
   font-family: var(--font-head);
   font-weight: 700;
   font-size: 1.35rem;
-  color: var(--green-700);
+  color: var(--brand-700);
   font-variant-numeric: tabular-nums;
 }
 .runner-raised small {
@@ -567,8 +567,8 @@ a:hover { color: var(--green-900); }
 }
 .runner-bio { color: var(--muted); font-size: .98rem; }
 .runner-why {
-  border-left: 3px solid var(--green-700);
-  background: var(--green-050);
+  border-left: 3px solid var(--brand-700);
+  background: var(--brand-050);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   padding: var(--space-3) var(--space-4);
   font-style: italic;
@@ -581,18 +581,18 @@ a:hover { color: var(--green-900); }
   font-weight: 600;
   letter-spacing: .07em;
   text-transform: uppercase;
-  color: var(--green-700);
+  color: var(--brand-700);
   margin-bottom: var(--space-1);
 }
 .runner-progress-track {
   height: 8px;
   border-radius: 999px;
-  background: var(--green-100);
+  background: var(--brand-100);
   overflow: hidden;
 }
 .runner-progress-fill {
   height: 100%;
-  background: var(--green-700);
+  background: var(--brand-700);
   border-radius: 999px;
 }
 .runner-progress-label {
@@ -607,11 +607,11 @@ a:hover { color: var(--green-900); }
 .donors summary {
   cursor: pointer;
   font-weight: 600;
-  color: var(--green-700);
+  color: var(--brand-700);
   padding: var(--space-2) 0;
   list-style-position: outside;
 }
-.donors summary:hover { color: var(--green-900); }
+.donors summary:hover { color: var(--brand-900); }
 .donor-list {
   list-style: none;
   margin: var(--space-2) 0 0;
@@ -631,7 +631,7 @@ a:hover { color: var(--green-900); }
 .donor-list li:last-child { border-bottom: 0; }
 .donor-name { font-weight: 600; }
 .donor-amount {
-  color: var(--green-700);
+  color: var(--brand-700);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -646,7 +646,7 @@ a:hover { color: var(--green-900); }
   border-top: 1px solid var(--border);
   padding-top: var(--space-3);
   font-weight: 600;
-  color: var(--green-900);
+  color: var(--brand-900);
 }
 
 .dash-panel {
@@ -669,3 +669,12 @@ a:hover { color: var(--green-900); }
   body { background: #fff; }
   .section { padding-block: 1.5rem; }
 }
+
+/* ---------- partner badge strip ---------- */
+.partner-strip { text-align: center; }
+.partner-label {
+  color: var(--muted); font-size: .9rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .14em;
+  margin-bottom: var(--space-5);
+}
+.partner-strip img { max-width: min(340px, 82%); height: auto; margin-inline: auto; }

@@ -11,7 +11,7 @@
 
   var DATA_URL = "data/tough-mudder.json";
   var AVATAR_TINTS = [
-    ["#E3F0E8", "#1E6B47"],
+    ["#E1EEF7", "#17629B"],
     ["#FBEED8", "#B27A1F"],
     ["#E2ECF5", "#2F5D8A"],
     ["#F0E4EE", "#7A4B72"],
