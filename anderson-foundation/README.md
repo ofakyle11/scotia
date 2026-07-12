@@ -17,12 +17,15 @@ index.html            Home
 who-we-are.html       Mission, Angus's story, what we fund
 events.html           Featured/upcoming/past events
 tough-mudder.html     Fundraising dashboard (renders data/tough-mudder.json)
+give.html             One runner's own giving page (give.html?runner=id)
 resources.html        Crisis lines, support orgs, refund policy
 donate.html           Ways to give
 404.html              Not-found page (GitHub Pages serves it automatically)
 css/site.css          Entire design system (tokens at the top)
 js/nav.js             Mobile menu toggle
-js/dashboard.js       Dashboard rendering, totals, graceful error handling
+js/shared.js          Data loading, formatting, avatars — shared by dashboard.js + give.js
+js/dashboard.js       Full team dashboard: totals, runner cards, graceful error handling
+js/give.js            Single-runner giving page: their story, progress, and Zeffy embed
 data/tough-mudder.json  THE data file volunteers edit (see UPDATING.md)
 assets/               Logo, favicons, og-image, self-hosted font, runner photos
 scripts/validate-data.mjs      Data checker (run: node scripts/validate-data.mjs)
@@ -53,6 +56,7 @@ python3 -m http.server 8000
 | Missing/broken `photo` | Generated initials avatar |
 | Missing `goal` (event or runner) | Progress bar hidden |
 | Missing runner `donateUrl` | Falls back to `event.donateUrl` |
+| Missing/empty `zeffyEmbedUrl` | Runner's give.html page shows the GoFundMe fallback, not broken |
 | Donor empty or "anonymous" | Shown as **Anonymous** |
 | `"hideAmount": true` | Counted in totals, amount shown as ♥ |
 | Amount like `"$1,250.00"` | Parsed; `$`/commas stripped |
@@ -85,15 +89,21 @@ Repo **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**. Th
 
 ## Payments — current state and upgrade path
 
-GitHub Pages is static hosting: it can't process cards. Today, Donate buttons link
-to the foundation's GoFundMe (donors mention a runner's name; a volunteer records
-it in the data file — see UPDATING.md).
+GitHub Pages is static hosting: it can't process cards itself. Every runner
+already has their own giving page built into the site (`give.html?runner=id`,
+linked from their Donate button on `tough-mudder.html`) — what happens on that
+page depends on whether Phase 2 below is turned on yet.
 
-**Phase 2 options** (schema already supports them — each runner has a `donateUrl`):
+**Phase 1 (today):** no `zeffyEmbedUrl` set → the runner's page shows a friendly
+"almost ready" panel pointing to the foundation's GoFundMe (donors mention the
+runner's name; a volunteer records it in the data file — see UPDATING.md).
 
-- **[Zeffy](https://www.zeffy.com/)** — zero-fee fundraising platform for Canadian
-  nonprofits; per-campaign pages can be linked per runner. Strongest candidate.
-- **Stripe Payment Links** — one link per runner, ~2.9% + 30¢ fees.
+**Phase 2 (wired up, opt-in per runner):** set a runner's `zeffyEmbedUrl` (or
+`event.zeffyEmbedUrl` for the team) in `data/tough-mudder.json` and their giving
+page embeds a real **[Zeffy](https://www.zeffy.com/)** donation form right on
+the page — name, amount, and a note to the runner, zero platform fees for
+Canadian nonprofits, donor never leaves the site. Step-by-step in UPDATING.md.
+(Stripe Payment Links work the same way as a paid alternative, ~2.9% + 30¢.)
 
 **Phase 3:** payment-provider webhook → a free Cloudflare Worker → GitHub API
 commit that appends the donation to `data/tough-mudder.json`. The JSON shape was

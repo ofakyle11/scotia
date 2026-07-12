@@ -54,6 +54,9 @@ if (data) {
     if (data.event.goal !== undefined && (typeof data.event.goal !== "number" || data.event.goal < 0)) {
       problems.push(`"event.goal" should be a plain number like 15000 (found: ${JSON.stringify(data.event.goal)}).`);
     }
+    if (data.event.zeffyEmbedUrl && !/^https:\/\//.test(data.event.zeffyEmbedUrl)) {
+      warnings.push(`"event.zeffyEmbedUrl" doesn't start with "https://" — paste just the form's link, not the full embed snippet.`);
+    }
   }
 
   if (!Array.isArray(data.runners)) {
@@ -72,6 +75,9 @@ if (data) {
       if (r.id) {
         if (ids.has(r.id)) warnings.push(`${label}: duplicate id "${r.id}" — deep links will pick the first one.`);
         ids.add(r.id);
+      }
+      if (r.zeffyEmbedUrl && !/^https:\/\//.test(r.zeffyEmbedUrl)) {
+        warnings.push(`${label}: "zeffyEmbedUrl" doesn't start with "https://" — paste just the form's link, not the full embed snippet.`);
       }
       const donations = r.donations;
       if (donations !== undefined && !Array.isArray(donations)) {

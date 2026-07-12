@@ -8,6 +8,7 @@
     "goal": 15000,
     "currency": "CAD",
     "donateUrl": "https://www.gofundme.com/f/AndersonFoundationFundraiser",
+    "zeffyEmbedUrl": "",
     "generalDonations": 250,
     "generalDonationsNote": "E-transfer and offline donations not tied to a specific runner",
     "placeholderNote": "You're looking at an example team! Real runner profiles are being added — the totals below are sample data."
@@ -21,6 +22,7 @@
       "whyImRunning": "Every obstacle on this course is nothing compared to a chemo chair. I run so no patient has to face the bills alone.",
       "goal": 2500,
       "donateUrl": "",
+      "zeffyEmbedUrl": "",
       "donations": [
         { "donor": "Jane D.", "amount": 100, "message": "Go get 'em, Angus!", "date": "2026-07-10" },
         { "donor": "The Reid Family", "amount": 250, "message": "For everything you did for our mom.", "date": "2026-07-06" },
@@ -37,6 +39,7 @@
       "whyImRunning": "My patients fight harder than this every single day. The least I can do is get muddy for them.",
       "goal": 3000,
       "donateUrl": "",
+      "zeffyEmbedUrl": "",
       "donations": [
         { "donor": "Unit 4B Nurses", "amount": 200, "message": "Proud of you, Sarah!", "date": "2026-07-11" },
         { "donor": "Marcus T.", "amount": 50, "date": "2026-07-09" },
@@ -64,6 +67,7 @@
       "whyImRunning": "Someone was there for my best friend when it mattered. This is me paying it forward — one wall at a time.",
       "goal": 1500,
       "donateUrl": "",
+      "zeffyEmbedUrl": "",
       "donations": []
     },
     {
@@ -74,6 +78,7 @@
       "whyImRunning": "Twelve years ago a stranger paid for my parking at the cancer centre for a whole month. I never got to thank them. This is my thank-you.",
       "goal": 1000,
       "donateUrl": "",
+      "zeffyEmbedUrl": "",
       "donations": [
         { "donor": "Anonymous", "amount": 500, "message": "From a former student.", "date": "2026-07-07" },
         { "donor": "Mike R.", "amount": 25, "hideAmount": true, "date": "2026-07-03" },
@@ -85,6 +90,8 @@
       "name": "Jordan Lee",
       "bio": "Personal trainer and caregiver to his dad through two rounds of treatment. Jordan is the reason the whole team can now do a proper burpee.",
       "whyImRunning": "Caregivers fight this disease too — quietly, in waiting rooms and parking lots. I'm running for everyone holding someone else's hand through it.",
+      "donateUrl": "",
+      "zeffyEmbedUrl": "",
       "donations": [
         { "donor": "Dad", "amount": 200, "message": "You carried me through the worst of it, son. Watching you take this on for other families makes every hard day feel like it counted for something. Go show that mountain of mud what this family is made of. I'll be at the finish line — with dry towels and more pride than I know what to do with.", "date": "2026-07-05" },
         { "donor": "Gym Fam", "amount": 90, "date": "2026-06-26" }

@@ -3,15 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tough Mudder Toronto — Team Dashboard | Angus Anderson Foundation</title>
-  <meta name="description" content="Follow the Angus Anderson Foundation team at Tough Mudder Toronto: total raised, every runner's story, and the supporters behind them.">
-  <link rel="canonical" href="https://ofakyle11.github.io/AndersonFoundation/tough-mudder.html">
+  <title>Give — Tough Mudder Toronto | Angus Anderson Foundation</title>
+  <meta name="description" content="Support a Tough Mudder Toronto runner directly — see their story and progress, and give right on this page.">
+  <link rel="canonical" href="https://ofakyle11.github.io/AndersonFoundation/give.html">
+  <meta name="robots" content="noindex">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Angus Anderson Foundation">
-  <meta property="og:title" content="Tough Mudder Toronto — Team Dashboard">
-  <meta property="og:description" content="Meet our runners, read why they're taking on the mud, and see every donation supporting cancer patients and survivors.">
+  <meta property="og:title" content="Support a Tough Mudder Toronto runner">
+  <meta property="og:description" content="See a runner's story and progress, and give right on this page.">
   <meta property="og:image" content="https://ofakyle11.github.io/AndersonFoundation/assets/og-image.png">
-  <meta property="og:url" content="https://ofakyle11.github.io/AndersonFoundation/tough-mudder.html">
+  <meta property="og:url" content="https://ofakyle11.github.io/AndersonFoundation/give.html">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#0E3A5F">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -20,20 +21,7 @@
   <link rel="stylesheet" href="css/site.css">
   <script src="js/nav.js" defer></script>
   <script src="js/shared.js" defer></script>
-  <script src="js/dashboard.js" defer></script>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Event",
-    "name": "Tree of Life Run at Tough Mudder Toronto",
-    "description": "The Angus Anderson Foundation team takes on Tough Mudder Toronto to raise funds for cancer patients and survivors.",
-    "eventStatus": "https://schema.org/EventScheduled",
-    "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-    "location": { "@type": "Place", "name": "Toronto, ON" },
-    "startDate": "2026-08-15",
-    "organizer": { "@type": "Organization", "name": "Angus Anderson Foundation", "url": "https://www.angusandersonfoundation.org" }
-  }
-  </script>
+  <script src="js/give.js" defer></script>
 </head>
 <body>
   <!-- ======= SHARED HEADER — if you edit this, make the same edit in every page ======= -->
@@ -65,49 +53,16 @@
   <!-- ======= /SHARED HEADER ======= -->
 
   <main id="main">
-    <section class="dash-hero" data-dash-hero aria-label="Fundraising total">
-      <div class="container">
-        <h1>Tough Mudder Toronto</h1>
-        <p class="dash-event-meta">Loading team totals…</p>
-      </div>
-    </section>
-
-    <section class="section" aria-label="Our runners">
-      <div class="container" data-dashboard>
+    <section class="section">
+      <div class="container" data-give>
+        <p class="give-back"><a href="tough-mudder.html">← Back to Tough Mudder Toronto</a></p>
         <div class="dash-panel">
-          <h2>Loading the team…</h2>
-          <p>Meet our runners, read their stories, and see every supporter behind them.</p>
-          <noscript>
-            <p>This dashboard needs JavaScript to show live totals. You can still donate:</p>
-            <p><a class="btn btn--donate" href="https://www.gofundme.com/f/AndersonFoundationFundraiser" rel="noopener">Donate to the team</a></p>
-          </noscript>
+          <h2>Loading…</h2>
         </div>
-      </div>
-    </section>
-
-    <section class="section section--tint">
-      <div class="container">
-        <div class="grid grid--2">
-          <div>
-            <h2>Want your name up there?</h2>
-            <div class="prose">
-              <p>Pick a runner, hit their donate button, and mention their name with your gift — we'll add it to their total and to the team's. Every dollar goes to cancer patients and survivors who need it.</p>
-            </div>
-          </div>
-          <div>
-            <h2>Want to run with us?</h2>
-            <div class="prose">
-              <p>There's room on the team for one more pair of muddy shoes. Email <a href="mailto:info@angusandersonfoundation.org?subject=Running%20Tough%20Mudder">info@angusandersonfoundation.org</a> and we'll get you set up with a profile on this page.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" aria-label="Partner">
-      <div class="container partner-strip">
-        <p class="partner-label">Our partners</p>
-        <img src="assets/diy-logo.svg" alt="The Princess Margaret Cancer Foundation — D.I.Y." width="300" height="91" loading="lazy">
+        <noscript>
+          <p>This page needs JavaScript to load giving details. You can still donate:</p>
+          <p><a class="btn btn--donate" href="https://www.gofundme.com/f/AndersonFoundationFundraiser" rel="noopener">Donate to the team</a></p>
+        </noscript>
       </div>
     </section>
   </main>

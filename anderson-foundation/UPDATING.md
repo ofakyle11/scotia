@@ -96,6 +96,48 @@ Donor names and amounts on the dashboard are public to anyone on the internet.
 
 ---
 
+## Turning on real online giving for a runner (Zeffy)
+
+Every runner has their own giving page on the site already — click their **Donate**
+button from the Tough Mudder page and it opens `give.html?runner=their-id`. Until
+you do the steps below, that page just points people to the team GoFundMe. Once
+you've done this once for the team, it takes about 2 minutes per runner.
+
+1. **One-time setup:** create a free account at [zeffy.com](https://www.zeffy.com/)
+   for the foundation (Zeffy charges Canadian nonprofits **zero platform fees** —
+   donors are asked for an optional tip to Zeffy instead). You'll need your
+   charity's basic registration info.
+2. Create a donation form in Zeffy — either one shared form for the whole team, or
+   one per runner. Turn on Zeffy's **custom question** feature and add a field
+   like *"Any message for the runner?"* — this is the "note to the runner" spot.
+3. Click **Embed** / **Share** on the form and copy the link. Zeffy gives you a
+   whole `<iframe>` snippet — you only need the web address inside the quotes
+   after `src=`, something like:
+
+   ```
+   https://www.zeffy.com/embed/donation-form/abcd1234-5678-...
+   ```
+4. Back in `data/tough-mudder.json`, find that runner and paste the link into
+   their `"zeffyEmbedUrl"` field:
+
+   ```json
+   "zeffyEmbedUrl": "https://www.zeffy.com/embed/donation-form/abcd1234-5678-...",
+   ```
+
+   For a form shared by the whole team, paste the same link into every runner's
+   `"zeffyEmbedUrl"` — or into `"zeffyEmbedUrl"` under `"event"` at the top of the
+   file to power the team-wide giving page (`give.html` with no runner picked).
+5. Commit. The next time someone clicks that runner's Donate button, the real
+   form appears right on the page — no redirect to GoFundMe, and Zeffy emails the
+   foundation each time someone gives so a volunteer can log it here (see
+   "Adding a donation" above).
+
+**Leave `"zeffyEmbedUrl": ""` for a runner and their page keeps showing the
+GoFundMe fallback automatically** — nothing breaks if only some runners have
+their form set up yet.
+
+---
+
 ## Fixing a mistake
 
 **The dashboard shows "Our donation tracker is being updated":** the file has a

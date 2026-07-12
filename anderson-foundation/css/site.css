@@ -678,3 +678,27 @@ a:hover { color: var(--brand-900); }
   margin-bottom: var(--space-5);
 }
 .partner-strip img { max-width: min(340px, 82%); height: auto; margin-inline: auto; }
+
+/* ---------- 15. Individual runner giving page (give.html) ---------- */
+.give-back { margin-bottom: var(--space-5); }
+.give-back a { font-weight: 600; }
+.give-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.give-avatar { width: 96px; height: 96px; }
+.give-progress-wrap { margin-bottom: var(--space-5); }
+.runner-bio, .runner-why { margin-bottom: var(--space-4); }
+.give-panel { margin: var(--space-6) 0; text-align: center; }
+.give-panel h2 { margin-bottom: var(--space-3); }
+.give-panel .btn { margin-top: var(--space-3); }
+.give-panel .hint { font-size: .85rem; color: var(--muted); margin-top: var(--space-3); }
+.give-embed iframe {
+  width: 100%;
+  min-height: 720px;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+.give-donors { margin-top: var(--space-5); }
