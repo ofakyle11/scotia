@@ -76,7 +76,7 @@ Repo **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**. Th
    `185.199.110.153`, `185.199.111.153`; `www` CNAME → `<owner>.github.io`.
 2. Add the domain in Settings → Pages, commit the generated `CNAME` file, tick
    **Enforce HTTPS**.
-3. Find-and-replace the `https://ofakyle11.github.io/anderson-foundation` URLs in
+3. Find-and-replace the `https://ofakyle11.github.io/AndersonFoundation` URLs in
    canonicals/OG tags/`sitemap.xml`/`robots.txt` with the real domain.
 4. Old Wix slugs (`/event-list`, `/refund-policy`, `/who-we-are`) : add stub
    folders with an `index.html` containing a meta-refresh + canonical link to the
