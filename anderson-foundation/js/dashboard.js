@@ -31,6 +31,17 @@
     });
   }
 
+  function renderTeamDonateButtons(summary) {
+    var nodes = document.querySelectorAll("[data-team-donate-btn]");
+    if (!nodes.length) return;
+    var url = (typeof summary.event.donateUrl === "string" && summary.event.donateUrl.trim())
+      ? summary.event.donateUrl.trim()
+      : AAF.TEAM_DONATE_URL;
+    nodes.forEach(function (node) {
+      node.href = url;
+    });
+  }
+
   function renderEventDate(summary) {
     var box = document.querySelector("[data-event-date]");
     if (!box || typeof summary.event.date !== "string") return;
@@ -242,14 +253,14 @@
   /* ---------- boot ---------- */
 
   var dashRoot = document.querySelector("[data-dashboard]");
-  var wantsTotals = document.querySelector("[data-campaign-total]") || document.querySelector("[data-event-date]");
+  var wantsTotals = document.querySelector("[data-campaign-total]") || document.querySelector("[data-event-date]") || document.querySelector("[data-team-donate-btn]");
   if (!dashRoot && !wantsTotals) return;
 
   AAF.loadData().then(function (data) {
     if (data === null) {
       if (dashRoot) {
         // last-known donate link so visitors can still give
-        AAF.renderErrorPanel(dashRoot, "https://www.gofundme.com/f/AndersonFoundationFundraiser");
+        AAF.renderErrorPanel(dashRoot, AAF.TEAM_DONATE_URL);
         var hero = document.querySelector("[data-dash-hero]");
         if (hero) {
           var inner = el("div", "container");
@@ -264,6 +275,7 @@
     var summary = AAF.summarize(data);
     renderCampaignTotals(summary);
     renderEventDate(summary);
+    renderTeamDonateButtons(summary);
     if (dashRoot) renderDashboard(dashRoot, data);
   });
 })();

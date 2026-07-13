@@ -7,6 +7,9 @@
   "use strict";
 
   var DATA_URL = "data/tough-mudder.json";
+  // Last-resort team donate link when no other destination is configured.
+  // Placeholder until the foundation sets up Zeffy — see UPDATING.md.
+  var TEAM_DONATE_URL = "#zeffy-setup-needed";
   var AVATAR_TINTS = [
     ["#E1EEF7", "#17629B"],
     ["#FBEED8", "#B27A1F"],
@@ -268,6 +271,7 @@
 
   window.AAF = {
     DATA_URL: DATA_URL,
+    TEAM_DONATE_URL: TEAM_DONATE_URL,
     parseAmount: parseAmount,
     makeFormatter: makeFormatter,
     formatDate: formatDate,

@@ -95,8 +95,9 @@ linked from their Donate button on `tough-mudder.html`) — what happens on that
 page depends on whether Phase 2 below is turned on yet.
 
 **Phase 1 (today):** no `zeffyEmbedUrl` set → the runner's page shows a friendly
-"almost ready" panel pointing to the foundation's GoFundMe (donors mention the
-runner's name; a volunteer records it in the data file — see UPDATING.md).
+"almost ready" panel pointing to `event.donateUrl` — currently a placeholder
+(`#zeffy-setup-needed`) until the foundation's Zeffy account exists; see the
+warning at the top of UPDATING.md for exactly what to paste in and where.
 
 **Phase 2 (wired up, opt-in per runner):** set a runner's `zeffyEmbedUrl` (or
 `event.zeffyEmbedUrl` for the team) in `data/tough-mudder.json` and their giving
@@ -111,8 +112,11 @@ designed so automation writes the same format volunteers do.
 
 ## Content that needs foundation review
 
-Drafted from public sources and marked with "pending board review" notices where
-visible: mission copy, Angus's story details, refund policy wording, contact email
-(`info@angusandersonfoundation.org` — **verify this is real**), e-transfer
-instructions, event date/goal, and the example runners in `data/tough-mudder.json`
-(all five are fictional placeholders except the GoFundMe link).
+- **⚠ Donate buttons are placeholders (`#zeffy-setup-needed`) sitewide** — no
+  payment page is live yet. Highest priority before launch; see the warning at
+  the top of UPDATING.md.
+- Drafted from public sources and marked with "pending board review" notices
+  where visible: mission copy, Angus's story details, refund policy wording,
+  contact email (`info@angusandersonfoundation.org` — **verify this is real**),
+  e-transfer instructions, event date/goal, and the example runners in
+  `data/tough-mudder.json` (all five are fictional placeholders).

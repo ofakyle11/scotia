@@ -3,6 +3,18 @@
 *This guide is for foundation volunteers. No coding experience needed — every update
 is done right on the GitHub website. The whole thing takes about a minute.*
 
+> ⚠ **Before this site goes public: every Donate button on the site currently
+> points to a placeholder (`#zeffy-setup-needed`) instead of a real payment page.**
+> That was intentional — GoFundMe is no longer the destination, and Zeffy isn't set
+> up yet. Nothing will break (clicking it just does nothing), but no one can actually
+> give money until you complete **["Turning on real online giving" below](#turning-on-real-online-giving-for-a-runner-zeffy)**.
+> That section also explains the `event.donateUrl` field at the top of
+> `data/tough-mudder.json` — paste your team-wide Zeffy link there and the Tough
+> Mudder page, every runner's giving page, and the main Donate page all update
+> automatically. Two more spots are plain HTML (the "JavaScript is off" fallback
+> buttons on `tough-mudder.html` and `give.html`) and need the same link pasted in
+> by hand — search those two files for `zeffy-setup-needed` to find them.
+
 Everything on the dashboard — the big total, each runner's total, and the donor
 lists — comes from **one file**: [`data/tough-mudder.json`](data/tough-mudder.json).
 Edit that file and the site updates itself. All totals are calculated automatically;

@@ -13,7 +13,7 @@
   if (!root || !AAF) return;
 
   var el = AAF.el;
-  var TEAM_DONATE_FALLBACK = "https://www.gofundme.com/f/AndersonFoundationFundraiser";
+  var TEAM_DONATE_FALLBACK = AAF.TEAM_DONATE_URL;
 
   function backLink(toId) {
     var p = el("p", "give-back");
