@@ -60,12 +60,44 @@
           <h2>Loading…</h2>
         </div>
         <noscript>
-          <p>This page needs JavaScript to load giving details. You can still donate:</p>
-          <p><a class="btn btn--donate" href="#zeffy-setup-needed" rel="noopener">Donate to the team</a></p>
+          <p>This page needs JavaScript to load giving details. You can still donate — see <a href="donate.html">ways to give</a>.</p>
         </noscript>
       </div>
     </section>
   </main>
+
+  <!-- Static copy of the pledge form so Netlify Forms detects it at deploy
+       time and records submissions. js/give.js clones this template, shows
+       it, and personalizes it for the chosen runner. -->
+  <form id="pledge-form-template" class="pledge-form" name="donation-pledge" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+    <input type="hidden" name="form-name" value="donation-pledge">
+    <input type="hidden" name="runner" value="">
+    <p class="visually-hidden" aria-hidden="true"><label>Don't fill this out: <input name="bot-field"></label></p>
+    <div class="pledge-field">
+      <label for="pledge-amount">Donation amount (CAD)</label>
+      <div class="pledge-presets" role="group" aria-label="Quick amounts">
+        <button type="button" data-amount="25">$25</button>
+        <button type="button" data-amount="50">$50</button>
+        <button type="button" data-amount="100">$100</button>
+        <button type="button" data-amount="250">$250</button>
+      </div>
+      <input id="pledge-amount" name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="50" required>
+    </div>
+    <div class="pledge-field">
+      <label for="pledge-name">Your name <small>(as it will appear on the dashboard — leave blank to appear as Anonymous)</small></label>
+      <input id="pledge-name" name="donor" type="text" placeholder="Jane D." autocomplete="name">
+    </div>
+    <div class="pledge-field">
+      <label for="pledge-email">Email <small>(optional — so we can confirm your gift and send a receipt)</small></label>
+      <input id="pledge-email" name="email" type="email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="pledge-field">
+      <label for="pledge-note">Note to the runner <small>(optional — shown publicly under their profile)</small></label>
+      <textarea id="pledge-note" name="message" rows="3" maxlength="500" placeholder="Go get 'em!"></textarea>
+    </div>
+    <button type="submit" class="btn btn--donate">Send my pledge</button>
+    <p class="pledge-fineprint">No payment is taken online yet — after you send this, we'll show you how to complete your gift by Interac e-transfer, and a volunteer adds it to the dashboard.</p>
+  </form>
 
   <!-- ======= SHARED FOOTER — if you edit this, make the same edit in every page ======= -->
   <footer class="site-footer">

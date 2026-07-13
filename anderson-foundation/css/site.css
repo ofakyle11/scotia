@@ -702,3 +702,77 @@ a:hover { color: var(--brand-900); }
   border-radius: var(--radius-sm);
 }
 .give-donors { margin-top: var(--space-5); }
+
+/* pledge form (give.html when no payment embed is configured yet) */
+.pledge-form {
+  max-width: 30rem;
+  margin-inline: auto;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+/* the static Netlify-detection template must stay hidden even though
+   .pledge-form sets display (author display beats the hidden attribute) */
+.pledge-form[hidden] { display: none !important; }
+.pledge-field label {
+  display: block;
+  font-weight: 600;
+  font-size: .95rem;
+  margin-bottom: var(--space-2);
+}
+.pledge-field label small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.pledge-field input,
+.pledge-field textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+.pledge-field input:focus-visible,
+.pledge-field textarea:focus-visible {
+  outline: 3px solid var(--amber-500);
+  outline-offset: 1px;
+}
+.pledge-presets {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+.pledge-presets button {
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  border: 1.5px solid var(--brand-700);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand-700);
+  cursor: pointer;
+}
+.pledge-presets button:hover,
+.pledge-presets button[aria-pressed="true"] {
+  background: var(--brand-700);
+  color: #fff;
+}
+.pledge-form .btn { align-self: center; min-width: 60%; }
+.pledge-fineprint {
+  font-size: .82rem;
+  color: var(--muted);
+  text-align: center;
+}
+.pledge-thanks-steps {
+  text-align: left;
+  max-width: 34rem;
+  margin: var(--space-4) auto 0;
+  padding-left: 1.2em;
+}
+.pledge-thanks-steps li { margin-bottom: var(--space-2); }

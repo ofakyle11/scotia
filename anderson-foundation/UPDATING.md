@@ -3,17 +3,25 @@
 *This guide is for foundation volunteers. No coding experience needed — every update
 is done right on the GitHub website. The whole thing takes about a minute.*
 
-> ⚠ **Before this site goes public: every Donate button on the site currently
-> points to a placeholder (`#zeffy-setup-needed`) instead of a real payment page.**
-> That was intentional — GoFundMe is no longer the destination, and Zeffy isn't set
-> up yet. Nothing will break (clicking it just does nothing), but no one can actually
-> give money until you complete **["Turning on real online giving" below](#turning-on-real-online-giving-for-a-runner-zeffy)**.
-> That section also explains the `event.donateUrl` field at the top of
-> `data/tough-mudder.json` — paste your team-wide Zeffy link there and the Tough
-> Mudder page, every runner's giving page, and the main Donate page all update
-> automatically. Two more spots are plain HTML (the "JavaScript is off" fallback
-> buttons on `tough-mudder.html` and `give.html`) and need the same link pasted in
-> by hand — search those two files for `zeffy-setup-needed` to find them.
+> **How donations work right now (no payment processor yet):** every Donate
+> button leads to the giving page (`give.html`), where the donor picks an
+> amount, enters their name, and writes a note to the runner. Submitting sends
+> the pledge to the foundation, and the donor is shown how to complete the gift
+> by **Interac e-transfer** to info@angusandersonfoundation.org. A volunteer
+> matches the e-transfer to the pledge and adds it to the data file (see
+> "Adding a donation" below).
+>
+> ⚠ **Two setup steps to receive those pledges:**
+> 1. The site must be hosted on **Netlify** (it currently is) — Netlify's
+>    built-in form capture stores every pledge. On other hosts (e.g. GitHub
+>    Pages) the form falls back to opening the donor's email app instead.
+> 2. In the Netlify dashboard, open **Site → Forms → donation-pledge →
+>    Notifications** and add an **email notification** so pledges land in the
+>    foundation's inbox instead of only sitting in the dashboard.
+>
+> When the foundation's Zeffy account is ready, a real card-payment form takes
+> the pledge form's place automatically — see
+> ["Turning on real online giving" below](#turning-on-real-online-giving-for-a-runner-zeffy).
 
 Everything on the dashboard — the big total, each runner's total, and the donor
 lists — comes from **one file**: [`data/tough-mudder.json`](data/tough-mudder.json).

@@ -94,10 +94,13 @@ already has their own giving page built into the site (`give.html?runner=id`,
 linked from their Donate button on `tough-mudder.html`) — what happens on that
 page depends on whether Phase 2 below is turned on yet.
 
-**Phase 1 (today):** no `zeffyEmbedUrl` set → the runner's page shows a friendly
-"almost ready" panel pointing to `event.donateUrl` — currently a placeholder
-(`#zeffy-setup-needed`) until the foundation's Zeffy account exists; see the
-warning at the top of UPDATING.md for exactly what to paste in and where.
+**Phase 1 (today):** no `zeffyEmbedUrl` set → the runner's page shows a
+**pledge form** (amount, donor name, note to the runner). Submissions are
+captured by Netlify Forms (form name `donation-pledge`; on non-Netlify hosts
+the form falls back to a prefilled email), the donor gets e-transfer
+instructions to complete the gift, and a volunteer logs it in the data file.
+Enable the email notification in Netlify → Forms — see the callout at the top
+of UPDATING.md.
 
 **Phase 2 (wired up, opt-in per runner):** set a runner's `zeffyEmbedUrl` (or
 `event.zeffyEmbedUrl` for the team) in `data/tough-mudder.json` and their giving
@@ -112,9 +115,10 @@ designed so automation writes the same format volunteers do.
 
 ## Content that needs foundation review
 
-- **⚠ Donate buttons are placeholders (`#zeffy-setup-needed`) sitewide** — no
-  payment page is live yet. Highest priority before launch; see the warning at
-  the top of UPDATING.md.
+- **⚠ Pledges only work once the Netlify form email notification is enabled**
+  (Site → Forms → donation-pledge → Notifications) — and the e-transfer inbox
+  (`info@angusandersonfoundation.org`) must be real, since donors are told to
+  send money there. See the callout at the top of UPDATING.md.
 - Drafted from public sources and marked with "pending board review" notices
   where visible: mission copy, Angus's story details, refund policy wording,
   contact email (`info@angusandersonfoundation.org` — **verify this is real**),

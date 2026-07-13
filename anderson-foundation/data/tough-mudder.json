@@ -7,7 +7,7 @@
     "location": "Toronto, ON",
     "goal": 15000,
     "currency": "CAD",
-    "donateUrl": "#zeffy-setup-needed",
+    "donateUrl": "give.html",
     "zeffyEmbedUrl": "",
     "generalDonations": 250,
     "generalDonationsNote": "E-transfer and offline donations not tied to a specific runner",
@@ -17,7 +17,7 @@
     {
       "id": "angus-anderson",
       "name": "Angus Anderson",
-      "photo": "assets/runners/angus-anderson.jpg",
+      "photo": "",
       "bio": "Founder of the foundation and two-time cancer survivor. When Angus isn't organizing fundraisers, he's convincing everyone he knows to sign up for one.",
       "whyImRunning": "Every obstacle on this course is nothing compared to a chemo chair. I run so no patient has to face the bills alone.",
       "goal": 2500,
