@@ -19,6 +19,7 @@ events.html           Featured/upcoming/past events
 tough-mudder.html     Fundraising dashboard (renders data/tough-mudder.json)
 give.html             One runner's own giving page (give.html?runner=id)
 resources.html        Crisis lines, support orgs, refund policy
+media.html            Photo gallery (volunteers add photos to assets/media/)
 donate.html           Ways to give
 404.html              Not-found page (GitHub Pages serves it automatically)
 css/site.css          Entire design system (tokens at the top)

@@ -158,6 +158,20 @@ their form set up yet.
 
 ---
 
+## Adding photos to the Media page
+
+1. Resize each photo to about **1600px wide or less, under 400KB**
+   ([squoosh.app](https://squoosh.app) does this free in the browser).
+2. In the repo, open **`assets/media`** → **Add file** → **Upload files** and
+   drag the photos in. Simple names help: `trivia-night-2025.jpg`.
+3. Open **`media.html`** (pencil icon) and find the `MEDIA GALLERY` comment.
+   Copy the example `<figure>` block, paste it inside the
+   `<div class="media-grid">`, and update the two `photo-1.jpg` references and
+   the caption. One block per photo.
+4. Delete the "gallery is being moved over" notice line once real photos are in.
+
+---
+
 ## Fixing a mistake
 
 **The dashboard shows "Our donation tracker is being updated":** the file has a

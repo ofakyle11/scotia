@@ -776,3 +776,31 @@ a:hover { color: var(--brand-900); }
   padding-left: 1.2em;
 }
 .pledge-thanks-steps li { margin-bottom: var(--space-2); }
+
+/* ---------- 16. Media gallery (media.html) ---------- */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+.media-item {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.media-item img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+}
+.media-item a { display: block; }
+.media-item figcaption {
+  padding: var(--space-3) var(--space-4);
+  font-size: .9rem;
+  color: var(--muted);
+}
