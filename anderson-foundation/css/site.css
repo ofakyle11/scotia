@@ -804,3 +804,34 @@ a:hover { color: var(--brand-900); }
   font-size: .9rem;
   color: var(--muted);
 }
+
+/* ---------- 17. Angus's story: photo beside the text (who-we-are.html) ---------- */
+.story-layout {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+@media (min-width: 760px) {
+  .story-layout { grid-template-columns: minmax(0, 1fr) minmax(260px, 380px); }
+}
+.story-photo {
+  margin: 0;
+  max-width: 380px;
+}
+.story-photo img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.story-photo figcaption {
+  margin-top: var(--space-2);
+  font-size: .88rem;
+  color: var(--muted);
+  text-align: center;
+}
+@media (max-width: 759px) {
+  .story-photo { margin-inline: auto; }
+}
