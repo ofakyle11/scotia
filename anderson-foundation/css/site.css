@@ -59,6 +59,8 @@
 * { margin: 0; }
 html { -webkit-text-size-adjust: 100%; }
 img, svg, video { display: block; max-width: 100%; height: auto; }
+/* the hidden attribute must always win, even over author display rules */
+[hidden] { display: none !important; }
 input, button, textarea, select { font: inherit; }
 p, h1, h2, h3, h4 { overflow-wrap: break-word; }
 
@@ -834,4 +836,49 @@ a:hover { color: var(--brand-900); }
 }
 @media (max-width: 759px) {
   .story-photo { margin-inline: auto; }
+}
+
+/* ---------- 18. Per-runner colors: stacked team bar, legend, name dots ---------- */
+.dash-event-logo {
+  height: 64px;
+  width: auto;
+  margin: 0 auto var(--space-4);
+}
+.dash-hero h1 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+.dash-progress-track--stacked { display: flex; }
+.dash-progress-seg {
+  height: 100%;
+  transition: width .9s ease;
+}
+.dash-progress-seg + .dash-progress-seg { box-shadow: inset 2px 0 0 rgb(14 58 95 / .45); }
+.dash-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  font-size: .9rem;
+  color: rgb(255 255 255 / .88);
+}
+.dash-legend li { display: flex; align-items: center; gap: .45em; }
+.legend-dot {
+  width: .78em;
+  height: .78em;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.runner-color-dot {
+  display: inline-block;
+  width: .55em;
+  height: .55em;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-left: .1em;
 }

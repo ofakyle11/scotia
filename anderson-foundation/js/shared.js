@@ -18,6 +18,16 @@
     ["#EFEADB", "#6B6135"]
   ];
 
+  // One signature color per runner (by their order in the data file) —
+  // used for their segment in the team progress bar, their personal
+  // progress bar, and the dot beside their name. Bright enough to read
+  // on both the navy hero and white cards.
+  var RUNNER_COLORS = ["#E8A33D", "#5CB8E4", "#6FCF97", "#EE8AAE", "#B39DDB", "#E4785C", "#7FD4C1", "#D9C25A"];
+  function runnerColor(index) {
+    var n = RUNNER_COLORS.length;
+    return RUNNER_COLORS[((index % n) + n) % n];
+  }
+
   function parseAmount(value) {
     if (typeof value === "number") return isFinite(value) ? value : 0;
     if (typeof value === "string") {
@@ -272,6 +282,7 @@
   window.AAF = {
     DATA_URL: DATA_URL,
     TEAM_DONATE_URL: TEAM_DONATE_URL,
+    runnerColor: runnerColor,
     parseAmount: parseAmount,
     makeFormatter: makeFormatter,
     formatDate: formatDate,

@@ -67,6 +67,14 @@
 
     var inner = el("div", "container");
 
+    // official Tough Mudder logo (hides itself until the file is uploaded)
+    var tmLogo = document.createElement("img");
+    tmLogo.src = "assets/tough-mudder-logo.png";
+    tmLogo.alt = "Tough Mudder";
+    tmLogo.className = "dash-event-logo";
+    tmLogo.addEventListener("error", function () { tmLogo.hidden = true; });
+    inner.appendChild(tmLogo);
+
     inner.appendChild(el("h1", null, typeof event.name === "string" && event.name ? event.name : "Team fundraising dashboard"));
 
     var metaBits = [];
@@ -82,18 +90,66 @@
 
     var goal = parseAmount(event.goal);
     if (goal > 0) {
-      var pt = AAF.progressTrack("dash-progress", summary.grandTotal, goal, "Fundraising progress");
       var progress = el("div", "dash-progress");
-      progress.appendChild(pt.track);
+
+      // stacked bar: one colored segment per runner + one for offline gifts,
+      // so the team total visibly adds up from everyone's piece
+      var track = el("div", "dash-progress-track dash-progress-track--stacked");
+      track.setAttribute("role", "progressbar");
+      track.setAttribute("aria-label", "Fundraising progress");
+      track.setAttribute("aria-valuemin", "0");
+      track.setAttribute("aria-valuemax", String(goal));
+      track.setAttribute("aria-valuenow", String(Math.min(Math.round(summary.grandTotal), goal)));
+
+      var segs = [];
+      summary.runners.forEach(function (r, i) {
+        var t = AAF.runnerTotal(r);
+        var name = (typeof r.name === "string" && r.name.trim()) ? r.name.trim() : "Team member";
+        segs.push({ label: name.split(/\s+/)[0], amount: t, color: AAF.runnerColor(i) });
+      });
+      if (summary.general > 0) {
+        segs.push({ label: "E-transfer & offline", amount: summary.general, color: "rgba(255, 255, 255, .6)" });
+      }
+
+      // Scale against whichever is larger, goal or total raised: under goal
+      // this is identical to percent-of-goal; over goal every runner's piece
+      // shrinks proportionally so the last-listed runners aren't squeezed
+      // to zero width while earlier ones keep full size.
+      var denom = Math.max(goal, summary.grandTotal);
+      segs.forEach(function (s) {
+        s.pct = s.amount > 0 ? (s.amount / denom) * 100 : 0;
+        if (s.pct <= 0) return;
+        var seg = el("span", "dash-progress-seg");
+        seg.style.width = "0%";
+        seg.style.background = s.color;
+        seg.title = s.label + ": " + fmt.format(Math.round(s.amount));
+        s.node = seg;
+        track.appendChild(seg);
+      });
+      progress.appendChild(track);
+      requestAnimationFrame(function () {
+        segs.forEach(function (s) { if (s.node) s.node.style.width = s.pct + "%"; });
+      });
+
+      var pct = (summary.grandTotal / goal) * 100;
       var label = el("div", "dash-progress-label");
-      label.appendChild(el("span", null, Math.round(pt.pct) + "%" + (pt.pct >= 100 ? " — goal smashed!" : " of goal")));
+      label.appendChild(el("span", null, Math.round(pct) + "%" + (pct >= 100 ? " — goal smashed!" : " of goal")));
       label.appendChild(el("span", null, "Goal: " + fmt.format(goal)));
       progress.appendChild(label);
-      inner.appendChild(progress);
-      pt.fill.style.width = "0";
-      requestAnimationFrame(function () {
-        pt.fill.style.width = Math.min(pt.pct, 100) + "%";
+
+      // legend: who raised what, in their color
+      var legend = el("ul", "dash-legend");
+      segs.forEach(function (s) {
+        var li = document.createElement("li");
+        var dot = el("span", "legend-dot");
+        dot.style.background = s.color;
+        li.appendChild(dot);
+        li.appendChild(document.createTextNode(s.label + " · " + fmt.format(Math.round(s.amount))));
+        legend.appendChild(li);
       });
+      progress.appendChild(legend);
+
+      inner.appendChild(progress);
     }
 
     var metaRow = summary.donationCount + " donation" + (summary.donationCount === 1 ? "" : "s") +
@@ -116,7 +172,7 @@
     container.appendChild(inner);
   }
 
-  function renderRunnerCard(runner, summary, id) {
+  function renderRunnerCard(runner, summary, id, index) {
     var currency = summary.currency;
     var fmt = makeFormatter(currency, false);
     var name = (typeof runner.name === "string" && runner.name.trim()) ? runner.name.trim() : "Team member";
@@ -146,7 +202,12 @@
     head.appendChild(avatar);
 
     var headText = el("div");
-    headText.appendChild(el("h3", null, name));
+    var nameRow = el("h3", null, name + " ");
+    var dot = el("span", "runner-color-dot");
+    dot.style.background = AAF.runnerColor(index);
+    dot.setAttribute("aria-hidden", "true");
+    nameRow.appendChild(dot);
+    headText.appendChild(nameRow);
     var total = AAF.runnerTotal(runner);
     var raised = el("p", "runner-raised", fmt.format(Math.round(total)) + " ");
     raised.appendChild(el("small", null, "raised"));
@@ -159,6 +220,7 @@
     if (goal > 0) {
       var wrap = el("div");
       var pt = AAF.progressTrack("runner-progress", total, goal, "Fundraising progress for " + name);
+      pt.fill.style.background = AAF.runnerColor(index);
       wrap.appendChild(pt.track);
       wrap.appendChild(el("p", "runner-progress-label", fmt.format(Math.round(total)) + " of " + fmt.format(goal) + " goal"));
       card.appendChild(wrap);
@@ -234,7 +296,7 @@
     var grid = el("div", "runner-grid");
     var ids = AAF.assignRunnerIds(summary.runners);
     summary.runners.forEach(function (runner, i) {
-      grid.appendChild(renderRunnerCard(runner, summary, ids[i]));
+      grid.appendChild(renderRunnerCard(runner, summary, ids[i], i));
     });
     root.appendChild(grid);
 

@@ -144,7 +144,7 @@
     }
   }
 
-  function renderRunnerGive(runner, summary, id) {
+  function renderRunnerGive(runner, summary, id, index) {
     var currency = summary.currency;
     var fmt = AAF.makeFormatter(currency, false);
     var name = (typeof runner.name === "string" && runner.name.trim()) ? runner.name.trim() : "Team member";
@@ -185,6 +185,7 @@
     if (goal > 0) {
       var wrap = el("div", "give-progress-wrap");
       var pt = AAF.progressTrack("runner-progress", total, goal, "Fundraising progress for " + name);
+      pt.fill.style.background = AAF.runnerColor(index);
       wrap.appendChild(pt.track);
       wrap.appendChild(el("p", "runner-progress-label", fmt.format(Math.round(total)) + " of " + fmt.format(goal) + " goal"));
       root.appendChild(wrap);
@@ -285,6 +286,6 @@
       renderNotFound();
       return;
     }
-    renderRunnerGive(summary.runners[idx], summary, ids[idx]);
+    renderRunnerGive(summary.runners[idx], summary, ids[idx], idx);
   });
 })();
