@@ -172,6 +172,25 @@ their form set up yet.
 
 ---
 
+## Reviewing runner applications
+
+People apply to join the team at **apply.html** (linked from the Tough Mudder
+page). Each application includes their name, email, photo, self-written bio,
+why they're running, and their personal donation commitment.
+
+1. Applications arrive in the **Netlify dashboard → Forms → runner-application**
+   (add an **email notification** there, same as for donation-pledge, so they
+   land in the foundation's inbox — the photo comes through as a download link).
+2. **To approve:** reply to their email, collect their personal donation
+   (e-transfer), then follow ["Adding a runner"](#adding-a-runner) above —
+   their bio and "why I'm running" go in exactly as they wrote them, and their
+   photo gets resized and uploaded to `assets/runners/`. Log their personal
+   donation as the first donation on their profile.
+3. **To decline:** reply to their email kindly. Nothing appears on the site
+   unless you approve.
+
+---
+
 ## Fixing a mistake
 
 **The dashboard shows "Our donation tracker is being updated":** the file has a

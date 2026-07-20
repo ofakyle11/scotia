@@ -882,3 +882,42 @@ a:hover { color: var(--brand-900); }
   vertical-align: middle;
   margin-left: .1em;
 }
+
+/* ---------- 19. Runner application (apply.html) ---------- */
+.apply-layout {
+  display: grid;
+  gap: var(--space-7);
+  align-items: start;
+}
+@media (min-width: 860px) {
+  .apply-layout { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+}
+.apply-steps { padding-left: 1.2em; }
+.apply-steps li { margin-bottom: var(--space-3); }
+.apply-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space-6);
+  max-width: none;
+}
+.pledge-field input[type="file"] {
+  padding: var(--space-2);
+  font-size: .92rem;
+}
+.pledge-field input[type="file"]::file-selector-button {
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  margin-right: var(--space-3);
+  border: 1.5px solid var(--brand-700);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand-700);
+  cursor: pointer;
+}
+.pledge-field input[type="file"]::file-selector-button:hover {
+  background: var(--brand-700);
+  color: #fff;
+}

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apply to Run — Tough Mudder | Angus Anderson Foundation</title>
+  <meta name="description" content="Apply to join the Angus Anderson Foundation team at Tough Mudder Toronto — tell us about yourself, why you're running, and your personal donation.">
+  <link rel="canonical" href="https://ofakyle11.github.io/AndersonFoundation/apply.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Angus Anderson Foundation">
+  <meta property="og:title" content="Run with us — apply to join the team">
+  <meta property="og:description" content="Join the Angus Anderson Foundation team at Tough Mudder Toronto.">
+  <meta property="og:image" content="https://ofakyle11.github.io/AndersonFoundation/assets/og-image.png">
+  <meta property="og:url" content="https://ofakyle11.github.io/AndersonFoundation/apply.html">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0E3A5F">
+  <link rel="icon" href="assets/favicon-64.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preload" href="assets/fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/nav.js" defer></script>
+</head>
+<body>
+  <!-- ======= SHARED HEADER — if you edit this, make the same edit in every page ======= -->
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="./">
+        <img src="assets/logo.png" alt="" width="44" height="44">
+        <span class="brand-name">Angus Anderson Foundation<small>Cancer support · Mental health</small></span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16"/>
+        </svg>
+        <span class="visually-hidden">Menu</span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="./">Home</a></li>
+          <li><a href="who-we-are.html">Who We Are</a></li>
+          <li><a href="events.html">Events</a></li>
+          <li><a href="tough-mudder.html" aria-current="page">Tough Mudder</a></li>
+          <li><a href="resources.html">Resources</a></li>
+          <li><a href="media.html">Media</a></li>
+          <li><a class="btn btn--donate" href="donate.html">Donate</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <!-- ======= /SHARED HEADER ======= -->
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="container">
+        <h1>Run with us</h1>
+        <p>There's room on the team for one more pair of muddy shoes. Tell us who you are — the foundation reviews every application personally.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="apply-layout">
+          <div class="prose">
+            <h2>How it works</h2>
+            <ol class="apply-steps">
+              <li><strong>Apply below.</strong> Your photo, bio, and story are exactly what will appear on your runner profile if you're approved.</li>
+              <li><strong>We review it.</strong> A real person at the foundation reads every application and emails you back — approved or not, you'll hear from us.</li>
+              <li><strong>You're on the team.</strong> Your profile goes up on the Tough Mudder dashboard, people can donate to you directly, and you start training.</li>
+            </ol>
+            <p class="notice" style="margin-top: var(--space-4);">Each runner makes a personal donation to the foundation as their commitment to the team — you choose the amount in the form, and it's collected only if you're approved.</p>
+          </div>
+
+          <form class="pledge-form apply-form" name="runner-application" method="POST" action="apply-thanks.html" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data">
+            <input type="hidden" name="form-name" value="runner-application">
+            <p class="visually-hidden" aria-hidden="true"><label>Don't fill this out: <input name="bot-field"></label></p>
+            <div class="pledge-field">
+              <label for="app-name">Your full name</label>
+              <input id="app-name" name="name" type="text" autocomplete="name" required>
+            </div>
+            <div class="pledge-field">
+              <label for="app-email">Email <small>(we'll reply here with our decision)</small></label>
+              <input id="app-email" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="pledge-field">
+              <label for="app-photo">Your photo <small>(the one you want on your runner profile — a clear, friendly headshot works best)</small></label>
+              <input id="app-photo" name="photo" type="file" accept="image/*">
+            </div>
+            <div class="pledge-field">
+              <label for="app-bio">About you <small>(in your own words — this becomes your profile bio, 1–3 sentences)</small></label>
+              <textarea id="app-bio" name="bio" rows="3" maxlength="500" required placeholder="Who are you, what do you do, what should the team know about you?"></textarea>
+            </div>
+            <div class="pledge-field">
+              <label for="app-why">Why I'm running <small>(shown on your profile — what does this cause mean to you?)</small></label>
+              <textarea id="app-why" name="why" rows="3" maxlength="500" required placeholder="In your own words."></textarea>
+            </div>
+            <div class="pledge-field">
+              <label for="app-donation">My personal donation (CAD) <small>(your commitment to the foundation as a team runner)</small></label>
+              <input id="app-donation" name="personalDonation" type="number" min="1" step="1" inputmode="numeric" placeholder="100" required>
+            </div>
+            <button type="submit" class="btn btn--donate">Send my application</button>
+            <p class="pledge-fineprint">By applying you agree that, if approved, your name, photo, bio, and fundraising totals appear publicly on this website. Nothing is published unless you're approved.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ======= SHARED FOOTER — if you edit this, make the same edit in every page ======= -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4>Angus Anderson Foundation</h4>
+          <p class="footer-mission">Mental-health and financial support for cancer patients and survivors — because no one should face cancer alone.</p>
+        </div>
+        <div>
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="who-we-are.html">Who We Are</a></li>
+            <li><a href="events.html">Events</a></li>
+            <li><a href="tough-mudder.html">Tough Mudder dashboard</a></li>
+            <li><a href="resources.html">Resources</a></li>
+            <li><a href="media.html">Media</a></li>
+            <li><a href="donate.html">Donate</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Get in touch</h4>
+          <ul>
+            <li><a href="mailto:info@angusandersonfoundation.org">info@angusandersonfoundation.org</a></li>
+            <li><a href="https://www.instagram.com/angusandersonfoundation/" rel="noopener">Instagram</a></li>
+            <li><a href="https://www.facebook.com/61563934701276" rel="noopener">Facebook</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-legal">
+        <span>© 2026 Angus Anderson Foundation · Ontario, Canada · Charity No. 79452 8026 RR0001</span>
+        <span>Contact us about donation receipts</span>
+      </div>
+    </div>
+  </footer>
+  <!-- ======= /SHARED FOOTER ======= -->
+</body>
+</html>
