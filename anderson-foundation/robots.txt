@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ofakyle11.github.io/AndersonFoundation/sitemap.xml
+Sitemap: https://angusandersonfoundation.org/sitemap.xml
