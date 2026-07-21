@@ -103,6 +103,8 @@ Donor names and amounts on the dashboard are public to anyone on the internet.
 3. Fill it in. Notes:
    - `"id"`: lowercase, hyphens instead of spaces. This creates their shareable link: `tough-mudder.html#firstname-lastname`.
    - `"goal"` is optional — remove the line to skip the personal progress bar.
+   - `"color"` is optional — a hex colour like `"#5CB8E4"` for their piece of the
+     team bar and their progress bar; leave it out and one is picked automatically.
    - `"donateUrl"`: leave `""` to use the team's main donate link, or paste a personal fundraising link.
    - No photo yet? Delete the `"photo"` line — a nice initials avatar appears automatically.
 4. Commit as before.

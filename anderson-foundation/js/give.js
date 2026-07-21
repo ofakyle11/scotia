@@ -185,7 +185,7 @@
     if (goal > 0) {
       var wrap = el("div", "give-progress-wrap");
       var pt = AAF.progressTrack("runner-progress", total, goal, "Fundraising progress for " + name);
-      pt.fill.style.background = AAF.runnerColor(index);
+      pt.fill.style.background = AAF.runnerColor(index, runner);
       wrap.appendChild(pt.track);
       wrap.appendChild(el("p", "runner-progress-label", fmt.format(Math.round(total)) + " of " + fmt.format(goal) + " goal"));
       root.appendChild(wrap);

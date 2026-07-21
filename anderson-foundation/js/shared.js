@@ -23,7 +23,10 @@
   // progress bar, and the dot beside their name. Bright enough to read
   // on both the navy hero and white cards.
   var RUNNER_COLORS = ["#E8A33D", "#5CB8E4", "#6FCF97", "#EE8AAE", "#B39DDB", "#E4785C", "#7FD4C1", "#D9C25A"];
-  function runnerColor(index) {
+  function runnerColor(index, runner) {
+    if (runner && typeof runner.color === "string" && /^#[0-9a-fA-F]{3,8}$/.test(runner.color.trim())) {
+      return runner.color.trim();
+    }
     var n = RUNNER_COLORS.length;
     return RUNNER_COLORS[((index % n) + n) % n];
   }

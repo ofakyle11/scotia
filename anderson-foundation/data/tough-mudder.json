@@ -1,6 +1,6 @@
 {
   "_readme": "HOW TO EDIT THIS FILE: see UPDATING.md in this repository. Add new donations at the TOP of a runner's donations list. Keep the double quotes, keep commas BETWEEN entries, and never leave a comma after the last entry in a list.",
-  "updated": "2026-07-12",
+  "updated": "2026-07-21",
   "event": {
     "name": "Tree of Life Cancer Run",
     "date": "2026-08-15",
@@ -9,93 +9,39 @@
     "currency": "CAD",
     "donateUrl": "give.html",
     "zeffyEmbedUrl": "",
-    "generalDonations": 250,
-    "generalDonationsNote": "E-transfer and offline donations not tied to a specific runner",
-    "placeholderNote": "You're looking at an example team! Real runner profiles are being added — the totals below are sample data."
+    "generalDonations": 0,
+    "generalDonationsNote": "E-transfer and offline donations not tied to a specific runner"
   },
   "runners": [
     {
       "id": "angus-anderson",
       "name": "Angus Anderson",
-      "photo": "",
-      "bio": "Founder of the foundation and two-time cancer survivor. When Angus isn't organizing fundraisers, he's convincing everyone he knows to sign up for one.",
+      "photo": "assets/runners/angus-anderson.jpg",
+      "color": "#5CB8E4",
+      "bio": "Founder of the Angus Anderson Foundation and two-time cancer survivor. Angus's fight began in 2019 in his jaw — two broken bones, six lost teeth, and treatments that cost him his job along with so much else. He paid what insurance wouldn't cover, carried the anxiety and isolation that follow a diagnosis, and when the cancer came back, he beat it a second time. This foundation, and this run, are what he built from all of it.",
       "whyImRunning": "Every obstacle on this course is nothing compared to a chemo chair. I run so no patient has to face the bills alone.",
       "goal": 2500,
       "donateUrl": "",
       "zeffyEmbedUrl": "",
       "donations": [
-        { "donor": "Jane D.", "amount": 100, "message": "Go get 'em, Angus!", "date": "2026-07-10" },
-        { "donor": "The Reid Family", "amount": 250, "message": "For everything you did for our mom.", "date": "2026-07-06" },
-        { "donor": "Anonymous", "amount": 75, "date": "2026-07-02" },
-        { "donor": "Priya S.", "amount": 40, "date": "2026-06-28" },
-        { "donor": "Boston Pizza Trivia Crew", "amount": 180, "message": "Table 6 rides again.", "date": "2026-06-21" }
+        {
+          "donor": "Angus Anderson",
+          "amount": 1000,
+          "message": "My personal commitment as a team runner.",
+          "date": "2026-07-21"
+        }
       ]
     },
     {
-      "id": "sarah-mitchell",
-      "name": "Sarah Mitchell",
-      "photo": "",
-      "bio": "Oncology nurse, marathoner, and the team's unofficial hype captain. Sarah has seen what a ride to treatment can mean for a patient's week.",
-      "whyImRunning": "My patients fight harder than this every single day. The least I can do is get muddy for them.",
-      "goal": 3000,
-      "donateUrl": "",
-      "zeffyEmbedUrl": "",
-      "donations": [
-        { "donor": "Unit 4B Nurses", "amount": 200, "message": "Proud of you, Sarah!", "date": "2026-07-11" },
-        { "donor": "Marcus T.", "amount": 50, "date": "2026-07-09" },
-        { "donor": "Ellen W.", "amount": 25, "date": "2026-07-08" },
-        { "donor": "Dr. Osei", "amount": 100, "date": "2026-07-08" },
-        { "donor": "Anonymous", "amount": 20, "date": "2026-07-05" },
-        { "donor": "Kim & Dave", "amount": 60, "message": "Run fast, stay muddy.", "date": "2026-07-04" },
-        { "donor": "Tony R.", "amount": 35, "date": "2026-07-01" },
-        { "donor": "Grandma Pat", "amount": 100, "message": "Don't tell your mother how dangerous this looks.", "date": "2026-06-30" },
-        { "donor": "Leah B.", "amount": 45, "date": "2026-06-27" },
-        { "donor": "The Nguyens", "amount": 80, "date": "2026-06-25" },
-        { "donor": "Colin M.", "amount": 30, "date": "2026-06-22" },
-        { "donor": "Spin Class Squad", "amount": 120, "message": "We'll stick to the bikes, thanks.", "date": "2026-06-20" },
-        { "donor": "Anonymous", "amount": 15, "date": "2026-06-18" },
-        { "donor": "Raj P.", "amount": 55, "date": "2026-06-15" },
-        { "donor": "Book Club (all 7 of us)", "amount": 70, "date": "2026-06-12" },
-        { "donor": "Steph & Jordan", "amount": 40, "date": "2026-06-10" }
-      ]
-    },
-    {
-      "id": "dev-patel",
-      "name": "Dev Patel",
-      "photo": "",
-      "bio": "Software developer and first-time mud runner. Dev joined the team after the foundation helped a close friend get to treatment last winter.",
-      "whyImRunning": "Someone was there for my best friend when it mattered. This is me paying it forward — one wall at a time.",
-      "goal": 1500,
+      "id": "stacey-mortimer",
+      "name": "Stacey Mortimer",
+      "photo": "assets/runners/stacey-mortimer.jpg",
+      "color": "#E8A33D",
+      "bio": "Stacey is lacing up for the Tree of Life Cancer Run with the team.",
+      "whyImRunning": "I'm running for a friend — and carrying Ruth-Anne Fullan and Anne Sutherland with me on my shirt, every step of the way.",
       "donateUrl": "",
       "zeffyEmbedUrl": "",
       "donations": []
-    },
-    {
-      "id": "maria-kowalski",
-      "name": "Maria Kowalski",
-      "photo": "",
-      "bio": "Retired teacher, 12-year survivor, and proof that grit doesn't retire. Maria walks 5k every morning and plans to walk over anyone who doubts her.",
-      "whyImRunning": "Twelve years ago a stranger paid for my parking at the cancer centre for a whole month. I never got to thank them. This is my thank-you.",
-      "goal": 1000,
-      "donateUrl": "",
-      "zeffyEmbedUrl": "",
-      "donations": [
-        { "donor": "Anonymous", "amount": 500, "message": "From a former student.", "date": "2026-07-07" },
-        { "donor": "Mike R.", "amount": 25, "hideAmount": true, "date": "2026-07-03" },
-        { "donor": "", "amount": 50, "date": "2026-06-29" }
-      ]
-    },
-    {
-      "id": "jordan-lee",
-      "name": "Jordan Lee",
-      "bio": "Personal trainer and caregiver to his dad through two rounds of treatment. Jordan is the reason the whole team can now do a proper burpee.",
-      "whyImRunning": "Caregivers fight this disease too — quietly, in waiting rooms and parking lots. I'm running for everyone holding someone else's hand through it.",
-      "donateUrl": "",
-      "zeffyEmbedUrl": "",
-      "donations": [
-        { "donor": "Dad", "amount": 200, "message": "You carried me through the worst of it, son. Watching you take this on for other families makes every hard day feel like it counted for something. Go show that mountain of mud what this family is made of. I'll be at the finish line — with dry towels and more pride than I know what to do with.", "date": "2026-07-05" },
-        { "donor": "Gym Fam", "amount": 90, "date": "2026-06-26" }
-      ]
     }
   ]
 }

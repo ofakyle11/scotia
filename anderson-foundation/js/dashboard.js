@@ -105,7 +105,7 @@
       summary.runners.forEach(function (r, i) {
         var t = AAF.runnerTotal(r);
         var name = (typeof r.name === "string" && r.name.trim()) ? r.name.trim() : "Team member";
-        segs.push({ label: name.split(/\s+/)[0], amount: t, color: AAF.runnerColor(i) });
+        segs.push({ label: name.split(/\s+/)[0], amount: t, color: AAF.runnerColor(i, r) });
       });
       if (summary.general > 0) {
         segs.push({ label: "E-transfer & offline", amount: summary.general, color: "rgba(255, 255, 255, .6)" });
@@ -204,7 +204,7 @@
     var headText = el("div");
     var nameRow = el("h3", null, name + " ");
     var dot = el("span", "runner-color-dot");
-    dot.style.background = AAF.runnerColor(index);
+    dot.style.background = AAF.runnerColor(index, runner);
     dot.setAttribute("aria-hidden", "true");
     nameRow.appendChild(dot);
     headText.appendChild(nameRow);
@@ -220,7 +220,7 @@
     if (goal > 0) {
       var wrap = el("div");
       var pt = AAF.progressTrack("runner-progress", total, goal, "Fundraising progress for " + name);
-      pt.fill.style.background = AAF.runnerColor(index);
+      pt.fill.style.background = AAF.runnerColor(index, runner);
       wrap.appendChild(pt.track);
       wrap.appendChild(el("p", "runner-progress-label", fmt.format(Math.round(total)) + " of " + fmt.format(goal) + " goal"));
       card.appendChild(wrap);
