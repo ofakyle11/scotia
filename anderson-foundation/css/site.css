@@ -921,3 +921,13 @@ a:hover { color: var(--brand-900); }
   background: var(--brand-700);
   color: #fff;
 }
+
+/* ---------- 20. Embed mode (?embed=1): page nests inside a Wix iframe ---------- */
+.is-embedded .site-header,
+.is-embedded .site-footer,
+.is-embedded .skip-link { display: none !important; }
+.is-embedded .site-footer + *,
+.is-embedded body { background: var(--cream); }
+.is-embedded .section:first-child,
+.is-embedded .page-hero,
+.is-embedded .dash-hero { padding-top: var(--space-6); }
