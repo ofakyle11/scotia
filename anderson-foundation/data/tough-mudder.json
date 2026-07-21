@@ -49,6 +49,24 @@
           "date": "2026-07-21"
         }
       ]
+    },
+    {
+      "id": "william-serrano",
+      "name": "William Serrano",
+      "photo": "assets/runners/william-serrano.jpg",
+      "color": "#F2C94C",
+      "bio": "As the founder and lead pastor of The Passion Church in Toronto, Canada, Pastor William is committed to building strong families, developing leaders, and serving the community with the love of Christ. As a father of two, he believes in the power of coming together to make a difference. He is honored to support this Cancer Fundraiser Run, standing alongside individuals, families, survivors, and caregivers in bringing hope, raising awareness, and helping advance the fight against cancer.",
+      "whyImRunning": "",
+      "donateUrl": "",
+      "zeffyEmbedUrl": "",
+      "donations": [
+        {
+          "donor": "William Serrano",
+          "amount": 250,
+          "message": "My personal commitment as a team runner.",
+          "date": "2026-07-21"
+        }
+      ]
     }
   ]
 }
