@@ -36,12 +36,19 @@
       "id": "stacey-mortimer",
       "name": "Stacey Mortimer",
       "photo": "assets/runners/stacey-mortimer.jpg",
-      "color": "#E8A33D",
+      "color": "#6FCF97",
       "bio": "Stacey is lacing up for the Tree of Life Cancer Run with the team.",
       "whyImRunning": "I'm running for a friend — and carrying Ruth-Anne Fullan and Anne Sutherland with me on my shirt, every step of the way.",
       "donateUrl": "",
       "zeffyEmbedUrl": "",
-      "donations": []
+      "donations": [
+        {
+          "donor": "Stacey Mortimer",
+          "amount": 250,
+          "message": "My personal commitment as a team runner.",
+          "date": "2026-07-21"
+        }
+      ]
     }
   ]
 }
