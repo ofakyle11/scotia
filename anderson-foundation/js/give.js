@@ -16,7 +16,7 @@
   if (!root || !AAF) return;
 
   var el = AAF.el;
-  var FOUNDATION_EMAIL = "info@angusandersonfoundation.org";
+  var FOUNDATION_EMAIL = "angusandersonfoundation@gmail.com";
 
   function backLink(toId) {
     var p = el("p", "give-back");
