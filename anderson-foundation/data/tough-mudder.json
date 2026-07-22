@@ -3,12 +3,12 @@
   "updated": "2026-07-21",
   "event": {
     "name": "Tree of Life Cancer Run",
-    "date": "2026-08-15",
+    "date": "2026-09-12",
     "location": "Toronto, ON",
     "goal": 15000,
     "currency": "CAD",
     "donateUrl": "give.html",
-    "zeffyEmbedUrl": "",
+    "zeffyEmbedUrl": "https://www.zeffy.com/embed/ticketing/4th-annual-tree-of-life-cancer-run",
     "generalDonations": 0,
     "generalDonationsNote": "E-transfer and offline donations not tied to a specific runner"
   },
@@ -22,7 +22,7 @@
       "whyImRunning": "Every obstacle on this course is nothing compared to a chemo chair. I run so no patient has to face the bills alone.",
       "goal": 2500,
       "donateUrl": "",
-      "zeffyEmbedUrl": "",
+      "zeffyEmbedUrl": "https://www.zeffy.com/embed/donation-form/standing-strong",
       "donations": [
         {
           "donor": "Angus Anderson",
@@ -40,7 +40,7 @@
       "bio": "Stacey is lacing up for the Tree of Life Cancer Run with the team.",
       "whyImRunning": "I'm running for a friend — and carrying Ruth-Anne Fullan and Anne Sutherland with me on my shirt, every step of the way.",
       "donateUrl": "",
-      "zeffyEmbedUrl": "",
+      "zeffyEmbedUrl": "https://www.zeffy.com/embed/donation-form/donate-to-stacey",
       "donations": [
         {
           "donor": "Stacey Mortimer",
@@ -58,7 +58,7 @@
       "bio": "As the founder and lead pastor of The Passion Church in Toronto, Canada, Pastor William is committed to building strong families, developing leaders, and serving the community with the love of Christ. As a father of two, he believes in the power of coming together to make a difference. He is honored to support this Cancer Fundraiser Run, standing alongside individuals, families, survivors, and caregivers in bringing hope, raising awareness, and helping advance the fight against cancer.",
       "whyImRunning": "",
       "donateUrl": "",
-      "zeffyEmbedUrl": "",
+      "zeffyEmbedUrl": "https://www.zeffy.com/embed/donation-form/donate-with-passion",
       "donations": [
         {
           "donor": "William Serrano",
