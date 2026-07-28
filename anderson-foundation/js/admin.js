@@ -55,7 +55,7 @@
     }
     sha256Hex(user + ":" + pass).then(function (hex) {
       if (hex === AUTH_SHA256) {
-        try { sessionStorage.setItem(SESSION_KEY, "1"); } catch (err) { /* private mode */ }
+        try { localStorage.setItem(SESSION_KEY, "1"); } catch (err) { /* private mode */ }
         showDash();
       } else {
         showError();
@@ -66,7 +66,7 @@
   var logout = document.getElementById("admin-logout");
   if (logout) {
     logout.addEventListener("click", function () {
-      try { sessionStorage.removeItem(SESSION_KEY); } catch (err) { /* ignore */ }
+      try { localStorage.removeItem(SESSION_KEY); } catch (err) { /* ignore */ }
       var done = function () { location.reload(); };
       if (backend) fetch("/api/logout", { method: "POST" }).then(done, done);
       else done();
@@ -88,7 +88,7 @@
 
   function restoreLocal() {
     try {
-      if (sessionStorage.getItem(SESSION_KEY) === "1") showDash();
+      if (localStorage.getItem(SESSION_KEY) === "1") showDash();
     } catch (err) { /* private mode: just show the login */ }
   }
 

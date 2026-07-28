@@ -18,7 +18,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 const DEFAULT_USER = "AngusAnderson";
 const DEFAULT_PASS_HASH = "04ca8a0374f0ec45b22bafe51f9ebf26ffefb88627359125bc6579e72fe2795d";
-const SESSION_HOURS = 12;
+const SESSION_DAYS = 365; // long-lived staff login; renewed on every visit, so it holds indefinitely
 const COOKIE = "aaf_session";
 
 function sessionKey() {
@@ -38,7 +38,7 @@ function safeEqualHex(a, b) {
 }
 
 function makeToken() {
-  const exp = String(Date.now() + SESSION_HOURS * 3600 * 1000);
+  const exp = String(Date.now() + SESSION_DAYS * 86400 * 1000);
   const mac = createHmac("sha256", sessionKey()).update(exp).digest("hex");
   return exp + "." + mac;
 }
@@ -121,7 +121,7 @@ export default async (req, context) => {
       .digest("hex");
     const ok = safeEqualHex(body.username || "", user) && safeEqualHex(gotHash, wantHash);
     if (!ok) return json({ ok: false }, 401);
-    return json({ ok: true }, 200, { "set-cookie": cookieAttrs(req, makeToken(), SESSION_HOURS * 3600) });
+    return json({ ok: true }, 200, { "set-cookie": cookieAttrs(req, makeToken(), SESSION_DAYS * 86400) });
   }
 
   if (path === "/api/logout" && req.method === "POST") {
@@ -129,11 +129,15 @@ export default async (req, context) => {
   }
 
   if (path === "/api/session" && req.method === "GET") {
-    return json({ backend: true, authed: tokenValid(readCookie(req)) });
+    const authed = tokenValid(readCookie(req));
+    const headers = authed ? { "set-cookie": cookieAttrs(req, makeToken(), SESSION_DAYS * 86400) } : {};
+    return json({ backend: true, authed }, 200, headers);
   }
 
   if (path === "/api/metrics" && req.method === "GET") {
     if (!tokenValid(readCookie(req))) return json({ error: "unauthorized" }, 401);
+    // refresh the session on every authenticated use so it never lapses
+    const refresh = { "set-cookie": cookieAttrs(req, makeToken(), SESSION_DAYS * 86400) };
     const base = process.env.URL || new URL(req.url).origin;
     const out = { data: null, forms: null, traffic: null };
     try {
@@ -145,7 +149,7 @@ export default async (req, context) => {
     try {
       out.traffic = await fetchTraffic();
     } catch { /* optional */ }
-    return json(out);
+    return json(out, 200, refresh);
   }
 
   return json({ error: "not found" }, 404);
