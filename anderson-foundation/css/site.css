@@ -931,3 +931,29 @@ a:hover { color: var(--brand-900); }
 .is-embedded .section:first-child,
 .is-embedded .page-hero,
 .is-embedded .dash-hero { padding-top: var(--space-6); }
+
+/* ---------- 21. Staff area (admin.html) + discreet footer link ---------- */
+.footer-staff-link { color: inherit; opacity: 0.5; text-decoration: none; }
+.footer-staff-link:hover, .footer-staff-link:focus-visible { opacity: 1; text-decoration: underline; }
+.admin-login-card { max-width: 420px; margin: 0 auto; }
+.admin-login-card .form-field { margin-bottom: var(--space-3); }
+.admin-login-card label { display: block; font-weight: 600; margin-bottom: var(--space-1); }
+.admin-login-card input { width: 100%; padding: 0.6em 0.8em; border: 1px solid rgba(14, 58, 95, 0.25); border-radius: 8px; font: inherit; }
+.admin-muted { color: var(--ink-soft, #5c6b78); font-size: 0.95rem; }
+.admin-error { color: #b3261e; font-weight: 600; }
+.admin-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.admin-h2 { margin: var(--space-5) 0 var(--space-3); }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+.stat-tile { display: flex; flex-direction: column; gap: 0.25rem; padding: var(--space-3); }
+.stat-value { font-family: var(--font-display, inherit); font-size: 1.7rem; font-weight: 700; color: var(--brand-800, #0E3A5F); }
+.stat-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft, #5c6b78); }
+.stat-note { font-size: 0.8rem; color: var(--ink-soft, #5c6b78); }
+.admin-card { padding: var(--space-3); }
+.admin-scroll { overflow-x: auto; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.admin-table th, .admin-table td { text-align: left; padding: 0.5em 0.75em; border-bottom: 1px solid rgba(14, 58, 95, 0.12); vertical-align: top; }
+.admin-table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft, #5c6b78); }
+.admin-msg { max-width: 26rem; }
+.admin-grid--links .admin-link-card { display: flex; flex-direction: column; gap: 0.35rem; padding: var(--space-3); text-decoration: none; color: inherit; }
+.admin-link-card strong { color: var(--brand-800, #0E3A5F); }
+.admin-link-card span { font-size: 0.9rem; color: var(--ink-soft, #5c6b78); }

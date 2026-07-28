@@ -3,17 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Give — Tough Mudder Toronto | Angus Anderson Foundation</title>
-  <meta name="description" content="Support a Tough Mudder Toronto runner directly — see their story and progress, and give right on this page.">
-  <link rel="canonical" href="https://angusandersonfoundation.org/give.html">
-  <meta name="robots" content="noindex">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Angus Anderson Foundation">
-  <meta property="og:title" content="Support a Tough Mudder Toronto runner">
-  <meta property="og:description" content="See a runner's story and progress, and give right on this page.">
-  <meta property="og:image" content="https://angusandersonfoundation.org/assets/og-image.png">
-  <meta property="og:url" content="https://angusandersonfoundation.org/give.html">
-  <meta name="twitter:card" content="summary_large_image">
+  <title>Staff — Angus Anderson Foundation</title>
+  <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#0E3A5F">
   <link rel="icon" href="assets/favicon-64.png" type="image/png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -22,7 +13,7 @@
   <script src="js/nav.js" defer></script>
   <script src="js/analytics.js" defer></script>
   <script src="js/shared.js" defer></script>
-  <script src="js/give.js" defer></script>
+  <script src="js/admin.js" defer></script>
 </head>
 <body>
   <!-- ======= SHARED HEADER — if you edit this, make the same edit in every page ======= -->
@@ -56,50 +47,63 @@
 
   <main id="main">
     <section class="section">
-      <div class="container" data-give>
-        <p class="give-back"><a href="tough-mudder.html">← Back to Tough Mudder Toronto</a></p>
-        <div class="dash-panel">
-          <h2>Loading…</h2>
+      <div class="container">
+
+        <div id="admin-login" class="card admin-login-card">
+          <h1>Staff sign-in</h1>
+          <p class="admin-muted">This area is for foundation staff.</p>
+          <form id="admin-login-form" autocomplete="off">
+            <div class="form-field">
+              <label for="admin-user">Username</label>
+              <input type="text" id="admin-user" name="username" autocomplete="username" required>
+            </div>
+            <div class="form-field">
+              <label for="admin-pass">Password</label>
+              <input type="password" id="admin-pass" name="password" autocomplete="current-password" required>
+            </div>
+            <p id="admin-login-error" class="admin-error" hidden>That username or password isn't right.</p>
+            <button type="submit" class="btn btn--primary">Sign in</button>
+          </form>
         </div>
-        <noscript>
-          <p>This page needs JavaScript to load giving details. You can still donate — see <a href="donate.html">ways to give</a>.</p>
-        </noscript>
+
+        <div id="admin-dash" hidden>
+          <div class="admin-head">
+            <h1>Foundation metrics</h1>
+            <button type="button" id="admin-logout" class="btn btn--ghost">Sign out</button>
+          </div>
+          <div id="admin-tiles" class="admin-grid"></div>
+
+          <h2 class="admin-h2">Runners</h2>
+          <div class="card admin-card"><div class="admin-scroll"><table class="admin-table" id="admin-runners">
+            <thead><tr><th>Runner</th><th>Raised</th><th>Donations</th><th>Share of total</th><th>Zeffy form</th></tr></thead>
+            <tbody></tbody>
+          </table></div></div>
+
+          <h2 class="admin-h2">Donation log</h2>
+          <div class="card admin-card"><div class="admin-scroll"><table class="admin-table" id="admin-log">
+            <thead><tr><th>Date</th><th>Donor</th><th>Runner</th><th>Amount</th><th>Message</th></tr></thead>
+            <tbody></tbody>
+          </table></div></div>
+
+          <h2 class="admin-h2">Website traffic</h2>
+          <div class="card admin-card">
+            <p>Every page carries a privacy-friendly GoatCounter tracker (no cookies, no consent banner needed). Visits, referrers, pages, and countries live in the GoatCounter dashboard:</p>
+            <p><a class="btn btn--primary" href="https://angusanderson.goatcounter.com" target="_blank" rel="noopener">Open traffic dashboard</a></p>
+            <p class="admin-muted">First time: create the free account at goatcounter.com with the code <strong>angusanderson</strong> (use the foundation Gmail). The site is already sending it data — stats appear as soon as the account exists.</p>
+          </div>
+
+          <h2 class="admin-h2">Money &amp; operations consoles</h2>
+          <div class="admin-grid admin-grid--links">
+            <a class="card admin-link-card" href="https://www.zeffy.com/login" target="_blank" rel="noopener"><strong>Zeffy</strong><span>Card payments, payouts, tax receipts, donor emails</span></a>
+            <a class="card admin-link-card" href="https://app.netlify.com" target="_blank" rel="noopener"><strong>Netlify</strong><span>Hosting, deploys, and form submissions (pledges + runner applications)</span></a>
+            <a class="card admin-link-card" href="https://github.com/ofakyle11/AndersonFoundation/edit/main/data/tough-mudder.json" target="_blank" rel="noopener"><strong>Update totals</strong><span>Edit the donation data file on GitHub</span></a>
+            <a class="card admin-link-card" href="https://mail.google.com" target="_blank" rel="noopener"><strong>Foundation inbox</strong><span>E-transfers and donor mail — angusandersonfoundation@gmail.com</span></a>
+          </div>
+        </div>
+
       </div>
     </section>
   </main>
-
-  <!-- Static copy of the pledge form so Netlify Forms detects it at deploy
-       time and records submissions. js/give.js clones this template, shows
-       it, and personalizes it for the chosen runner. -->
-  <form id="pledge-form-template" class="pledge-form" name="donation-pledge" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
-    <input type="hidden" name="form-name" value="donation-pledge">
-    <input type="hidden" name="runner" value="">
-    <p class="visually-hidden" aria-hidden="true"><label>Don't fill this out: <input name="bot-field"></label></p>
-    <div class="pledge-field">
-      <label for="pledge-amount">Donation amount (CAD)</label>
-      <div class="pledge-presets" role="group" aria-label="Quick amounts">
-        <button type="button" data-amount="25">$25</button>
-        <button type="button" data-amount="50">$50</button>
-        <button type="button" data-amount="100">$100</button>
-        <button type="button" data-amount="250">$250</button>
-      </div>
-      <input id="pledge-amount" name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="50" required>
-    </div>
-    <div class="pledge-field">
-      <label for="pledge-name">Your name <small>(as it will appear on the dashboard — leave blank to appear as Anonymous)</small></label>
-      <input id="pledge-name" name="donor" type="text" placeholder="Jane D." autocomplete="name">
-    </div>
-    <div class="pledge-field">
-      <label for="pledge-email">Email <small>(optional — so we can confirm your gift and send a receipt)</small></label>
-      <input id="pledge-email" name="email" type="email" placeholder="you@example.com" autocomplete="email">
-    </div>
-    <div class="pledge-field">
-      <label for="pledge-note">Note to the runner <small>(optional — shown publicly under their profile)</small></label>
-      <textarea id="pledge-note" name="message" rows="3" maxlength="500" placeholder="Go get 'em!"></textarea>
-    </div>
-    <button type="submit" class="btn btn--donate">Send my pledge</button>
-    <p class="pledge-fineprint">No payment is taken online yet — after you send this, we'll show you how to complete your gift by Interac e-transfer, and a volunteer adds it to the dashboard.</p>
-  </form>
 
   <!-- ======= SHARED FOOTER — if you edit this, make the same edit in every page ======= -->
   <footer class="site-footer">
