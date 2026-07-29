@@ -151,12 +151,20 @@ async function recordHit(req, context) {
   const country = context?.geo?.country?.code || "";
   const key = "day-" + day;
   const agg = (await store.get(key).catch(() => null)) ||
-    { hits: 0, visitors: {}, pages: {}, sources: {}, countries: {} };
-  agg.hits += 1;
-  agg.visitors[visitor] = (agg.visitors[visitor] || 0) + 1;
-  agg.pages[page] = (agg.pages[page] || 0) + 1;
-  if (source) agg.sources[source] = (agg.sources[source] || 0) + 1;
-  if (country) agg.countries[country] = (agg.countries[country] || 0) + 1;
+    { hits: 0, clicks: 0, visitors: {}, pages: {}, sources: {}, countries: {}, clicked: {} };
+  if (body.type === "click") {
+    // a click event: counted separately so it never inflates visit numbers
+    const label = typeof body.label === "string" && body.label ? body.label.slice(0, 120) : "(unlabeled)";
+    agg.clicks = (agg.clicks || 0) + 1;
+    agg.clicked = agg.clicked || {};
+    agg.clicked[label] = (agg.clicked[label] || 0) + 1;
+  } else {
+    agg.hits += 1;
+    agg.visitors[visitor] = (agg.visitors[visitor] || 0) + 1;
+    agg.pages[page] = (agg.pages[page] || 0) + 1;
+    if (source) agg.sources[source] = (agg.sources[source] || 0) + 1;
+    if (country) agg.countries[country] = (agg.countries[country] || 0) + 1;
+  }
   await store.setJSON(key, agg);
   return json({ ok: true });
 }
@@ -169,25 +177,28 @@ function topEntries(counts, n) {
 async function trafficSummary() {
   const store = await analyticsStore().catch(() => null);
   if (!store) return null;
-  let today = 0, last7 = 0, last30 = 0;
+  let today = 0, last7 = 0, last30 = 0, clicks30 = 0;
   const visitors = new Set();
-  const pages = {}, sources = {}, countries = {}, daily = [];
+  const pages = {}, sources = {}, countries = {}, clicked = {}, daily = [];
   for (let i = 0; i < 30; i++) {
     const agg = await store.get("day-" + dayStamp(i)).catch(() => null);
     const hits = agg ? agg.hits : 0;
     daily.push({ date: dayStamp(i), hits });
     if (!agg) continue;
     last30 += hits;
+    clicks30 += agg.clicks || 0;
     if (i === 0) today = hits;
     if (i < 7) last7 += hits;
     Object.keys(agg.visitors || {}).forEach((v) => visitors.add(dayStamp(i) + v));
     for (const [k, v] of Object.entries(agg.pages || {})) pages[k] = (pages[k] || 0) + v;
     for (const [k, v] of Object.entries(agg.sources || {})) sources[k] = (sources[k] || 0) + v;
     for (const [k, v] of Object.entries(agg.countries || {})) countries[k] = (countries[k] || 0) + v;
+    for (const [k, v] of Object.entries(agg.clicked || {})) clicked[k] = (clicked[k] || 0) + v;
   }
   return {
-    today, last7, last30, uniques30: visitors.size,
+    today, last7, last30, uniques30: visitors.size, clicks30,
     pages: topEntries(pages, 10), sources: topEntries(sources, 10), countries: topEntries(countries, 10),
+    clicked: topEntries(clicked, 14),
     daily,
   };
 }

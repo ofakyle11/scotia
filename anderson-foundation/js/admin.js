@@ -219,11 +219,13 @@
     host.appendChild(tile("Visits (7 days)", String(traffic.last7 || 0)));
     host.appendChild(tile("Visits (30 days)", String(traffic.last30 || 0)));
     host.appendChild(tile("Unique visitors (30 days)", String(traffic.uniques30 || 0)));
+    host.appendChild(tile("Clicks (30 days)", String(traffic.clicks30 || 0)));
 
     var tables = document.getElementById("admin-traffic-tables");
     if (!tables) return;
     tables.textContent = "";
-    [["Top pages", traffic.pages, "No page views yet"],
+    [["What people click", traffic.clicked, "No clicks recorded yet"],
+     ["Top pages", traffic.pages, "No page views yet"],
      ["Traffic sources", traffic.sources, "No outside referrals yet"],
      ["Countries", traffic.countries, "No location data yet"]].forEach(function (spec) {
       var card = AAF.el("div", "card admin-card");
