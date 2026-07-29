@@ -138,17 +138,25 @@ export default async (req, context) => {
     if (!tokenValid(readCookie(req))) return json({ error: "unauthorized" }, 401);
     // refresh the session on every authenticated use so it never lapses
     const refresh = { "set-cookie": cookieAttrs(req, makeToken(), SESSION_DAYS * 86400) };
-    const base = process.env.URL || new URL(req.url).origin;
     const out = { data: null, forms: null, traffic: null };
-    try {
-      out.data = await (await fetch(`${base}/data/tough-mudder.json`)).json();
-    } catch { /* dashboard shows data-unavailable tile */ }
+    // Try each base until one serves valid JSON — the deploy's own URL first,
+    // so a hijacked/misconfigured custom domain can't break the dashboard.
+    const bases = [process.env.DEPLOY_PRIME_URL, process.env.URL, new URL(req.url).origin,
+      "https://darling-bunny-fd98d0.netlify.app"].filter(Boolean);
+    for (const base of bases) {
+      try {
+        out.data = await (await fetch(`${base}/data/tough-mudder.json`)).json();
+        if (out.data && Array.isArray(out.data.runners)) break;
+        out.data = null;
+      } catch { out.data = null; }
+    }
     try {
       out.forms = await fetchForms(context?.site?.id || process.env.SITE_ID);
     } catch { /* optional */ }
     try {
       out.traffic = await fetchTraffic();
     } catch { /* optional */ }
+    out.diag = { formsToken: !!process.env.NETLIFY_API_TOKEN, siteId: context?.site?.id || process.env.SITE_ID || null };
     return json(out, 200, refresh);
   }
 
