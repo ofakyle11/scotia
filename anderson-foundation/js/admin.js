@@ -27,10 +27,14 @@
     });
   }
 
+  var refreshTimer = null;
+
   function showDash() {
     loginCard.hidden = true;
     dash.hidden = false;
     loadMetrics();
+    // keep the numbers live while the dashboard is open
+    if (!refreshTimer) refreshTimer = setInterval(loadMetrics, 30000);
   }
 
   function showError() {
