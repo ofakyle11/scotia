@@ -215,11 +215,36 @@
     var host = document.getElementById("admin-traffic-stats");
     if (!host) return;
     host.textContent = "";
-    if (typeof traffic.total30d === "number") {
-      host.appendChild(tile("Pageviews (30 days)", String(traffic.total30d)));
-    }
-    if (typeof traffic.totalUnique30d === "number") {
-      host.appendChild(tile("Visitors (30 days)", String(traffic.totalUnique30d)));
-    }
+    host.appendChild(tile("Visits today", String(traffic.today || 0)));
+    host.appendChild(tile("Visits (7 days)", String(traffic.last7 || 0)));
+    host.appendChild(tile("Visits (30 days)", String(traffic.last30 || 0)));
+    host.appendChild(tile("Unique visitors (30 days)", String(traffic.uniques30 || 0)));
+
+    var tables = document.getElementById("admin-traffic-tables");
+    if (!tables) return;
+    tables.textContent = "";
+    [["Top pages", traffic.pages, "No page views yet"],
+     ["Traffic sources", traffic.sources, "No outside referrals yet"],
+     ["Countries", traffic.countries, "No location data yet"]].forEach(function (spec) {
+      var card = AAF.el("div", "card admin-card");
+      card.appendChild(AAF.el("h3", null, spec[0]));
+      var rows = Array.isArray(spec[1]) ? spec[1] : [];
+      if (!rows.length) {
+        card.appendChild(AAF.el("p", "admin-muted", spec[2]));
+      } else {
+        var table = document.createElement("table");
+        table.className = "admin-table";
+        var tbody = document.createElement("tbody");
+        rows.forEach(function (r) {
+          var tr = document.createElement("tr");
+          tr.appendChild(AAF.el("td", null, String(r.name)));
+          tr.appendChild(AAF.el("td", null, String(r.count)));
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        card.appendChild(table);
+      }
+      tables.appendChild(card);
+    });
   }
 })();

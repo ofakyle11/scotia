@@ -1,0 +1,9 @@
+{
+  "name": "anderson-foundation-site",
+  "version": "1.0.0",
+  "description": "Angus Anderson Foundation website",
+  "dependencies": {
+    "@netlify/blobs": "^10.7.10"
+  },
+  "private": true
+}

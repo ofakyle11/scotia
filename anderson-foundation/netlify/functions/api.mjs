@@ -9,12 +9,13 @@
 //   ADMIN_PASS_HASH     optional — sha256 hex of "username:password"; lets you
 //                       rotate the password without a redeploy.
 //   NETLIFY_API_TOKEN   optional — personal access token; adds pledge/
-//                       application form submissions to the staff dashboard.
-//   GOATCOUNTER_TOKEN   optional — GoatCounter API token; adds traffic totals.
-//   GOATCOUNTER_CODE    optional — GoatCounter site code (default angusanderson).
+//                       application form submissions to the staff dashboard,
+//                       and lets the traffic counter write to Netlify Blobs.
 //
 // No password is stored anywhere — only the sha256 digest of user:pass.
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+
+const SITE_ID_FALLBACK = "70e29db6-a22c-4867-bab5-77fa668cad3d";
 
 const DEFAULT_USER = "AngusAnderson";
 const DEFAULT_PASS_HASH = "04ca8a0374f0ec45b22bafe51f9ebf26ffefb88627359125bc6579e72fe2795d";
@@ -96,21 +97,107 @@ async function fetchForms(siteId) {
   return out;
 }
 
-async function fetchTraffic() {
-  const token = process.env.GOATCOUNTER_TOKEN;
-  const code = process.env.GOATCOUNTER_CODE || "angusanderson";
-  if (!token) return null;
-  const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString().slice(0, 10);
-  const r = await fetch(`https://${code}.goatcounter.com/api/v0/stats/total?start=${since}`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
-  if (!r.ok) return null;
-  const t = await r.json();
-  return { total30d: t.total, totalUnique30d: t.total_utc ?? t.total_unique ?? null };
+// ---------- first-party traffic analytics (stored in Netlify Blobs) ----------
+
+async function analyticsStore() {
+  if (process.env.LOCAL_BLOBS_DIR) {
+    const fs = await import("node:fs/promises");
+    const p = await import("node:path");
+    const dir = process.env.LOCAL_BLOBS_DIR;
+    return {
+      async get(key) {
+        try { return JSON.parse(await fs.readFile(p.join(dir, key + ".json"), "utf8")); }
+        catch { return null; }
+      },
+      async setJSON(key, val) { await fs.writeFile(p.join(dir, key + ".json"), JSON.stringify(val)); },
+    };
+  }
+  const { getStore } = await import("@netlify/blobs");
+  const opts = { name: "analytics", consistency: "strong" };
+  // Explicit credentials make Blobs work on every deploy type.
+  if (process.env.NETLIFY_API_TOKEN) {
+    opts.siteID = process.env.SITE_ID || SITE_ID_FALLBACK;
+    opts.token = process.env.NETLIFY_API_TOKEN;
+  }
+  const store = getStore(opts);
+  return {
+    async get(key) { return await store.get(key, { type: "json" }); },
+    async setJSON(key, val) { await store.setJSON(key, val); },
+  };
+}
+
+const dayStamp = (offset = 0) => new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+
+async function recordHit(req, context) {
+  const ua = req.headers.get("user-agent") || "";
+  if (/bot|crawl|spider|slurp|curl|wget|python|headless|lighthouse|pingdom|monitor|preview/i.test(ua)) {
+    return json({ ok: true, ignored: true });
+  }
+  const body = await req.json().catch(() => ({}));
+  const store = await analyticsStore().catch(() => null);
+  if (!store) return json({ ok: false }, 200);
+  const ip = context?.ip || req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "";
+  const day = dayStamp();
+  const visitor = createHash("sha256").update(ip + "|" + ua + "|" + day).digest("hex").slice(0, 16);
+  const page = typeof body.path === "string" && body.path ? body.path.slice(0, 200) : "/";
+  let source = "(direct)";
+  try {
+    if (typeof body.ref === "string" && body.ref) {
+      const host = new URL(body.ref).hostname;
+      if (host && host !== new URL(req.url).hostname) source = host;
+      else if (host) source = null; // internal navigation — not a source
+    }
+  } catch { /* unparseable referrer -> counts as direct */ }
+  const country = context?.geo?.country?.code || "";
+  const key = "day-" + day;
+  const agg = (await store.get(key).catch(() => null)) ||
+    { hits: 0, visitors: {}, pages: {}, sources: {}, countries: {} };
+  agg.hits += 1;
+  agg.visitors[visitor] = (agg.visitors[visitor] || 0) + 1;
+  agg.pages[page] = (agg.pages[page] || 0) + 1;
+  if (source) agg.sources[source] = (agg.sources[source] || 0) + 1;
+  if (country) agg.countries[country] = (agg.countries[country] || 0) + 1;
+  await store.setJSON(key, agg);
+  return json({ ok: true });
+}
+
+function topEntries(counts, n) {
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n)
+    .map(([name, count]) => ({ name, count }));
+}
+
+async function trafficSummary() {
+  const store = await analyticsStore().catch(() => null);
+  if (!store) return null;
+  let today = 0, last7 = 0, last30 = 0;
+  const visitors = new Set();
+  const pages = {}, sources = {}, countries = {}, daily = [];
+  for (let i = 0; i < 30; i++) {
+    const agg = await store.get("day-" + dayStamp(i)).catch(() => null);
+    const hits = agg ? agg.hits : 0;
+    daily.push({ date: dayStamp(i), hits });
+    if (!agg) continue;
+    last30 += hits;
+    if (i === 0) today = hits;
+    if (i < 7) last7 += hits;
+    Object.keys(agg.visitors || {}).forEach((v) => visitors.add(dayStamp(i) + v));
+    for (const [k, v] of Object.entries(agg.pages || {})) pages[k] = (pages[k] || 0) + v;
+    for (const [k, v] of Object.entries(agg.sources || {})) sources[k] = (sources[k] || 0) + v;
+    for (const [k, v] of Object.entries(agg.countries || {})) countries[k] = (countries[k] || 0) + v;
+  }
+  return {
+    today, last7, last30, uniques30: visitors.size,
+    pages: topEntries(pages, 10), sources: topEntries(sources, 10), countries: topEntries(countries, 10),
+    daily,
+  };
 }
 
 export default async (req, context) => {
   const path = new URL(req.url).pathname;
+
+  if (path === "/api/hit" && req.method === "POST") {
+    return recordHit(req, context);
+  }
 
   if (path === "/api/login" && req.method === "POST") {
     const body = await req.json().catch(() => ({}));
@@ -154,7 +241,7 @@ export default async (req, context) => {
       out.forms = await fetchForms(context?.site?.id || process.env.SITE_ID);
     } catch { /* optional */ }
     try {
-      out.traffic = await fetchTraffic();
+      out.traffic = await trafficSummary();
     } catch { /* optional */ }
     out.diag = { formsToken: !!process.env.NETLIFY_API_TOKEN, siteId: context?.site?.id || process.env.SITE_ID || null };
     return json(out, 200, refresh);

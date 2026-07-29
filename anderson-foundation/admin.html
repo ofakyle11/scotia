@@ -91,12 +91,11 @@
           </div>
 
           <h2 class="admin-h2">Website traffic</h2>
-          <div id="admin-traffic-stats" class="admin-grid"></div>
-          <div class="card admin-card">
-            <p>Every page carries a privacy-friendly GoatCounter tracker (no cookies, no consent banner needed). Visits, referrers, pages, and countries live in the GoatCounter dashboard:</p>
-            <p><a class="btn btn--primary" href="https://angusanderson.goatcounter.com" target="_blank" rel="noopener">Open traffic dashboard</a></p>
-            <p class="admin-muted">First time: create the free account at goatcounter.com with the code <strong>angusanderson</strong> (use the foundation Gmail). The site is already sending it data — stats appear as soon as the account exists.</p>
+          <div id="admin-traffic-stats" class="admin-grid">
+            <div class="card admin-card admin-traffic-empty"><p class="admin-muted">Traffic metrics appear when the site runs on Netlify.</p></div>
           </div>
+          <div class="admin-grid admin-grid--links" id="admin-traffic-tables"></div>
+          <p class="admin-muted">Counted by the site's own backend — no cookies, no outside services, and visitor IP addresses are never stored (only a daily-rotating anonymous code). Counting began the day this went live: July 29, 2026.</p>
 
           <h2 class="admin-h2">Money &amp; operations consoles</h2>
           <div class="admin-grid admin-grid--links">
