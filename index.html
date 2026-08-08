@@ -258,8 +258,16 @@
   }
   .qty span{min-width:18px;text-align:center;font-size:14px;font-variant-numeric:tabular-nums}
   .drawer-foot{border-top:1px solid var(--line);padding:18px 22px}
-  .subtotal{display:flex;justify-content:space-between;font-weight:700;margin-bottom:12px;font-size:16px}
+  .subtotal{display:flex;justify-content:space-between;font-weight:500;margin-bottom:8px;font-size:14.5px;color:var(--muted)}
+  .subtotal .price{color:var(--ink)}
+  .discount-row{display:flex;justify-content:space-between;font-weight:600;font-size:14px;color:var(--accent);margin-bottom:8px}
+  .total-row{display:flex;justify-content:space-between;font-weight:800;font-size:17px;margin-bottom:12px;border-top:1px dashed var(--line);padding-top:10px}
+  .promo-note{
+    font-size:12.5px;line-height:1.55;margin-bottom:12px;padding:9px 12px;border-radius:10px;
+    background:var(--accent-soft);color:var(--accent);font-weight:500;
+  }
   .checkout{width:100%;justify-content:center}
+  .checkout:disabled{opacity:.45;cursor:not-allowed}
   .drawer-note{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
 
   /* ---------- toast ---------- */
@@ -362,7 +370,7 @@
   </defs>
 </svg>
 
-<div class="announce">Free shipping across Canada on orders over <strong>$75</strong> &nbsp;·&nbsp; Same-day local delivery in HRM</div>
+<div class="announce">Same-day delivery in HRM &nbsp;·&nbsp; <strong>$149</strong> delivery minimum &nbsp;·&nbsp; <strong>15% off everything</strong> on orders over $149</div>
 
 <header class="site">
   <nav class="nav" aria-label="Main">
@@ -512,8 +520,8 @@
         <p>Easy. Cut, mist twice a day, and harvest in 10–14 days. Kits include everything except the spray bottle, and most produce two to three flushes. If a kit doesn't fruit, we replace it free.</p>
       </details>
       <details>
-        <summary>How fast is shipping?</summary>
-        <p>Orders placed before 2 pm Atlantic ship the same day. Most of the Maritimes arrives in 1–2 days, the rest of Canada in 2–5. Local same-day courier delivery is available across HRM.</p>
+        <summary>How does delivery work?</summary>
+        <p>Delivery orders have a <b>$149 minimum</b> — and every order that reaches it automatically gets <b>15% off everything</b>. Orders placed before 2 pm Atlantic go out the same day: same-day courier across HRM, 1–2 days for most of the Maritimes, 2–5 for the rest of Canada.</p>
       </details>
       <details>
         <summary>Can I take functional mushrooms with my medication?</summary>
@@ -582,24 +590,26 @@
   </div>
   <div class="drawer-items" id="drawerItems"></div>
   <div class="drawer-foot">
+    <div class="promo-note" id="promoNote" style="display:none"></div>
     <div class="subtotal"><span>Subtotal</span><span class="price" id="subtotal">$0.00</span></div>
+    <div class="discount-row" id="discountRow" style="display:none"><span>15% off — order over $149</span><span class="price" id="discountAmt">−$0.00</span></div>
+    <div class="total-row"><span>Total</span><span class="price" id="totalAmt">$0.00</span></div>
     <button class="btn btn-primary checkout" id="checkoutBtn">Checkout</button>
     <div class="drawer-note">Demo store — checkout is not connected to a payment processor yet.</div>
   </div>
 </aside>
 
-<div class="modal" id="loginModal" aria-label="Admin login">
+<div class="modal" id="loginModal" aria-label="Owner login">
   <div class="modal-box" style="max-width:420px">
     <div class="modal-head">
-      <h3 id="loginTitle">Admin login</h3>
+      <h3>Owner login</h3>
       <button class="drawer-close" id="loginClose" aria-label="Close login">×</button>
     </div>
     <div class="modal-body">
       <form id="loginForm">
-        <div class="field"><label for="pw1" id="pw1Label">Password</label><input id="pw1" type="password" required minlength="6" autocomplete="current-password"></div>
-        <div class="field" id="pw2Wrap" style="display:none;margin-top:12px"><label for="pw2">Confirm password</label><input id="pw2" type="password" autocomplete="new-password"></div>
+        <div class="field"><label for="pw1">Owner password</label><input id="pw1" type="password" required autocomplete="current-password"></div>
         <p class="admin-note" id="loginNote"></p>
-        <div class="form-actions"><button class="btn btn-primary" type="submit" id="loginBtn">Log in</button></div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Log in</button></div>
       </form>
     </div>
   </div>
@@ -638,7 +648,6 @@
           <label class="mini-btn" style="cursor:pointer">Import CSV<input id="importCsvFile" type="file" accept=".csv,text/csv" style="display:none"></label>
           <button class="mini-btn" id="exportBtn">Export catalog (JSON)</button>
           <label class="mini-btn" style="cursor:pointer">Import catalog<input id="importFile" type="file" accept="application/json" style="display:none"></label>
-          <button class="mini-btn" id="pwBtn">Change password</button>
           <button class="mini-btn" id="logoutBtn">Log out</button>
         </div>
         <p class="admin-note"><b>CSV import:</b> upload a spreadsheet saved as CSV with a header row —
@@ -757,13 +766,37 @@
   const countEl = document.getElementById("cartCount");
   const toast = document.getElementById("toast");
   let toastTimer;
+  // Delivery rules: $149 minimum order, and 15% off everything once you hit it.
+  const DELIVERY_MIN = 149, DISCOUNT_RATE = 0.15;
+  const promoNote = document.getElementById("promoNote");
+  const discountRow = document.getElementById("discountRow");
+  const discountAmt = document.getElementById("discountAmt");
+  const totalAmt = document.getElementById("totalAmt");
+  const checkoutBtn = document.getElementById("checkoutBtn");
 
   function saveCart(){ localStorage.setItem("hotbox-cart", JSON.stringify(cart)); }
   function cartEntries(){ const all = allProducts(); return Object.entries(cart).map(([id,qty]) => ({p:all.find(x=>x.id===id), qty})).filter(e=>e.p); }
   function renderCart(){
     const entries = cartEntries();
     countEl.textContent = entries.reduce((s,e)=>s+e.qty,0);
-    subtotalEl.textContent = fmt(entries.reduce((s,e)=>s+e.qty*e.p.price,0));
+    const sub = entries.reduce((s,e)=>s+e.qty*e.p.price,0);
+    const qualifies = sub >= DELIVERY_MIN;
+    const discount = qualifies ? sub * DISCOUNT_RATE : 0;
+    subtotalEl.textContent = fmt(sub);
+    discountRow.style.display = qualifies ? "" : "none";
+    discountAmt.textContent = "−" + fmt(discount);
+    totalAmt.textContent = fmt(sub - discount);
+    if(!entries.length){
+      promoNote.style.display = "none";
+    } else if(qualifies){
+      promoNote.style.display = "";
+      promoNote.textContent = "✓ $" + DELIVERY_MIN + " delivery minimum met — 15% off applied.";
+    } else {
+      promoNote.style.display = "";
+      promoNote.textContent = "Add " + fmt(DELIVERY_MIN - sub) + " more to reach the $" + DELIVERY_MIN +
+        " delivery minimum and unlock 15% off everything.";
+    }
+    checkoutBtn.disabled = !qualifies;
     drawerItems.innerHTML = entries.length ? entries.map(e => `
       <div class="line-item">
         <div class="line-art" style="background:${e.p.tint}">${artSVG(e.p)}</div>
@@ -815,7 +848,7 @@
       if(m && m.classList.contains("open")) m.classList.remove("open");
     }
   });
-  document.getElementById("checkoutBtn").addEventListener("click", () =>
+  checkoutBtn.addEventListener("click", () =>
     showToast("Demo checkout — connect Shopify, Square, or Stripe to go live"));
 
   // ---- product manager ----
@@ -834,17 +867,18 @@
   let editingId = null;       // id of a custom product being edited
   let editingBuiltin = null;  // id of a built-in product being edited (saved as an editable copy)
 
-  // ---- admin login ----
-  // Client-side gate: only a hash of the password is stored, in this browser.
-  // It keeps visitors out of the manager; it is not server-grade security.
-  const HASH_KEY = "hotbox-admin-hash", UNLOCK_KEY = "hotbox-admin-unlocked";
+  // ---- owner login ----
+  // Client-side gate: the owner password is checked against this baked-in
+  // hash (SHA-256 of "hotbox:" + password). To change the password, update
+  // OWNER_HASH in this file. Keeps visitors out of the manager; it is not
+  // server-grade security.
+  const OWNER_HASH = "b0964deac82766bccfe7f6c1ee0e2102b8cc800aba584c58e564eb253c7efe11";
+  const OWNER_HASH_FALLBACK = "xb6e05fe7";
+  const UNLOCK_KEY = "hotbox-admin-unlocked";
   const loginModal = document.getElementById("loginModal");
   const loginForm = document.getElementById("loginForm");
-  const loginTitle = document.getElementById("loginTitle");
   const loginNote = document.getElementById("loginNote");
-  const loginBtn = document.getElementById("loginBtn");
-  const pw1 = document.getElementById("pw1"), pw2 = document.getElementById("pw2");
-  const pw2Wrap = document.getElementById("pw2Wrap");
+  const pw1 = document.getElementById("pw1");
   async function hashPw(pw){
     if(crypto.subtle){
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hotbox:"+pw));
@@ -856,14 +890,7 @@
   }
   const isUnlocked = () => sessionStorage.getItem(UNLOCK_KEY) === "1";
   function openLogin(){
-    const firstRun = !localStorage.getItem(HASH_KEY);
-    loginTitle.textContent = firstRun ? "Set an admin password" : "Admin login";
-    loginBtn.textContent = firstRun ? "Set password & open" : "Log in";
-    pw2Wrap.style.display = firstRun ? "" : "none";
-    pw2.required = firstRun;
-    loginNote.textContent = firstRun
-      ? "First time here: choose a password (6+ characters). You'll need it to manage products in this browser."
-      : "";
+    loginNote.textContent = "";
     loginForm.reset();
     loginModal.classList.add("open");
     pw1.focus();
@@ -873,12 +900,8 @@
   loginModal.addEventListener("click", e => { if(e.target===loginModal) closeLogin(); });
   loginForm.addEventListener("submit", async e => {
     e.preventDefault();
-    const firstRun = !localStorage.getItem(HASH_KEY);
-    if(firstRun){
-      if(pw1.value.length < 6){ loginNote.textContent = "Password must be at least 6 characters."; return; }
-      if(pw1.value !== pw2.value){ loginNote.textContent = "Passwords don't match — try again."; return; }
-      localStorage.setItem(HASH_KEY, await hashPw(pw1.value));
-    } else if(await hashPw(pw1.value) !== localStorage.getItem(HASH_KEY)){
+    const h = await hashPw(pw1.value);
+    if(h !== OWNER_HASH && h !== OWNER_HASH_FALLBACK){
       loginNote.textContent = "Wrong password.";
       pw1.select();
       return;
@@ -886,16 +909,6 @@
     sessionStorage.setItem(UNLOCK_KEY, "1");
     closeLogin();
     openAdmin();
-  });
-  document.getElementById("pwBtn").addEventListener("click", async () => {
-    const cur = prompt("Current password:");
-    if(cur === null) return;
-    if(await hashPw(cur) !== localStorage.getItem(HASH_KEY)){ showToast("Wrong password"); return; }
-    const nw = prompt("New password (6+ characters):");
-    if(nw === null) return;
-    if(nw.length < 6){ showToast("Password must be at least 6 characters"); return; }
-    localStorage.setItem(HASH_KEY, await hashPw(nw));
-    showToast("Password changed");
   });
   document.getElementById("logoutBtn").addEventListener("click", () => {
     sessionStorage.removeItem(UNLOCK_KEY);
