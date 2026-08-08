@@ -321,6 +321,24 @@
   .admin-tools{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center}
   .admin-note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.6}
 
+  /* ---------- checkout ---------- */
+  .co-summary{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:14px;margin-bottom:16px}
+  .co-summary .row{display:flex;justify-content:space-between;gap:14px;padding:3px 0;color:var(--muted)}
+  .co-summary .row span:last-child{white-space:nowrap}
+  .co-summary .row.total{font-weight:800;color:var(--ink);border-top:1px dashed var(--line);margin-top:6px;padding-top:9px;font-size:15.5px}
+  .co-summary .row.disc{color:var(--accent);font-weight:600}
+  .pay-opt{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:13px 14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,background .15s}
+  .pay-opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+  .pay-opt input{margin-top:4px;accent-color:var(--accent)}
+  .pay-opt b{display:block;font-size:14.5px}
+  .pay-opt span{font-size:13px;color:var(--muted);line-height:1.5}
+  .pay-note{font-size:13px;background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:10px 12px;margin:4px 0 16px;line-height:1.55}
+  .co-done{text-align:center;padding:10px 4px 16px}
+  .co-done .big{font-size:40px;line-height:1}
+  .co-done h4{font-size:20px;margin:12px 0 6px;font-family:var(--display)}
+  .co-done p{color:var(--muted);font-size:14px;line-height:1.65;margin:6px auto;max-width:44ch}
+  .co-done .ordnum{font-weight:800;color:var(--ink);letter-spacing:.06em}
+
   /* ---------- reveal ---------- */
   .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
   .reveal.in{opacity:1;transform:none}
@@ -524,6 +542,10 @@
         <p>Delivery orders have a <b>$149 minimum</b> — and every order that reaches it automatically gets <b>15% off everything</b>. Orders placed before 2 pm Atlantic go out the same day: same-day courier across HRM, 1–2 days for most of the Maritimes, 2–5 for the rest of Canada.</p>
       </details>
       <details>
+        <summary>How do I pay?</summary>
+        <p>Two ways: <b>Interac e-transfer</b> — place your order, then send the total to the address shown on your confirmation with your order number in the message — or <b>cash on delivery</b>, paid to the driver when your order arrives. No card needed.</p>
+      </details>
+      <details>
         <summary>Can I take functional mushrooms with my medication?</summary>
         <p>Talk to your doctor or pharmacist first — especially if you're pregnant, nursing, immunocompromised, or on blood thinners. We're mushroom people, not medical professionals.</p>
       </details>
@@ -595,7 +617,7 @@
     <div class="discount-row" id="discountRow" style="display:none"><span>15% off — order over $149</span><span class="price" id="discountAmt">−$0.00</span></div>
     <div class="total-row"><span>Total</span><span class="price" id="totalAmt">$0.00</span></div>
     <button class="btn btn-primary checkout" id="checkoutBtn">Checkout</button>
-    <div class="drawer-note">Demo store — checkout is not connected to a payment processor yet.</div>
+    <div class="drawer-note">Pay by Interac e-transfer or cash on delivery.</div>
   </div>
 </aside>
 
@@ -659,6 +681,61 @@
     </div>
   </div>
 </div>
+
+<div class="modal" id="checkoutModal" aria-label="Checkout">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-head">
+      <h3 id="coTitle">Delivery details</h3>
+      <button class="drawer-close" id="coClose" aria-label="Close checkout">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="coForm">
+        <div id="coStep1">
+          <div class="form-grid">
+            <div class="field"><label for="coName">Full name</label><input id="coName" required maxlength="80" autocomplete="name"></div>
+            <div class="field"><label for="coPhone">Phone</label><input id="coPhone" required type="tel" maxlength="24" autocomplete="tel" placeholder="(902) 555-0000"></div>
+            <div class="field full"><label for="coAddr">Street address</label><input id="coAddr" required maxlength="120" autocomplete="street-address"></div>
+            <div class="field"><label for="coCity">City</label><input id="coCity" required maxlength="60" value="Halifax"></div>
+            <div class="field"><label for="coPostal">Postal code (optional)</label><input id="coPostal" maxlength="10" autocomplete="postal-code"></div>
+            <div class="field full"><label for="coEmail">Email (optional)</label><input id="coEmail" type="email" maxlength="120" autocomplete="email"></div>
+            <div class="field full"><label for="coNotes">Delivery instructions</label><textarea id="coNotes" maxlength="300" placeholder="Buzzer code, drop-off spot, best time window…"></textarea></div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="coNext">Continue to payment</button>
+          </div>
+        </div>
+        <div id="coStep2" style="display:none">
+          <div class="co-summary" id="coSummary"></div>
+          <label class="pay-opt">
+            <input type="radio" name="payMethod" value="E-transfer" checked>
+            <div><b>Interac e-transfer</b><span>Send the total by e-transfer once your order is confirmed. Details on the next screen.</span></div>
+          </label>
+          <label class="pay-opt">
+            <input type="radio" name="payMethod" value="Cash on delivery">
+            <div><b>Cash on delivery</b><span>Pay the driver in cash when your order arrives.</span></div>
+          </label>
+          <div class="pay-note" id="payNote"></div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" id="coBack">Back</button>
+            <button type="submit" class="btn btn-primary" id="coPlace">Place order</button>
+          </div>
+        </div>
+      </form>
+      <div id="coDone" class="co-done" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Static copy of the order form so Netlify registers it at deploy time.
+     Real orders are submitted by the checkout JavaScript. -->
+<form name="orders" data-netlify="true" data-netlify-honeypot="bot-field" hidden>
+  <input name="order-number"><input name="name"><input name="phone"><input name="email">
+  <input name="address"><input name="city"><input name="postal">
+  <textarea name="instructions"></textarea>
+  <input name="payment"><textarea name="items"></textarea>
+  <input name="subtotal"><input name="discount"><input name="total">
+  <input name="bot-field">
+</form>
 
 <div class="toast" id="toast" role="status"></div>
 
@@ -843,13 +920,121 @@
   document.addEventListener("keydown", e => {
     if(e.key!=="Escape") return;
     closeCart();
-    for(const id of ["adminModal","loginModal"]){
+    for(const id of ["adminModal","loginModal","checkoutModal"]){
       const m = document.getElementById(id);
       if(m && m.classList.contains("open")) m.classList.remove("open");
     }
   });
-  checkoutBtn.addEventListener("click", () =>
-    showToast("Demo checkout — connect Shopify, Square, or Stripe to go live"));
+  // ---- checkout: delivery details -> payment (e-transfer / cash) -> order sent to Netlify Forms ----
+  const ETRANSFER_EMAIL = "hello@hotboxoffice.example"; // <-- replace with the real e-transfer address
+  const checkoutModal = document.getElementById("checkoutModal");
+  const coForm = document.getElementById("coForm");
+  const coTitle = document.getElementById("coTitle");
+  const coStep1 = document.getElementById("coStep1"), coStep2 = document.getElementById("coStep2");
+  const coDone = document.getElementById("coDone");
+  const coSummary = document.getElementById("coSummary");
+  const payNote = document.getElementById("payNote");
+  const coPlace = document.getElementById("coPlace");
+  const coName = document.getElementById("coName"), coPhone = document.getElementById("coPhone"),
+        coAddr = document.getElementById("coAddr"), coCity = document.getElementById("coCity"),
+        coPostal = document.getElementById("coPostal"), coEmail = document.getElementById("coEmail"),
+        coNotes = document.getElementById("coNotes");
+
+  function cartTotals(){
+    const entries = cartEntries();
+    const sub = entries.reduce((s,e)=>s+e.qty*e.p.price,0);
+    const discount = sub >= DELIVERY_MIN ? sub * DISCOUNT_RATE : 0;
+    return {entries, sub, discount, total: sub - discount};
+  }
+  const payMethod = () => coForm.querySelector('[name="payMethod"]:checked').value;
+
+  function showStep(n){
+    coStep1.style.display = n===1 ? "" : "none";
+    coStep2.style.display = n===2 ? "" : "none";
+    coForm.style.display = "";
+    coDone.style.display = "none";
+    coTitle.textContent = n===1 ? "Delivery details" : "Payment";
+  }
+  function renderCoSummary(){
+    const t = cartTotals();
+    coSummary.innerHTML =
+      t.entries.map(e => '<div class="row"><span>'+e.qty+' × '+esc(e.p.name)+'</span><span class="price">'+fmt(e.qty*e.p.price)+'</span></div>').join("") +
+      '<div class="row"><span>Subtotal</span><span class="price">'+fmt(t.sub)+'</span></div>' +
+      (t.discount ? '<div class="row disc"><span>15% off — order over $'+DELIVERY_MIN+'</span><span class="price">−'+fmt(t.discount)+'</span></div>' : "") +
+      '<div class="row total"><span>Total</span><span class="price">'+fmt(t.total)+'</span></div>';
+    renderPayNote();
+  }
+  function renderPayNote(){
+    const t = cartTotals();
+    payNote.textContent = payMethod() === "E-transfer"
+      ? "After you place the order, send " + fmt(t.total) + " by Interac e-transfer to " + ETRANSFER_EMAIL + ". Your order goes out once the transfer lands."
+      : "Have " + fmt(t.total) + " in cash ready for the driver when your order arrives.";
+  }
+  coForm.addEventListener("change", e => { if(e.target.name === "payMethod") renderPayNote(); });
+
+  function openCheckout(){
+    closeCart();
+    coPlace.disabled = false; coPlace.textContent = "Place order";
+    showStep(1);
+    checkoutModal.classList.add("open");
+    coName.focus();
+  }
+  function closeCheckout(){ checkoutModal.classList.remove("open"); }
+  checkoutBtn.addEventListener("click", openCheckout);
+  document.getElementById("coClose").addEventListener("click", closeCheckout);
+  checkoutModal.addEventListener("click", e => { if(e.target===checkoutModal) closeCheckout(); });
+  document.getElementById("coNext").addEventListener("click", () => {
+    for(const f of [coName, coPhone, coAddr, coCity, coEmail]){
+      if(!f.reportValidity()) return;
+    }
+    renderCoSummary();
+    showStep(2);
+  });
+  document.getElementById("coBack").addEventListener("click", () => showStep(1));
+
+  coForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const t = cartTotals();
+    if(!t.entries.length){ closeCheckout(); return; }
+    coPlace.disabled = true; coPlace.textContent = "Placing…";
+    const orderNum = "HB-" + Date.now().toString(36).toUpperCase().slice(-6);
+    const payload = new URLSearchParams({
+      "form-name":"orders",
+      "order-number": orderNum,
+      name: coName.value.trim(), phone: coPhone.value.trim(), email: coEmail.value.trim(),
+      address: coAddr.value.trim(), city: coCity.value.trim(), postal: coPostal.value.trim(),
+      instructions: coNotes.value.trim(),
+      payment: payMethod(),
+      items: t.entries.map(en => en.qty + " x " + en.p.name + " @ " + fmt(en.p.price)).join("\n"),
+      subtotal: fmt(t.sub), discount: "-" + fmt(t.discount), total: fmt(t.total),
+    });
+    let sent = false, preview = location.protocol === "file:";
+    if(!preview){
+      try{
+        const res = await fetch("/", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body: payload.toString()});
+        sent = res.ok;
+      }catch(err){ sent = false; }
+    }
+    if(!sent && !preview){
+      coPlace.disabled = false; coPlace.textContent = "Place order";
+      showToast("Couldn't send your order — check your connection and try again");
+      return;
+    }
+    const paidByEt = payMethod() === "E-transfer";
+    coForm.style.display = "none";
+    coDone.style.display = "";
+    coTitle.textContent = "Order placed";
+    coDone.innerHTML =
+      '<div class="big">🎉</div>' +
+      '<h4>Thanks, ' + esc(coName.value.trim().split(" ")[0] || "friend") + '!</h4>' +
+      '<p>Your order <span class="ordnum">' + orderNum + '</span> is in.</p>' +
+      (paidByEt
+        ? '<p>Send <b>' + fmt(t.total) + '</b> by Interac e-transfer to <b>' + esc(ETRANSFER_EMAIL) + '</b> with <b>' + orderNum + '</b> in the message. It goes out for delivery as soon as the transfer lands.</p>'
+        : '<p>Have <b>' + fmt(t.total) + '</b> in cash ready — the driver will confirm timing by phone.</p>') +
+      (preview ? '<p><i>(Preview mode — this order was not actually sent.)</i></p>' : "");
+    cart = {};
+    saveCart(); renderCart();
+  });
 
   // ---- product manager ----
   const adminModal = document.getElementById("adminModal");
