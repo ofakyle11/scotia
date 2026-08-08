@@ -3,55 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Mycora Mushroom Co. — functional mushroom supplements, mushroom coffee, grow kits, and gourmet dried mushrooms. Lab-verified, Canadian-grown, psilocybin-free.">
-<title>Mycora Mushroom Co. — Functional Mushrooms, Grow Kits &amp; Gourmet Fungi</title>
+<meta name="description" content="Hotbox Office — cannabis &amp; mushroom store in Halifax. Functional mushroom supplements, mushroom coffee, grow kits, and gourmet dried mushrooms. Elevate your mind.">
+<meta name="theme-color" content="#0C0D0A">
+<title>Hotbox Office — Cannabis &amp; Mushroom Store</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8 L92 36 V86 a8 8 0 0 1 -8 8 H16 a8 8 0 0 1 -8 -8 V36 Z' fill='none' stroke='%238CB35A' stroke-width='8' stroke-linejoin='round'/%3E%3Cpath d='M50 8 V94' stroke='%238CB35A' stroke-width='6'/%3E%3C/svg%3E">
 </head>
 <body>
 <style>
+  /* Hotbox Office brand: black, champagne, greenhouse green.
+     The brand commits to one dark look — no light theme. */
   :root{
-    --bg:#F6F7F2;
-    --surface:#FFFFFF;
-    --surface-2:#EEF1E8;
-    --ink:#1C231D;
-    --muted:#5C6B5E;
-    --line:#E0E5D8;
-    --accent:#2E6B3E;
-    --accent-hover:#245633;
-    --accent-ink:#F6F7F2;
-    --accent-soft:#E6EFE3;
-    --gold:#C08A2D;
-    --shadow:0 1px 2px rgba(28,35,29,.06),0 8px 24px rgba(28,35,29,.07);
+    --bg:#0C0D0A;
+    --surface:#14160F;
+    --surface-2:#181A12;
+    --ink:#EDE6D3;
+    --muted:#9BA08C;
+    --line:#262A1D;
+    --accent:#8CB35A;
+    --accent-hover:#9DC46B;
+    --accent-ink:#0C0D0A;
+    --accent-soft:#1D2413;
+    --gold:#D8C39A;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 10px 28px rgba(0,0,0,.45);
     --radius:14px;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#141813;
-      --surface:#1C211B;
-      --surface-2:#20261F;
-      --ink:#E8ECE3;
-      --muted:#9DAA9C;
-      --line:#2C332B;
-      --accent:#7BB287;
-      --accent-hover:#8FC29A;
-      --accent-ink:#10140F;
-      --accent-soft:#232B22;
-      --gold:#D8A44E;
-      --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#141813;
-    --surface:#1C211B;
-    --surface-2:#20261F;
-    --ink:#E8ECE3;
-    --muted:#9DAA9C;
-    --line:#2C332B;
-    --accent:#7BB287;
-    --accent-hover:#8FC29A;
-    --accent-ink:#10140F;
-    --accent-soft:#232B22;
-    --gold:#D8A44E;
-    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+    --display:"Futura","Avenir Next","Montserrat","Segoe UI",system-ui,sans-serif;
   }
 
   *,*::before,*::after{box-sizing:border-box}
@@ -66,12 +41,13 @@
     -webkit-font-smoothing:antialiased;
   }
   h1,h2,h3{
-    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    font-family:var(--display);
     line-height:1.15;
     margin:0;
     text-wrap:balance;
-    font-weight:600;
+    font-weight:700;
   }
+  h1,h2{text-transform:uppercase;letter-spacing:.05em}
   a{color:inherit}
   button{font:inherit;cursor:pointer}
   img,svg{max-width:100%;display:block}
@@ -85,10 +61,10 @@
 
   /* ---------- announcement bar ---------- */
   .announce{
-    background:var(--ink);color:var(--bg);
-    font-size:13px;text-align:center;padding:8px 16px;letter-spacing:.02em;
+    background:linear-gradient(90deg,#D2BE92,#EDE2C2 50%,#D2BE92);color:#171408;
+    font-size:13px;text-align:center;padding:8px 16px;letter-spacing:.02em;font-weight:500;
   }
-  .announce strong{color:var(--gold);font-weight:600}
+  .announce strong{color:#3F6B1E;font-weight:700}
 
   /* ---------- header ---------- */
   header.site{
@@ -99,8 +75,11 @@
     border-bottom:1px solid var(--line);
   }
   .nav{display:flex;align-items:center;gap:28px;padding:14px 24px;max-width:1120px;margin:0 auto}
-  .logo{display:flex;align-items:center;gap:10px;font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-size:21px;font-weight:700;text-decoration:none;letter-spacing:.01em}
-  .logo svg{width:28px;height:28px}
+  .logo{display:flex;align-items:center;gap:11px;font-family:var(--display);text-decoration:none}
+  .logo svg{width:30px;height:36px;flex-shrink:0}
+  .logo-word{display:flex;flex-direction:column;line-height:1}
+  .logo-word b{font-size:17px;font-weight:800;letter-spacing:.18em;color:var(--ink)}
+  .logo-word small{font-size:9px;font-weight:600;letter-spacing:.48em;color:var(--accent);margin-top:4px}
   .nav-links{display:flex;gap:22px;margin-left:auto;font-size:14.5px}
   .nav-links a{text-decoration:none;color:var(--muted);transition:color .15s}
   .nav-links a:hover{color:var(--ink)}
@@ -135,7 +114,7 @@
   .btn-ghost{border-color:var(--line);color:var(--ink);background:var(--surface)}
   .btn-ghost:hover{border-color:var(--accent)}
   .hero-panel{
-    background:linear-gradient(160deg,var(--accent-soft),var(--surface-2));
+    background:radial-gradient(120% 90% at 50% 0%,#161C0D 0%,#0A0B07 62%);
     border:1px solid var(--line);border-radius:calc(var(--radius) + 8px);
     padding:36px;box-shadow:var(--shadow);position:relative;overflow:hidden;
   }
@@ -177,12 +156,12 @@
   .card-art img{width:100%;height:100%;object-fit:cover}
   .badge{
     position:absolute;top:12px;left:12px;
-    background:var(--gold);color:#fff;font-size:11px;font-weight:700;
+    background:var(--gold);color:#171204;font-size:11px;font-weight:700;
     letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 10px;
   }
   .card-body{padding:18px;display:flex;flex-direction:column;gap:6px;flex:1}
   .card-cat{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-  .card-name{font-size:17px;font-weight:600;font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .card-name{font-size:16px;font-weight:700;font-family:var(--display)}
   .card-desc{font-size:13.5px;color:var(--muted);flex:1}
   .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
   .card-price{font-size:17px;font-weight:700}
@@ -249,7 +228,7 @@
 
   /* ---------- cart drawer ---------- */
   .overlay{
-    position:fixed;inset:0;background:rgba(15,20,15,.45);z-index:60;
+    position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:60;
     opacity:0;pointer-events:none;transition:opacity .2s;
   }
   .overlay.open{opacity:1;pointer-events:auto}
@@ -295,7 +274,7 @@
   /* ---------- product manager ---------- */
   .modal{
     position:fixed;inset:0;z-index:80;display:none;align-items:flex-start;justify-content:center;
-    background:rgba(15,20,15,.45);overflow-y:auto;padding:5vh 16px 40px;
+    background:rgba(0,0,0,.62);overflow-y:auto;padding:5vh 16px 40px;
   }
   .modal.open{display:flex}
   .modal-box{
@@ -351,6 +330,35 @@
       <path d="M50 12 C26 12 10 30 10 44 C10 50 15 53 24 53 L76 53 C85 53 90 50 90 44 C90 30 74 12 50 12 Z"/>
       <rect x="40" y="53" width="20" height="34" rx="9"/>
     </g>
+    <linearGradient id="hb-green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A9CB6F"/>
+      <stop offset="1" stop-color="#5F8F3B"/>
+    </linearGradient>
+    <linearGradient id="hb-champagne" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4EBD7"/>
+      <stop offset="1" stop-color="#C6B384"/>
+    </linearGradient>
+    <path id="hb-leaflet" d="M0 0 C5 -8 6 -20 0 -34 C-6 -20 -5 -8 0 0 Z"/>
+    <g id="hb-leaf">
+      <use href="#hb-leaflet" transform="scale(1.15)"/>
+      <use href="#hb-leaflet" transform="rotate(32) scale(.95)"/>
+      <use href="#hb-leaflet" transform="rotate(-32) scale(.95)"/>
+      <use href="#hb-leaflet" transform="rotate(68) scale(.72)"/>
+      <use href="#hb-leaflet" transform="rotate(-68) scale(.72)"/>
+      <use href="#hb-leaflet" transform="rotate(102) scale(.48)"/>
+      <use href="#hb-leaflet" transform="rotate(-102) scale(.48)"/>
+      <rect x="-1.1" y="-2" width="2.2" height="11" rx="1.1"/>
+    </g>
+    <!-- Hotbox Office greenhouse mark: smoke, gabled frame, leaf pane, mushroom pane -->
+    <g id="hb-mark">
+      <path d="M52 16 C45 12 56 7 49 1" fill="none" stroke="#EDE6D3" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 22 L86 46 L86 100 Q86 104 82 104 L18 104 Q14 104 14 100 L14 46 Z"
+            fill="none" stroke="url(#hb-green)" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M50 22 L50 104" fill="none" stroke="url(#hb-green)" stroke-width="3"/>
+      <use href="#hb-leaf" transform="translate(32,88) scale(.92)" fill="url(#hb-green)"/>
+      <use href="#shroom" transform="translate(55,53) scale(.34)" fill="#EDE6D3"/>
+      <use href="#shroom" transform="translate(66,80) scale(.17)" fill="#EDE6D3"/>
+    </g>
   </defs>
 </svg>
 
@@ -359,12 +367,12 @@
 <header class="site">
   <nav class="nav" aria-label="Main">
     <a class="logo" href="#top">
-      <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#shroom" fill="var(--accent)"/></svg>
-      Mycora
+      <svg viewBox="0 0 100 110" aria-hidden="true"><use href="#hb-mark"/></svg>
+      <span class="logo-word"><b>HOTBOX</b><small>OFFICE</small></span>
     </a>
     <div class="nav-links">
       <a href="#shop">Shop</a>
-      <a href="#why">Why Mycora</a>
+      <a href="#why">Why Hotbox</a>
       <a href="#reviews">Reviews</a>
       <a href="#faq">FAQ</a>
       <a href="#visit">Visit</a>
@@ -379,8 +387,8 @@
   <div class="wrap hero">
     <div class="hero-grid">
       <div>
-        <span class="eyebrow">Canadian-grown · Lab-verified · 100% legal</span>
-        <h1>Functional mushrooms, from forest to front door.</h1>
+        <span class="eyebrow">Cannabis &amp; Mushroom Store · Halifax, NS</span>
+        <h1>Elevate your mind.</h1>
         <p class="lede">Supplements, mushroom coffee, grow-your-own kits, and gourmet dried fungi — grown in Canada, third-party tested, and shipped fast. No psilocybin, no gimmicks, just good mushrooms.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="#shop">Shop best sellers</a>
@@ -392,11 +400,16 @@
           <div class="stat"><b>100%</b><span>third-party tested</span></div>
         </div>
       </div>
-      <div class="hero-panel" aria-hidden="true">
-        <svg viewBox="0 0 300 210">
-          <use href="#shroom" transform="translate(20,55) scale(1.5)" fill="var(--accent)" opacity=".9"/>
-          <use href="#shroom" transform="translate(150,20) scale(1.1)" fill="var(--gold)" opacity=".85"/>
-          <use href="#shroom" transform="translate(200,105) scale(.85)" fill="var(--muted)" opacity=".7"/>
+      <div class="hero-panel">
+        <svg viewBox="0 0 340 318" role="img" aria-label="Hotbox Office — Cannabis and Mushroom Store — Elevate Your Mind"
+             font-family="Futura,'Avenir Next',Montserrat,'Segoe UI',system-ui,sans-serif">
+          <use href="#hb-mark" transform="translate(126,6) scale(.88)"/>
+          <text x="170" y="164" text-anchor="middle" font-size="43" font-weight="800" letter-spacing="8" fill="url(#hb-champagne)">HOTBOX</text>
+          <line x1="42" y1="192" x2="104" y2="192" stroke="var(--accent)" stroke-width="2"/>
+          <line x1="236" y1="192" x2="298" y2="192" stroke="var(--accent)" stroke-width="2"/>
+          <text x="170" y="199" text-anchor="middle" font-size="21" font-weight="600" letter-spacing="12" fill="var(--accent)">OFFICE</text>
+          <text x="170" y="242" text-anchor="middle" font-size="13.5" font-weight="600" letter-spacing="3.6" fill="var(--ink)">CANNABIS &amp; MUSHROOM STORE</text>
+          <text x="170" y="274" text-anchor="middle" font-size="11.5" font-weight="600" letter-spacing="5.5" fill="var(--accent)">ELEVATE YOUR MIND</text>
         </svg>
       </div>
     </div>
@@ -418,7 +431,7 @@
     <div class="wrap">
       <div class="section-head reveal">
         <div>
-          <span class="eyebrow">Why Mycora</span>
+          <span class="eyebrow">Why Hotbox Office</span>
           <h2>Grown with patience, tested with rigour</h2>
         </div>
       </div>
@@ -518,9 +531,9 @@
     </div>
     <div class="visit-grid reveal">
       <div class="visit-card">
-        <h3>Mycora Halifax</h3>
+        <h3>Hotbox Office Halifax</h3>
         <p>123 Agricola Street, Halifax, NS</p>
-        <p>(902) 555-0142 · hello@mycora.example</p>
+        <p>(902) 555-0142 · hello@hotboxoffice.example</p>
         <table class="hours">
           <tr><td>Monday – Friday</td><td>10:00 – 19:00</td></tr>
           <tr><td>Saturday</td><td>10:00 – 18:00</td></tr>
@@ -530,7 +543,7 @@
       <div class="visit-card">
         <h3>Questions? Talk to a human.</h3>
         <p>Our team answers email within one business day and can help with dosing schedules, grow-kit troubleshooting, and wholesale orders.</p>
-        <p style="margin-top:14px"><a class="btn btn-primary" href="mailto:hello@mycora.example">Email us</a></p>
+        <p style="margin-top:14px"><a class="btn btn-primary" href="mailto:hello@hotboxoffice.example">Email us</a></p>
       </div>
     </div>
   </section>
@@ -540,20 +553,20 @@
   <div class="wrap">
     <div class="foot-grid">
       <a class="logo" href="#top">
-        <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#shroom" fill="var(--accent)"/></svg>
-        Mycora
+        <svg viewBox="0 0 100 110" aria-hidden="true"><use href="#hb-mark"/></svg>
+        <span class="logo-word"><b>HOTBOX</b><small>OFFICE</small></span>
       </a>
       <div class="foot-links">
         <a href="#shop">Shop</a>
-        <a href="#why">Why Mycora</a>
+        <a href="#why">Why Hotbox</a>
         <a href="#faq">FAQ</a>
         <a href="#visit">Visit</a>
-        <a href="mailto:hello@mycora.example">Contact</a>
+        <a href="mailto:hello@hotboxoffice.example">Contact</a>
         <a href="#" id="adminOpen">Manage products</a>
       </div>
     </div>
     <p class="disclaimer">
-      © 2026 Mycora Mushroom Co. All products sold by Mycora are psilocybin-free and legal for sale in Canada.
+      © 2026 Hotbox Office Cannabis &amp; Mushroom Store. All products sold by Hotbox Office are psilocybin-free and legal for sale in Canada.
       Statements on this site have not been evaluated by Health Canada. Our products are not intended to diagnose,
       treat, cure, or prevent any disease. Consult a healthcare practitioner before use if you are pregnant, nursing,
       taking medication, or have a medical condition.
@@ -622,14 +635,17 @@
         <h4>Current products</h4>
         <div id="adminList"></div>
         <div class="admin-tools">
+          <label class="mini-btn" style="cursor:pointer">Import CSV<input id="importCsvFile" type="file" accept=".csv,text/csv" style="display:none"></label>
           <button class="mini-btn" id="exportBtn">Export catalog (JSON)</button>
           <label class="mini-btn" style="cursor:pointer">Import catalog<input id="importFile" type="file" accept="application/json" style="display:none"></label>
           <button class="mini-btn" id="pwBtn">Change password</button>
           <button class="mini-btn" id="logoutBtn">Log out</button>
         </div>
-        <p class="admin-note">Products you add here are saved in this browser only. To make them
-        permanent for all visitors, export the catalog and bake it into the site file — or hand
-        the JSON to whoever maintains the site.</p>
+        <p class="admin-note"><b>CSV import:</b> upload a spreadsheet saved as CSV with a header row —
+        columns <code>name, price, category, description, badge, image</code> (only name and price are
+        required) — and every row becomes a product. Products you add here are saved in this browser only.
+        To make them permanent for all visitors, export the catalog and bake it into the site file — or
+        hand the JSON to whoever maintains the site.</p>
       </div>
     </div>
   </div>
@@ -643,18 +659,18 @@
   // (drop the file in the images/ folder). Products without img keep the
   // illustrated tile.
   const PRODUCTS = [
-    {id:"lm-caps",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#E6EFE3", color:"#2E6B3E", badge:"Best seller"},
-    {id:"reishi-tinc",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#F1E7EC", color:"#7A4A5E"},
-    {id:"cord-powder",name:"Cordyceps Energy Powder",     cat:"Supplements",     price:27.99, desc:"100 g pure cordyceps militaris powder — pre-workout, no caffeine.",  tint:"#F5EBDD", color:"#C08A2D"},
-    {id:"tt-caps",   name:"Turkey Tail Immunity Capsules",cat:"Supplements",     price:32.99, desc:"90 capsules · beta-glucan-rich extract for immune support.",         tint:"#E7EDF0", color:"#4A6B7A"},
-    {id:"complex-gum",name:"10-Mushroom Complex Gummies", cat:"Supplements",     price:28.99, desc:"60 berry gummies blending ten functional species in one chew.",      tint:"#F0E7F1", color:"#6E4A7A", badge:"New"},
-    {id:"chaga-tea", name:"Chaga Chai Tea",               cat:"Coffee & Pantry", price:19.99, desc:"20 bags of wild-harvested chaga blended with warming chai spice.",   tint:"#EFE6DC", color:"#7A5A3A"},
-    {id:"mush-coffee",name:"Mushroom Coffee Blend",       cat:"Coffee & Pantry", price:24.99, desc:"340 g dark roast with lion's mane & chaga. Tastes like coffee.",     tint:"#EAE3DB", color:"#4A3A2E", badge:"Best seller"},
-    {id:"reishi-cocoa",name:"Reishi Hot Cocoa",           cat:"Coffee & Pantry", price:21.99, desc:"250 g rich cocoa with reishi extract — the calmest nightcap.",       tint:"#F0E4E0", color:"#8A4A3A"},
-    {id:"oyster-kit",name:"Pink Oyster Grow Kit",         cat:"Grow Kits",       price:39.99, desc:"Cut, mist, harvest in 10 days. Two to three flushes per block.",     tint:"#F5E5E8", color:"#C05A72", badge:"Staff pick"},
-    {id:"shiitake-kit",name:"Shiitake Grow Kit",          cat:"Grow Kits",       price:36.99, desc:"Fruits rich, meaty shiitake on a hardwood block. Beginner-proof.",   tint:"#EAE6DC", color:"#6B5A3A"},
-    {id:"porcini",   name:"Dried Porcini",                cat:"Gourmet Dried",   price:18.99, desc:"50 g of grade-A porcini. Rehydrate for risotto, pasta, and broth.",  tint:"#F0EADF", color:"#9A7A4A"},
-    {id:"medley",    name:"Shiitake & Oyster Medley",     cat:"Gourmet Dried",   price:16.99, desc:"100 g mixed dried mushrooms — a pantry staple for instant umami.",   tint:"#E8ECE3", color:"#5C6B5E"},
+    {id:"lm-caps",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#1B2314", color:"#9FC272", badge:"Best seller"},
+    {id:"reishi-tinc",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#231A20", color:"#C79BAF"},
+    {id:"cord-powder",name:"Cordyceps Energy Powder",     cat:"Supplements",     price:27.99, desc:"100 g pure cordyceps militaris powder — pre-workout, no caffeine.",  tint:"#251F10", color:"#D9B36A"},
+    {id:"tt-caps",   name:"Turkey Tail Immunity Capsules",cat:"Supplements",     price:32.99, desc:"90 capsules · beta-glucan-rich extract for immune support.",         tint:"#172025", color:"#8FB4C6"},
+    {id:"complex-gum",name:"10-Mushroom Complex Gummies", cat:"Supplements",     price:28.99, desc:"60 berry gummies blending ten functional species in one chew.",      tint:"#201A24", color:"#B99BC7", badge:"New"},
+    {id:"chaga-tea", name:"Chaga Chai Tea",               cat:"Coffee & Pantry", price:19.99, desc:"20 bags of wild-harvested chaga blended with warming chai spice.",   tint:"#241E14", color:"#C4A176"},
+    {id:"mush-coffee",name:"Mushroom Coffee Blend",       cat:"Coffee & Pantry", price:24.99, desc:"340 g dark roast with lion's mane & chaga. Tastes like coffee.",     tint:"#201A13", color:"#B59B82", badge:"Best seller"},
+    {id:"reishi-cocoa",name:"Reishi Hot Cocoa",           cat:"Coffee & Pantry", price:21.99, desc:"250 g rich cocoa with reishi extract — the calmest nightcap.",       tint:"#241712", color:"#C79484"},
+    {id:"oyster-kit",name:"Pink Oyster Grow Kit",         cat:"Grow Kits",       price:39.99, desc:"Cut, mist, harvest in 10 days. Two to three flushes per block.",     tint:"#261318", color:"#DB8FA1", badge:"Staff pick"},
+    {id:"shiitake-kit",name:"Shiitake Grow Kit",          cat:"Grow Kits",       price:36.99, desc:"Fruits rich, meaty shiitake on a hardwood block. Beginner-proof.",   tint:"#221D12", color:"#C0AC77"},
+    {id:"porcini",   name:"Dried Porcini",                cat:"Gourmet Dried",   price:18.99, desc:"50 g of grade-A porcini. Rehydrate for risotto, pasta, and broth.",  tint:"#231F12", color:"#CDB584"},
+    {id:"medley",    name:"Shiitake & Oyster Medley",     cat:"Gourmet Dried",   price:16.99, desc:"100 g mixed dried mushrooms — a pantry staple for instant umami.",   tint:"#1B2015", color:"#A9B89B"},
   ];
   const CATS = ["All","Supplements","Coffee & Pantry","Grow Kits","Gourmet Dried"];
   const fmt = n => "$" + n.toFixed(2);
@@ -662,7 +678,16 @@
     ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   // ---- catalog: built-in products, plus ones added in the browser ----
-  const CUSTOM_KEY = "mycora-custom-products", HIDDEN_KEY = "mycora-hidden-products";
+  // Carry over anything saved under the old Mycora brand keys (one-time).
+  try{
+    for(const [oldK,newK] of [["mycora-cart","hotbox-cart"],
+                              ["mycora-custom-products","hotbox-custom-products"],
+                              ["mycora-hidden-products","hotbox-hidden-products"]]){
+      if(localStorage.getItem(newK)===null && localStorage.getItem(oldK)!==null)
+        localStorage.setItem(newK, localStorage.getItem(oldK));
+    }
+  }catch(e){}
+  const CUSTOM_KEY = "hotbox-custom-products", HIDDEN_KEY = "hotbox-hidden-products";
   let custom = [], hidden = [];
   try{ custom = JSON.parse(localStorage.getItem(CUSTOM_KEY)) || []; }catch(e){}
   try{ hidden = JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; }catch(e){}
@@ -724,7 +749,7 @@
 
   // ---- cart ----
   let cart = {};
-  try{ cart = JSON.parse(localStorage.getItem("mycora-cart")) || {}; }catch(e){ cart = {}; }
+  try{ cart = JSON.parse(localStorage.getItem("hotbox-cart")) || {}; }catch(e){ cart = {}; }
   const drawer = document.getElementById("drawer");
   const overlay = document.getElementById("overlay");
   const drawerItems = document.getElementById("drawerItems");
@@ -733,7 +758,7 @@
   const toast = document.getElementById("toast");
   let toastTimer;
 
-  function saveCart(){ localStorage.setItem("mycora-cart", JSON.stringify(cart)); }
+  function saveCart(){ localStorage.setItem("hotbox-cart", JSON.stringify(cart)); }
   function cartEntries(){ const all = allProducts(); return Object.entries(cart).map(([id,qty]) => ({p:all.find(x=>x.id===id), qty})).filter(e=>e.p); }
   function renderCart(){
     const entries = cartEntries();
@@ -812,7 +837,7 @@
   // ---- admin login ----
   // Client-side gate: only a hash of the password is stored, in this browser.
   // It keeps visitors out of the manager; it is not server-grade security.
-  const HASH_KEY = "mycora-admin-hash", UNLOCK_KEY = "mycora-admin-unlocked";
+  const HASH_KEY = "hotbox-admin-hash", UNLOCK_KEY = "hotbox-admin-unlocked";
   const loginModal = document.getElementById("loginModal");
   const loginForm = document.getElementById("loginForm");
   const loginTitle = document.getElementById("loginTitle");
@@ -822,11 +847,11 @@
   const pw2Wrap = document.getElementById("pw2Wrap");
   async function hashPw(pw){
     if(crypto.subtle){
-      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("mycora:"+pw));
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hotbox:"+pw));
       return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
     }
     let h = 5381;
-    for(const ch of "mycora:"+pw){ h = ((h*33) ^ ch.charCodeAt(0)) >>> 0; }
+    for(const ch of "hotbox:"+pw){ h = ((h*33) ^ ch.charCodeAt(0)) >>> 0; }
     return "x" + h.toString(16);
   }
   const isUnlocked = () => sessionStorage.getItem(UNLOCK_KEY) === "1";
@@ -968,7 +993,7 @@
         name: fName.value.trim(), cat: fCat.value.trim(), price,
         desc: fDesc.value.trim(), badge: fBadge.value.trim() || undefined,
         img: fRemoveImg.checked ? null : (img || (orig && orig.img) || null),
-        tint: (orig && orig.tint) || "#E8ECE3", color: (orig && orig.color) || "#5C6B5E",
+        tint: (orig && orig.tint) || "#1B2015", color: (orig && orig.color) || "#A9B89B",
       });
       if(!hidden.includes(editingBuiltin)) hidden.push(editingBuiltin);
       showToast("Product updated");
@@ -977,7 +1002,7 @@
         id: "custom-" + Date.now().toString(36),
         name: fName.value.trim(), cat: fCat.value.trim(), price,
         desc: fDesc.value.trim(), badge: fBadge.value.trim() || undefined,
-        img, tint: "#E8ECE3", color: "#5C6B5E",
+        img, tint: "#1B2015", color: "#A9B89B",
       });
       showToast("Product added to the shop");
     }
@@ -1017,10 +1042,88 @@
     const blob = new Blob([JSON.stringify({custom, hidden}, null, 2)], {type:"application/json"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "mycora-catalog.json";
+    a.download = "hotbox-office-catalog.json";
     a.click();
     URL.revokeObjectURL(a.href);
   });
+  // ---- CSV import: one product per row ----
+  function parseCSV(text){
+    const rows = [];
+    let row = [], field = "", inQ = false;
+    for(let i = 0; i < text.length; i++){
+      const c = text[i];
+      if(inQ){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i++; }
+          else inQ = false;
+        } else field += c;
+      }
+      else if(c === '"') inQ = true;
+      else if(c === ",") { row.push(field); field = ""; }
+      else if(c === "\n" || c === "\r"){
+        if(c === "\r" && text[i+1] === "\n") i++;
+        row.push(field); field = "";
+        rows.push(row); row = [];
+      }
+      else field += c;
+    }
+    if(field !== "" || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(v => v.trim() !== ""));
+  }
+  const CSV_COLS = {
+    name:["name","product","product name","title","item"],
+    price:["price","cost","price (cad)","cad","amount"],
+    cat:["category","cat","type","collection"],
+    desc:["description","desc","details","copy"],
+    badge:["badge","tag","label"],
+    img:["image","img","photo","picture","image url","photo url"],
+  };
+  function importCSV(text){
+    const rows = parseCSV(text);
+    if(!rows.length){ showToast("That CSV looks empty"); return; }
+    const first = rows[0].map(v => v.trim().toLowerCase());
+    const idx = {};
+    let hasHeader = false;
+    for(const [key, names] of Object.entries(CSV_COLS)){
+      const at = first.findIndex(h => names.includes(h));
+      if(at !== -1){ idx[key] = at; hasHeader = true; }
+    }
+    // no recognizable header: assume name, price, category, description, badge, image
+    if(!hasHeader){ idx.name = 0; idx.price = 1; idx.cat = 2; idx.desc = 3; idx.badge = 4; idx.img = 5; }
+    const data = hasHeader ? rows.slice(1) : rows;
+    const stamp = Date.now().toString(36);
+    let added = 0, skipped = 0;
+    data.forEach((r, i) => {
+      const get = k => idx[k] !== undefined ? String(r[idx[k]] ?? "").trim() : "";
+      const name = get("name");
+      const price = parseFloat(get("price").replace(/[^0-9.\-]/g, ""));
+      if(!name || !(price >= 0)){ skipped++; return; }
+      custom.push({
+        id: "custom-" + stamp + "-" + i,
+        name: name.slice(0,80),
+        cat: get("cat").slice(0,40) || "Other",
+        price: Math.round(price * 100) / 100,
+        desc: get("desc").slice(0,200),
+        badge: get("badge").slice(0,20) || undefined,
+        img: get("img") || null,
+        tint:"#1B2015", color:"#A9B89B",
+      });
+      added++;
+    });
+    if(added){ saveCatalog(); refreshAll(); }
+    showToast(added
+      ? "Imported " + added + " product" + (added===1?"":"s") + (skipped ? " · " + skipped + " row" + (skipped===1?"":"s") + " skipped" : "")
+      : "No products found — check the CSV has name and price columns");
+  }
+  document.getElementById("importCsvFile").addEventListener("change", e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => importCSV(String(r.result));
+    r.readAsText(f);
+    e.target.value = "";
+  });
+
   document.getElementById("importFile").addEventListener("change", e => {
     const f = e.target.files[0];
     if(!f) return;
