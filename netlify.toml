@@ -1,0 +1,6 @@
+# Hotbox Office — plain static site, no build step needed.
+# The old Scotia Tire pricing sheet also lives in this repo; the build
+# command strips it so it never ends up on the live store.
+[build]
+  command = "rm -f pricing-sheet.html pricing-sheet.pdf"
+  publish = "."
