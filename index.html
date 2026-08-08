@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Cartagena Connect — Luxury Villas, Concierge, Yachts & Experiences in Cartagena</title>
 <meta name="description" content="49 private villas and islands, a 78-vessel fleet, private concierge, curated experiences, restaurants and nightlife in Cartagena de Indias — planned as one complete trip."/>
-<link rel="icon" href="https://cartagena-connect.pureliveguy.chatgpt.site/brand/favicon-192.png"/>
+<link rel="icon" href="brand/favicon-192.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -836,7 +836,7 @@ footer{background:#0a0d11;border-top:1px solid var(--lineSoft);padding:70px 0 40
 
 <script>
 /* ================= DATA ================= */
-const MEDIA = "https://cartagena-connect.pureliveguy.chatgpt.site";
+const MEDIA = ".";
 const WA = "https://wa.me/14168254334";
 const simg = (f,n)=>MEDIA+"/media/stays/"+f+"/0"+n+".webp";
 const fimg = (f,n)=>MEDIA+"/media/fleet/"+f+"/0"+n+".webp";
@@ -1257,7 +1257,8 @@ function renderStays(){
 function openStay(i){
   const s=STAYS[i];
   const bd=s.bdT||(s.bd!=null?s.bd:"—"), gu=s.guT||(s.gu!=null?"Up to "+s.gu:"Private group");
-  const gal=s.f?Array.from({length:s.f&&["cuartel","mantilla","popular-11","popular-21","sebas","toro"].includes(s.f)?8:7},(_,k)=>simg(s.f,k+1)):[];
+  const oneImg=["baru-private-island","baru-private-estate","isla-pirata-private-island","rosario-private-island","tierra-bomba-private-island"];
+  const gal=s.f?Array.from({length:oneImg.includes(s.f)?1:8},(_,k)=>simg(s.f,k+1)):[];
   const feats=s.ft||["Private pool or courtyard","Concierge coordination","Private transportation available","Vessels and experiences available","Chef, butler & housekeeping on request","24/7 security available"];
   openModal({
     loc:s.a+" · Private residence",title:s.n,lead:s.d,gal,
@@ -1468,9 +1469,9 @@ function toggleFaq(btn){btn.parentElement.classList.toggle("open");}
 let LB={imgs:[],i:0};
 function openModal(o){
   const mc=$("#modalCard");
-  const galHtml=o.gal.length?'<div class="modalGal"><div class="main" onclick="lbOpen(0)">'+imgTag(o.gal[0],o.title)+'</div>'
-    +'<div class="thumbCol"><div class="thumb" onclick="lbOpen(1)">'+imgTag(o.gal[1],o.title)+'</div>'
-    +'<div class="thumb" onclick="lbOpen(2)">'+imgTag(o.gal[2],o.title)+(o.gal.length>3?'<div class="moreCount" onclick="event.stopPropagation();lbOpen(3)">+'+(o.gal.length-3)+' more</div>':"")+'</div></div></div>':"";
+  const galHtml=o.gal.length?'<div class="modalGal"'+(o.gal.length===1?' style="grid-template-columns:1fr"':"")+'><div class="main" onclick="lbOpen(0)">'+imgTag(o.gal[0],o.title)+'</div>'
+    +(o.gal.length>1?'<div class="thumbCol"><div class="thumb" onclick="lbOpen(1)">'+imgTag(o.gal[1],o.title)+'</div>'
+    +'<div class="thumb" onclick="lbOpen(2)">'+imgTag(o.gal[2],o.title)+(o.gal.length>3?'<div class="moreCount" onclick="event.stopPropagation();lbOpen(3)">+'+(o.gal.length-3)+' more</div>':"")+'</div></div>':"")+'</div>':"";
   mc.innerHTML='<button class="modalX" onclick="closeModal()">×</button>'+galHtml
     +'<div class="modalBody"><div class="loc">'+esc(o.loc)+'</div><h2>'+esc(o.title)+'</h2>'
     +'<p class="lead">'+o.lead+'</p>'
