@@ -172,8 +172,9 @@
     transition:transform .18s ease,box-shadow .18s ease;
   }
   .card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
-  .card-art{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;position:relative}
+  .card-art{aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
   .card-art svg{width:44%;height:auto}
+  .card-art img{width:100%;height:100%;object-fit:cover}
   .badge{
     position:absolute;top:12px;left:12px;
     background:var(--gold);color:#fff;font-size:11px;font-weight:700;
@@ -265,8 +266,9 @@
   .drawer-items{flex:1;overflow-y:auto;padding:16px 22px;display:flex;flex-direction:column;gap:14px}
   .drawer-empty{color:var(--muted);text-align:center;margin-top:40px;font-size:14.5px}
   .line-item{display:flex;gap:12px;align-items:center}
-  .line-art{width:52px;height:52px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .line-art{width:52px;height:52px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
   .line-art svg{width:60%}
+  .line-art img{width:100%;height:100%;object-fit:cover}
   .line-info{flex:1;min-width:0}
   .line-info b{font-size:14px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .line-info span{font-size:13px;color:var(--muted)}
@@ -534,6 +536,9 @@
 
 <script>
   // ---- product data: edit names, prices, and copy here ----
+  // To show a real photo on a product, add e.g. img:"images/lions-mane.jpg"
+  // (drop the file in the images/ folder). Products without img keep the
+  // illustrated tile.
   const PRODUCTS = [
     {id:"lm-caps",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#E6EFE3", color:"#2E6B3E", badge:"Best seller"},
     {id:"reishi-tinc",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#F1E7EC", color:"#7A4A5E"},
@@ -557,6 +562,7 @@
   let activeCat = "All";
 
   function artSVG(p){
+    if(p.img) return '<img src="'+p.img+'" alt="'+p.name+'" loading="lazy">';
     return '<svg viewBox="0 0 100 100" aria-hidden="true"><use href="#shroom" fill="'+p.color+'"/></svg>';
   }
   function renderChips(){
