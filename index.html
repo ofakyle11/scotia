@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Cartagena Connect — Luxury Villas, Concierge, Yachts & Experiences in Cartagena</title>
+<meta name="description" content="49 private villas and islands, a 78-vessel fleet, private concierge, curated experiences, restaurants and nightlife in Cartagena de Indias — planned as one complete trip."/>
+<link rel="icon" href="https://cartagena-connect.pureliveguy.chatgpt.site/brand/favicon-192.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ink:#0e1116; --ink2:#151a21; --ink3:#1c232c;
+  --ivory:#f6f1e7; --ivory2:#efe7d8; --paper:#fbf8f2;
+  --gold:#c9a24b; --gold2:#e0c07a; --teal:#3a9c8e; --teal2:#8fd6c9;
+  --muted:#9aa3ae; --mutedD:#6b7480;
+  --line:rgba(201,162,75,.25); --lineSoft:rgba(255,255,255,.08);
+  --serif:'Cormorant Garamond',Georgia,serif; --sans:'Jost','Segoe UI',system-ui,sans-serif;
+  --rad:14px; --shadow:0 30px 80px -20px rgba(0,0,0,.55);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--ivory);font-family:var(--sans);font-weight:300;line-height:1.6;overflow-x:hidden}
+::selection{background:var(--gold);color:var(--ink)}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+h1,h2,h3,.serif{font-family:var(--serif);font-weight:500;line-height:1.08}
+.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(18px,4vw,48px)}
+section{position:relative;scroll-margin-top:82px}
+.kicker{display:flex;align-items:center;gap:14px;text-transform:uppercase;letter-spacing:.32em;font-size:11px;color:var(--gold);font-weight:500;margin-bottom:22px}
+.kicker::before{content:"";width:46px;height:1px;background:var(--gold);opacity:.7}
+.h2{font-size:clamp(34px,4.6vw,62px);letter-spacing:.01em}
+.h2 em{font-style:italic;color:var(--gold2)}
+.lede{max-width:620px;color:var(--muted);font-size:16.5px;margin-top:18px}
+.sectionHead{padding:clamp(70px,9vw,120px) 0 clamp(30px,4vw,50px)}
+.light{background:var(--ivory);color:var(--ink)}
+.light .lede{color:#5c5648}
+.light .kicker{color:#a07f2e}.light .kicker::before{background:#a07f2e}
+.light .h2 em{color:#a07f2e}
+
+/* ---------- progress + nav ---------- */
+#progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--teal));width:0;z-index:1002}
+header#nav{position:fixed;top:0;left:0;right:0;z-index:1000;transition:background .35s,box-shadow .35s,border-color .35s;border-bottom:1px solid transparent}
+header#nav.scrolled{background:rgba(12,15,20,.86);backdrop-filter:blur(14px);border-color:var(--lineSoft);box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.navIn{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px clamp(18px,3vw,40px)}
+.brand{display:flex;flex-direction:column;line-height:1.1}
+.brand b{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.brand span{font-size:9.5px;text-transform:uppercase;letter-spacing:.42em;color:var(--gold)}
+nav.links{display:flex;gap:26px;font-size:12.5px;text-transform:uppercase;letter-spacing:.14em}
+nav.links a{opacity:.78;transition:.25s;position:relative;padding:6px 0;white-space:nowrap}
+nav.links a::after{content:"";position:absolute;left:0;bottom:0;width:0;height:1px;background:var(--gold);transition:.3s}
+nav.links a:hover,nav.links a.active{opacity:1;color:var(--gold2)}
+nav.links a.active::after,nav.links a:hover::after{width:100%}
+.navActions{display:flex;gap:12px;align-items:center}
+.tripBtn{background:transparent;border:1px solid var(--line);color:var(--ivory);border-radius:999px;padding:9px 18px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;display:flex;gap:9px;align-items:center;transition:.3s}
+.tripBtn:hover{border-color:var(--gold);color:var(--gold2)}
+.tripBtn .count{background:var(--gold);color:var(--ink);border-radius:999px;min-width:20px;height:20px;display:grid;place-items:center;font-weight:600;font-size:11.5px;padding:0 5px}
+.waBtn{background:var(--gold);color:var(--ink);border:none;border-radius:999px;padding:10px 20px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;transition:.3s;white-space:nowrap}
+.waBtn:hover{background:var(--gold2);transform:translateY(-1px)}
+#burger{display:none;background:none;border:none;color:var(--ivory);font-size:26px;line-height:1}
+#mobileMenu{position:fixed;inset:0;background:rgba(10,12,16,.97);z-index:1001;display:none;flex-direction:column;justify-content:center;padding:60px 40px;gap:6px}
+#mobileMenu.open{display:flex}
+#mobileMenu a{font-family:var(--serif);font-size:clamp(28px,7vw,40px);padding:8px 0;border-bottom:1px solid var(--lineSoft);display:flex;justify-content:space-between;align-items:center}
+#mobileMenu a small{font-family:var(--sans);font-size:11px;color:var(--gold);letter-spacing:.3em}
+#mobileMenu .x{position:absolute;top:22px;right:28px;background:none;border:none;color:var(--ivory);font-size:34px}
+
+/* ---------- hero ---------- */
+#hero{min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
+.heroSlides{position:absolute;inset:0}
+.heroSlides .slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.08);transition:opacity 2.2s ease,transform 8s linear}
+.heroSlides .slide.on{opacity:1;transform:scale(1)}
+#hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,12,16,.55) 0%,rgba(10,12,16,.15) 40%,rgba(10,12,16,.88) 88%,var(--ink) 100%)}
+.heroContent{position:relative;z-index:2;padding-top:120px;padding-bottom:clamp(40px,6vh,80px)}
+.heroTop{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;flex-wrap:wrap}
+.heroTitle{font-size:clamp(40px,6vw,84px);letter-spacing:0;max-width:15ch}
+.heroTitle .swap{color:var(--gold2);font-style:italic;display:inline-block;min-width:5ch}
+.heroSub{margin-top:20px;max-width:560px;color:#cfd4d9;font-size:17px}
+.heroMeta{text-align:right;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+.heroMeta .clock{font-family:var(--serif);font-size:34px;color:var(--ivory);letter-spacing:.06em;display:block;margin-top:6px}
+.heroCtas{display:flex;gap:16px;margin-top:36px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:10px;border-radius:999px;padding:15px 30px;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;transition:.3s;border:1px solid transparent;background:transparent;color:inherit}
+.btn.gold{background:var(--gold);color:var(--ink)}
+.btn.gold:hover{background:var(--gold2);transform:translateY(-2px)}
+.btn.ghost{border-color:rgba(246,241,231,.4);color:var(--ivory)}
+.btn.ghost:hover{border-color:var(--gold);color:var(--gold2)}
+.btn.dark{background:var(--ink);color:var(--ivory)}
+.btn.dark:hover{background:#000;transform:translateY(-2px)}
+.heroStats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--lineSoft);border:1px solid var(--lineSoft);border-radius:var(--rad);overflow:hidden;margin-top:44px}
+.heroStats div{background:rgba(14,17,22,.72);backdrop-filter:blur(8px);padding:20px 22px}
+.heroStats b{font-family:var(--serif);font-size:clamp(26px,3vw,40px);font-weight:500;color:var(--gold2);display:block}
+.heroStats span{font-size:11px;text-transform:uppercase;letter-spacing:.22em;color:var(--muted)}
+.scrollHint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:3;font-size:10px;letter-spacing:.4em;text-transform:uppercase;color:var(--muted);animation:bob 2.4s infinite}
+@keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,8px)}}
+
+/* ---------- mood ---------- */
+#mood{background:var(--ink);padding-bottom:clamp(70px,8vw,110px)}
+.moodGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
+.moodCard{position:relative;border:1px solid var(--lineSoft);border-radius:var(--rad);padding:34px 26px 30px;background:linear-gradient(160deg,var(--ink2),var(--ink));text-align:left;color:var(--ivory);overflow:hidden;transition:.35s}
+.moodCard::before{content:attr(data-n);position:absolute;top:16px;right:20px;font-family:var(--serif);font-size:15px;color:var(--mutedD)}
+.moodCard h3{font-size:32px;margin-bottom:10px;transition:.3s}
+.moodCard p{font-size:13.5px;color:var(--muted)}
+.moodCard:hover,.moodCard.on{border-color:var(--gold);transform:translateY(-5px)}
+.moodCard:hover h3,.moodCard.on h3{color:var(--gold2)}
+#moodResult{margin-top:34px;border:1px solid var(--line);border-radius:var(--rad);padding:clamp(24px,3.4vw,42px);background:linear-gradient(150deg,rgba(201,162,75,.08),rgba(58,156,142,.05));display:none}
+#moodResult.show{display:block;animation:fadeUp .6s ease}
+#moodResult h3{font-size:clamp(26px,3vw,38px)}#moodResult h3 em{color:var(--gold2);font-style:italic}
+.moodPicks{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:26px 0}
+.moodPick{border:1px solid var(--lineSoft);border-radius:10px;padding:16px 18px;background:rgba(14,17,22,.5)}
+.moodPick small{display:block;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--teal2);margin-bottom:6px}
+.moodPick b{font-family:var(--serif);font-size:19px;font-weight:600;display:block}
+.moodPick span{font-size:12px;color:var(--muted)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* ---------- toolbar / chips ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:34px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:8px 17px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;transition:.25s;font-weight:400}
+.chip:hover{border-color:var(--gold);color:var(--gold)}
+.chip.on{background:var(--gold);border-color:var(--gold);color:#0e1116;font-weight:500}
+.light .chip{border-color:rgba(20,17,10,.25)}
+.light .chip.on{background:var(--ink);border-color:var(--ink);color:var(--ivory)}
+.light .chip:hover{border-color:var(--ink);color:var(--ink)}
+.searchBox{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 18px;min-width:210px;flex:1;max-width:320px}
+.searchBox input{background:none;border:none;outline:none;color:inherit;font-size:13.5px;width:100%;letter-spacing:.04em}
+.searchBox svg{opacity:.6;flex:none}
+.sortSel{border:1px solid var(--line);background:transparent;color:inherit;border-radius:999px;padding:8px 14px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;outline:none}
+.sortSel option{color:#111;background:#fff}
+.countLbl{font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.55;margin-left:auto}
+.fitBox{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:999px;padding:6px 8px 6px 18px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.fitBox input{width:64px;background:none;border:none;outline:none;color:inherit;font-size:15px;font-family:var(--serif);text-align:center;border-left:1px solid var(--line);padding-left:10px}
+
+/* ---------- cards ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
+.card{position:relative;border-radius:var(--rad);overflow:hidden;background:var(--ink2);border:1px solid var(--lineSoft);transition:transform .4s,box-shadow .4s,border-color .4s;display:flex;flex-direction:column}
+.card:hover{transform:translateY(-6px);border-color:var(--line);box-shadow:var(--shadow)}
+.light .card{background:#fff;border-color:rgba(20,17,10,.1);box-shadow:0 6px 24px rgba(35,28,15,.07)}
+.light .card:hover{box-shadow:0 30px 60px -18px rgba(35,28,15,.25);border-color:rgba(160,127,46,.4)}
+.cardImg{position:relative;aspect-ratio:4/3;overflow:hidden;background:linear-gradient(140deg,#243041,#141a22 55%,#2b2416);cursor:pointer}
+.cardImg .ph{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--serif);font-size:54px;color:rgba(224,192,122,.4);font-style:italic}
+.cardImg img{position:relative;width:100%;height:100%;object-fit:cover;transition:transform 1.2s ease}
+.card:hover .cardImg img{transform:scale(1.07)}
+.cardImg .tag{position:absolute;top:12px;left:12px;z-index:2;background:rgba(12,15,20,.72);backdrop-filter:blur(6px);color:var(--gold2);font-size:10px;letter-spacing:.22em;text-transform:uppercase;padding:6px 12px;border-radius:999px;border:1px solid rgba(201,162,75,.35)}
+.cardImg .badge{position:absolute;top:12px;right:12px;z-index:2;background:var(--gold);color:var(--ink);font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:6px 12px;border-radius:999px}
+.cardBody{padding:20px 22px 22px;display:flex;flex-direction:column;gap:8px;flex:1}
+.cardBody h3{font-size:24px;font-weight:600}
+.cardBody .loc{font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.light .cardBody .loc{color:#877f6d}
+.cardBody .meta{font-size:13.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.light .cardBody .meta{color:#5c5648}
+.cardBody .meta b{color:inherit;font-weight:500}
+.cardBody .desc{font-size:13.5px;color:var(--muted);flex:1}
+.light .cardBody .desc{color:#6b6455}
+.cardActions{display:flex;gap:10px;margin-top:12px}
+.miniBtn{flex:1;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;padding:10px 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;transition:.25s}
+.miniBtn:hover{border-color:var(--gold);color:var(--gold)}
+.miniBtn.solid{background:var(--gold);border-color:var(--gold);color:#0e1116;font-weight:500}
+.miniBtn.solid:hover{background:var(--gold2);color:#0e1116}
+.miniBtn.added{background:var(--teal);border-color:var(--teal);color:#fff}
+.showMoreRow{display:flex;justify-content:center;margin-top:36px}
+.empty{padding:60px 0;text-align:center;opacity:.6;font-family:var(--serif);font-size:22px;font-style:italic;grid-column:1/-1}
+
+/* ---------- section shells ---------- */
+.bandDark{background:var(--ink);padding-bottom:clamp(80px,9vw,130px)}
+.bandDark2{background:var(--ink2);padding-bottom:clamp(80px,9vw,130px)}
+.bandLight{background:var(--ivory);color:var(--ink);padding-bottom:clamp(80px,9vw,130px)}
+.headRow{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;flex-wrap:wrap}
+.headRow .bigNum{font-family:var(--serif);font-size:clamp(60px,8vw,120px);line-height:.8;color:transparent;-webkit-text-stroke:1px var(--gold);opacity:.55;flex:none}
+
+/* ---------- experiences ---------- */
+.expCard .price{font-family:var(--serif);font-size:19px;color:var(--gold2);font-weight:600}
+.light .expCard .price{color:#8a6c22}
+.expCard .dur{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.6}
+
+/* ---------- evenings ---------- */
+.itinGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:40px}
+.itin{border:1px solid var(--lineSoft);border-radius:var(--rad);background:var(--ink2);overflow:hidden;transition:.35s}
+.itin:hover{border-color:var(--line)}
+.itin header{padding:26px 24px 20px;cursor:pointer;position:relative}
+.itin header small{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--teal2);display:block;margin-bottom:10px}
+.itin header h3{font-size:26px;padding-right:34px}
+.itin header .pm{position:absolute;right:22px;top:30px;font-size:22px;color:var(--gold);transition:.3s}
+.itin.open header .pm{transform:rotate(45deg)}
+.itin .chapters{max-height:0;overflow:hidden;transition:max-height .5s ease}
+.itin.open .chapters{max-height:560px}
+.chapter{display:flex;gap:16px;padding:14px 24px;border-top:1px solid var(--lineSoft)}
+.chapter time{font-family:var(--serif);font-size:17px;color:var(--gold2);min-width:52px;font-style:italic}
+.chapter b{display:block;font-weight:500;font-size:14.5px}
+.chapter span{font-size:12.5px;color:var(--muted)}
+.itin .itinFoot{padding:16px 24px 24px;display:none;gap:10px}
+.itin.open .itinFoot{display:flex}
+
+/* ---------- night designer ---------- */
+#designer{border:1px solid var(--line);border-radius:20px;background:linear-gradient(155deg,#161b23,#10151c 60%,#1a1710);padding:clamp(26px,4vw,52px);margin-top:60px;position:relative;overflow:hidden}
+#designer::before{content:"";position:absolute;top:-120px;right:-120px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,75,.14),transparent 70%)}
+.dzHead{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap}
+.dzHead h3{font-size:clamp(30px,3.6vw,46px)}.dzHead h3 em{color:var(--gold2)}
+.profileMeter{text-align:right;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+.profileMeter b{font-family:var(--serif);font-size:40px;color:var(--gold2);font-weight:500;display:block;line-height:1}
+.dzQ{margin-top:34px}
+.dzQ h4{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--teal2);margin-bottom:6px;font-weight:500}
+.dzQ p{font-size:13px;color:var(--muted);margin-bottom:14px}
+.dzOpts{display:flex;flex-wrap:wrap;gap:10px}
+.dzOpt{border:1px solid var(--lineSoft);background:rgba(255,255,255,.02);color:var(--ivory);border-radius:12px;padding:13px 22px;font-size:14px;transition:.25s;font-family:var(--serif);font-size:17px}
+.dzOpt:hover{border-color:var(--gold)}
+.dzOpt.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:600}
+.dzFields{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:16px}
+.dzFields input,.dzFields textarea{background:rgba(255,255,255,.03);border:1px solid var(--lineSoft);border-radius:10px;color:var(--ivory);padding:13px 16px;font-size:14px;outline:none;transition:.25s}
+.dzFields input:focus,.dzFields textarea:focus{border-color:var(--gold)}
+#dzRoute{margin-top:38px;border-top:1px solid var(--line);padding-top:30px;display:none}
+#dzRoute.show{display:block;animation:fadeUp .5s}
+.routeSteps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:20px 0 26px}
+.routeStep{border:1px solid var(--lineSoft);border-radius:12px;padding:16px;background:rgba(14,17,22,.5);position:relative}
+.routeStep small{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--teal2)}
+.routeStep b{font-family:var(--serif);font-size:20px;display:block;margin-top:4px;font-weight:600}
+.routeStep span{font-size:12px;color:var(--muted)}
+
+/* ---------- city timeline ---------- */
+.timeline{display:flex;gap:14px;overflow-x:auto;padding:40px 0 26px;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
+.tCard{flex:0 0 300px;scroll-snap-align:start;border:1px solid rgba(20,17,10,.15);border-radius:var(--rad);background:#fff;padding:26px;cursor:pointer;transition:.3s;position:relative;overflow:hidden}
+.tCard:hover{border-color:#a07f2e;transform:translateY(-4px);box-shadow:0 24px 50px -18px rgba(35,28,15,.3)}
+.tCard .yr{font-family:var(--serif);font-size:40px;color:#a07f2e;font-weight:600;line-height:1}
+.tCard h3{font-size:20px;margin:10px 0 8px;font-weight:600}
+.tCard p{font-size:13px;color:#6b6455;max-height:0;overflow:hidden;transition:max-height .45s ease}
+.tCard.open p{max-height:260px}
+.tCard .more{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:#a07f2e;margin-top:12px;display:inline-block}
+.srcRow{font-size:12px;color:#877f6d;margin-top:26px;line-height:2}
+.srcRow a{border-bottom:1px solid rgba(160,127,46,.4);transition:.2s;margin-right:18px}
+.srcRow a:hover{color:#a07f2e}
+
+/* ---------- concierge ---------- */
+.phases{counter-reset:ph;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;background:var(--lineSoft);border:1px solid var(--lineSoft);border-radius:var(--rad);overflow:hidden;margin-top:46px}
+.phase{background:var(--ink);padding:30px 26px;transition:.3s;position:relative}
+.phase:hover{background:var(--ink3)}
+.phase::before{counter-increment:ph;content:"0" counter(ph);font-family:var(--serif);font-style:italic;color:var(--gold);font-size:18px}
+.phase h3{font-size:26px;margin:8px 0 10px}
+.phase p{font-size:13px;color:var(--muted)}
+.specGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:46px}
+.spec{border:1px solid var(--lineSoft);border-radius:var(--rad);padding:26px;background:linear-gradient(160deg,var(--ink2),var(--ink));transition:.3s}
+.spec:hover{border-color:var(--line);transform:translateY(-4px)}
+.spec h3{font-size:23px;color:var(--gold2);margin-bottom:8px}
+.spec p{font-size:13.5px;color:var(--muted)}
+.promise{margin-top:70px;text-align:center;padding:0 20px}
+.promise blockquote{font-family:var(--serif);font-size:clamp(28px,4vw,52px);font-style:italic;max-width:20ch;margin:0 auto;line-height:1.25}
+.promise blockquote span{color:var(--gold2)}
+.promise cite{display:block;margin-top:18px;font-style:normal;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--muted)}
+.tickerWrap{overflow:hidden;margin-top:60px;border-top:1px solid var(--lineSoft);border-bottom:1px solid var(--lineSoft);padding:16px 0;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.ticker{display:flex;gap:44px;white-space:nowrap;animation:tick 36s linear infinite;width:max-content}
+.ticker span{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
+.ticker i{color:var(--gold);font-style:normal}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* ---------- FAQ ---------- */
+.faqTabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px}
+.faqItem{border:1px solid rgba(20,17,10,.14);border-radius:12px;background:#fff;margin-bottom:12px;overflow:hidden;transition:.3s}
+.faqItem:hover{border-color:rgba(160,127,46,.45)}
+.faqItem button.q{width:100%;background:none;border:none;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:18px;padding:20px 24px;font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink)}
+.faqItem .pm{font-size:24px;color:#a07f2e;transition:.3s;flex:none}
+.faqItem.open .pm{transform:rotate(45deg)}
+.faqItem .a{max-height:0;overflow:hidden;transition:max-height .45s ease}
+.faqItem .a p{padding:0 24px 22px;font-size:14.5px;color:#5c5648;max-width:78ch}
+.faqItem.open .a{max-height:400px}
+.faqCat{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#a07f2e;margin:34px 0 14px;display:flex;align-items:center;gap:12px}
+.faqCat::after{content:"";flex:1;height:1px;background:rgba(160,127,46,.3)}
+
+/* ---------- planner ---------- */
+#plan{background:linear-gradient(170deg,var(--ink) 0%,#141209 130%)}
+.planGrid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(30px,5vw,80px);align-items:start;padding-bottom:clamp(80px,9vw,130px)}
+.planForm{border:1px solid var(--line);border-radius:20px;padding:clamp(24px,3.4vw,44px);background:rgba(21,26,33,.6);backdrop-filter:blur(8px)}
+.planForm .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.planForm label{display:block;font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--teal2);margin:18px 0 7px}
+.planForm input,.planForm textarea,.planForm select{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--lineSoft);border-radius:10px;color:var(--ivory);padding:13px 16px;font-size:14.5px;outline:none;transition:.25s}
+.planForm input:focus,.planForm textarea:focus,.planForm select:focus{border-color:var(--gold)}
+.planForm select option{color:#111}
+.segmented{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;width:max-content;margin-bottom:6px}
+.segmented button{background:transparent;border:none;color:var(--muted);padding:10px 22px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;transition:.25s}
+.segmented button.on{background:var(--gold);color:var(--ink);font-weight:500}
+.planNote{font-size:12px;color:var(--mutedD);margin-top:14px}
+#planTripSummary{font-size:13px;color:var(--teal2);margin-top:10px;line-height:1.8}
+
+/* ---------- footer ---------- */
+footer{background:#0a0d11;border-top:1px solid var(--lineSoft);padding:70px 0 40px}
+.footGrid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px}
+.footGrid h4{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:18px;font-weight:500}
+.footGrid a{display:block;font-size:14px;color:var(--muted);padding:5px 0;transition:.25s}
+.footGrid a:hover{color:var(--gold2)}
+.footBrand p{color:var(--muted);font-size:14px;max-width:30ch;margin-top:14px}
+.footBase{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid var(--lineSoft);margin-top:54px;padding-top:26px;font-size:12px;color:var(--mutedD)}
+
+/* ---------- drawer ---------- */
+#overlay{position:fixed;inset:0;background:rgba(8,10,13,.6);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.35s;z-index:1100}
+#overlay.show{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,94vw);background:#12161c;border-left:1px solid var(--line);z-index:1101;transform:translateX(103%);transition:transform .45s cubic-bezier(.22,1,.3,1);display:flex;flex-direction:column}
+#drawer.open{transform:none}
+.drawerHead{padding:26px 28px 18px;border-bottom:1px solid var(--lineSoft);display:flex;justify-content:space-between;align-items:flex-start}
+.drawerHead h3{font-size:30px}.drawerHead h3 em{color:var(--gold2)}
+.drawerHead p{font-size:12px;color:var(--muted);margin-top:4px}
+.drawerHead .x{background:none;border:none;color:var(--muted);font-size:28px;line-height:1;transition:.2s}
+.drawerHead .x:hover{color:var(--ivory)}
+#drawerBody{flex:1;overflow-y:auto;padding:20px 28px}
+.tripCat{font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--teal2);margin:18px 0 8px}
+.tripItem{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--lineSoft);border-radius:10px;padding:12px 16px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+.tripItem b{font-family:var(--serif);font-size:17px;font-weight:600;display:block}
+.tripItem span{font-size:11.5px;color:var(--muted)}
+.tripItem .rm{background:none;border:none;color:var(--mutedD);font-size:18px;transition:.2s}
+.tripItem .rm:hover{color:#e2695f}
+.drawerEmpty{text-align:center;padding:60px 20px;color:var(--muted)}
+.drawerEmpty .serif{font-size:26px;font-style:italic;color:var(--ivory);display:block;margin-bottom:10px}
+.drawerFoot{padding:20px 28px 26px;border-top:1px solid var(--lineSoft);display:flex;flex-direction:column;gap:10px}
+.drawerFoot .clear{background:none;border:none;color:var(--mutedD);font-size:11px;letter-spacing:.2em;text-transform:uppercase;transition:.2s}
+.drawerFoot .clear:hover{color:#e2695f}
+
+/* ---------- modal ---------- */
+#modal{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;padding:clamp(10px,3vw,40px)}
+#modal.open{display:flex}
+#modal .back{position:absolute;inset:0;background:rgba(8,10,13,.78);backdrop-filter:blur(6px)}
+.modalCard{position:relative;background:#12161c;border:1px solid var(--line);border-radius:18px;max-width:1020px;width:100%;max-height:92svh;overflow-y:auto;animation:fadeUp .4s ease}
+.modalX{position:sticky;top:0;margin-left:auto;display:block;background:rgba(12,15,20,.7);border:1px solid var(--lineSoft);color:var(--ivory);width:42px;height:42px;border-radius:50%;font-size:20px;z-index:5;float:right;margin:14px 14px 0 0;transition:.2s}
+.modalX:hover{border-color:var(--gold);color:var(--gold)}
+.modalGal{display:grid;grid-template-columns:2fr 1fr;gap:6px;padding:0 22px}
+.modalGal .main{aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:#1a2129}
+.modalGal .thumbCol{display:grid;grid-template-rows:1fr 1fr;gap:6px}
+.modalGal .thumb{border-radius:12px;overflow:hidden;background:#1a2129;position:relative;cursor:pointer}
+.modalGal img{width:100%;height:100%;object-fit:cover;cursor:pointer;transition:.4s}
+.modalGal .thumb:hover img,.modalGal .main:hover img{transform:scale(1.05)}
+.modalGal .moreCount{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,12,16,.55);font-family:var(--serif);font-size:26px;color:var(--gold2)}
+.modalBody{padding:28px clamp(22px,4vw,46px) 44px}
+.modalBody .loc{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--teal2)}
+.modalBody h2{font-size:clamp(32px,4vw,52px);margin:8px 0 6px}
+.modalBody .lead{color:var(--muted);font-size:15.5px;max-width:70ch;margin-top:12px}
+.statRow{display:flex;gap:1px;background:var(--lineSoft);border:1px solid var(--lineSoft);border-radius:12px;overflow:hidden;margin:24px 0;width:max-content;max-width:100%;flex-wrap:wrap}
+.statRow div{background:#161b22;padding:16px 26px;min-width:110px}
+.statRow b{font-family:var(--serif);font-size:28px;color:var(--gold2);font-weight:500;display:block}
+.statRow span{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.featList{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:22px 0}
+.featList li{list-style:none;border:1px solid var(--lineSoft);border-radius:10px;padding:12px 16px;font-size:13.5px;color:#cfd4d9;display:flex;gap:10px;align-items:center}
+.featList li::before{content:"✦";color:var(--gold);font-size:11px}
+.dayLine{border-left:1px solid var(--line);margin:28px 0 8px;padding-left:26px;display:grid;gap:20px}
+.dayLine .d{position:relative}
+.dayLine .d::before{content:"";position:absolute;left:-31px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--gold)}
+.dayLine time{font-family:var(--serif);font-style:italic;color:var(--gold2);font-size:17px}
+.dayLine b{display:block;font-weight:500;margin-top:2px}
+.dayLine span{font-size:13px;color:var(--muted)}
+.modalCtas{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+
+/* ---------- lightbox ---------- */
+#lightbox{position:fixed;inset:0;z-index:1300;background:rgba(6,8,10,.94);display:none;align-items:center;justify-content:center}
+#lightbox.open{display:flex}
+#lightbox img{max-width:92vw;max-height:86svh;object-fit:contain;border-radius:6px}
+#lightbox .lbX{position:absolute;top:20px;right:26px;background:none;border:none;color:#fff;font-size:34px;opacity:.7}
+#lightbox .lbX:hover{opacity:1}
+#lightbox .lbNav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);color:#fff;width:52px;height:52px;border-radius:50%;font-size:22px;transition:.2s}
+#lightbox .lbNav:hover{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+#lightbox .prev{left:22px}#lightbox .next{right:22px}
+#lightbox .lbCount{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.3em;color:#aaa}
+
+/* ---------- toast / misc ---------- */
+#toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,80px);background:var(--gold);color:var(--ink);padding:13px 26px;border-radius:999px;font-size:13px;font-weight:500;letter-spacing:.06em;z-index:1400;transition:.45s cubic-bezier(.22,1,.3,1);opacity:0;box-shadow:0 18px 50px rgba(0,0,0,.4)}
+#toast.show{transform:translate(-50%,0);opacity:1}
+#toTop{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:rgba(14,17,22,.85);color:var(--gold2);font-size:18px;z-index:900;opacity:0;pointer-events:none;transition:.35s}
+#toTop.show{opacity:1;pointer-events:auto}
+#toTop:hover{background:var(--gold);color:var(--ink)}
+#waFloat{position:fixed;bottom:24px;left:24px;z-index:900;display:flex;gap:10px;align-items:center;background:#12161c;border:1px solid var(--line);border-radius:999px;padding:10px 20px 10px 12px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ivory);transition:.3s;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+#waFloat:hover{border-color:var(--teal);color:var(--teal2);transform:translateY(-2px)}
+#waFloat .dot{width:9px;height:9px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.5);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 10px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s ease,transform .8s ease}
+.reveal.in{opacity:1;transform:none}
+
+@media(max-width:1020px){
+  nav.links{display:none}
+  #burger{display:block}
+  .planGrid{grid-template-columns:1fr}
+  .footGrid{grid-template-columns:1fr 1fr}
+  .moodGrid{grid-template-columns:1fr 1fr}
+  .heroStats{grid-template-columns:1fr 1fr}
+}
+@media(max-width:620px){
+  .moodGrid{grid-template-columns:1fr}
+  .modalGal{grid-template-columns:1fr;padding:0 14px}
+  .modalGal .thumbCol{grid-template-columns:1fr 1fr;grid-template-rows:1fr}
+  .waBtn{display:none}
+  .countLbl{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<header id="nav">
+  <div class="navIn">
+    <a class="brand" href="#hero"><b>Cartagena Connect</b><span>Cartagena de Indias</span></a>
+    <nav class="links">
+      <a href="#stays">Stays</a>
+      <a href="#fleet">Fleet</a>
+      <a href="#experiences">Experiences</a>
+      <a href="#restaurants">Restaurants</a>
+      <a href="#nightlife">Nightlife</a>
+      <a href="#city">The City</a>
+      <a href="#concierge">Concierge</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="navActions">
+      <button class="tripBtn" onclick="openDrawer()">My Cartagena <span class="count" id="tripCount">0</span></button>
+      <button class="waBtn" onclick="waGeneric()">WhatsApp&nbsp;Concierge</button>
+      <button id="burger" onclick="document.getElementById('mobileMenu').classList.add('open')">☰</button>
+    </div>
+  </div>
+</header>
+
+<div id="mobileMenu">
+  <button class="x" onclick="this.parentElement.classList.remove('open')">×</button>
+  <a href="#stays" onclick="closeMobile()">Stays <small>49 homes</small></a>
+  <a href="#fleet" onclick="closeMobile()">Fleet <small>78 vessels</small></a>
+  <a href="#experiences" onclick="closeMobile()">Experiences <small>10 curated</small></a>
+  <a href="#restaurants" onclick="closeMobile()">Restaurants <small>13 tables</small></a>
+  <a href="#nightlife" onclick="closeMobile()">Nightlife <small>11 moods</small></a>
+  <a href="#evenings" onclick="closeMobile()">Design My Night</a>
+  <a href="#city" onclick="closeMobile()">The City</a>
+  <a href="#concierge" onclick="closeMobile()">Concierge</a>
+  <a href="#faq" onclick="closeMobile()">FAQ <small>22 answers</small></a>
+  <a href="#plan" onclick="closeMobile()">Start planning <small>↗</small></a>
+</div>
+
+<section id="hero">
+  <div class="heroSlides" id="heroSlides"></div>
+  <div class="wrap heroContent">
+    <div class="heroTop">
+      <div>
+        <div class="kicker">Exceptional stays · Seamless service · Cartagena unlocked</div>
+        <h1 class="heroTitle">Your Cartagena, completely <span class="swap" id="heroSwap">taken care of.</span></h1>
+        <p class="heroSub">Exceptional private homes, a curated Caribbean fleet and one trusted local team to coordinate every moment around them — from wheels down to wheels up.</p>
+        <div class="heroCtas">
+          <a class="btn gold" href="#stays">Find your stay ↓</a>
+          <a class="btn ghost" href="#plan">Let us design everything ↗</a>
+        </div>
+      </div>
+      <div class="heroMeta">
+        Cartagena local time
+        <span class="clock" id="clock">—:—</span>
+        <span id="cityMood" style="display:block;margin-top:6px;font-size:11px;color:var(--gold2);letter-spacing:.2em"></span>
+      </div>
+    </div>
+    <div class="heroStats reveal">
+      <div><b data-count="49">0</b><span>Private stays &amp; islands</span></div>
+      <div><b data-count="78">0</b><span>Boats, yachts &amp; catamarans</span></div>
+      <div><b data-count="10">0</b><span>Curated experiences</span></div>
+      <div><b data-count="24">0</b><span>Tables &amp; night venues</span></div>
+    </div>
+  </div>
+  <div class="scrollHint">Scroll</div>
+</section>
+
+<section id="mood">
+  <div class="wrap">
+    <div class="sectionHead">
+      <div class="kicker">Begin with a feeling</div>
+      <h2 class="h2">How should Cartagena <em>feel?</em></h2>
+      <p class="lede">Choose instinctively. We will turn the feeling into a complete journey — the home, the boat, the experience, the table and the night, already connected.</p>
+    </div>
+    <div class="moodGrid" id="moodGrid"></div>
+    <div id="moodResult"></div>
+  </div>
+</section>
+
+<section id="stays" class="bandDark2">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">The private stay collection</div>
+        <h2 class="h2">Live together. <em>Beautifully.</em></h2>
+        <p class="lede">49 private homes and islands — colonial courtyards, Clock Tower views and private pools — matched personally to your group.</p>
+      </div>
+      <div class="bigNum">49</div>
+    </div>
+    <div class="toolbar">
+      <div class="chips" id="stayChips"></div>
+      <div class="searchBox"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="staySearch" placeholder="Search homes, neighborhoods…"/></div>
+      <select class="sortSel" id="staySort">
+        <option value="bd">Sort · Bedrooms</option>
+        <option value="gu">Sort · Guests</option>
+        <option value="az">Sort · A–Z</option>
+      </select>
+      <span class="countLbl" id="stayCount"></span>
+    </div>
+    <div class="grid" id="stayGrid"></div>
+    <div class="showMoreRow"><button class="btn ghost" id="stayMore" onclick="stayLimit=99;renderStays()">Show all 49 stays ↓</button></div>
+  </div>
+</section>
+
+<section id="fleet" class="bandDark">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">The Caribbean, curated</div>
+        <h2 class="h2">The right boat changes <em>the entire day.</em></h2>
+        <p class="lede">78 boats, yachts and catamarans — from fast sport boats to statement yachts and large-format catamarans. One team to match the vessel to the people, pace and occasion.</p>
+      </div>
+      <div class="bigNum">78</div>
+    </div>
+    <div class="toolbar">
+      <div class="chips" id="fleetChips"></div>
+      <div class="searchBox"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="fleetSearch" placeholder="Search the fleet…"/></div>
+      <label class="fitBox">Fits my group of <input id="fleetFit" type="number" min="1" max="80" placeholder="—"/></label>
+      <select class="sortSel" id="fleetSort">
+        <option value="ft">Sort · Length</option>
+        <option value="cap">Sort · Capacity</option>
+        <option value="az">Sort · A–Z</option>
+      </select>
+      <span class="countLbl" id="fleetCount"></span>
+    </div>
+    <div class="grid" id="fleetGrid"></div>
+    <div class="showMoreRow"><button class="btn ghost" id="fleetMore" onclick="fleetLimit=99;renderFleet()">Show all 78 vessels ↓</button></div>
+  </div>
+</section>
+
+<section id="experiences" class="bandLight light">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">Beyond the expected</div>
+        <h2 class="h2">Ten ways to feel <em>more of Cartagena.</em></h2>
+        <p class="lede">Culture, nature, adventure, islands and flavor — personally selected, precisely timed and connected to the rest of your stay. Browse by instinct; your concierge shapes the timing, transport and surrounding day.</p>
+      </div>
+      <div class="bigNum">10</div>
+    </div>
+    <div class="toolbar">
+      <div class="chips" id="expChips"></div>
+      <span class="countLbl" id="expCount"></span>
+    </div>
+    <div class="grid" id="expGrid"></div>
+  </div>
+</section>
+
+<section id="restaurants" class="bandLight light" style="background:var(--ivory2)">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">The Cartagena table</div>
+        <h2 class="h2">The right table changes <em>the whole night.</em></h2>
+        <p class="lede">From chef-led Caribbean tasting menus to celebratory group dinners — 13 curated tables. Choose the feeling; we secure the table and shape the reservation around the rest of the itinerary.</p>
+      </div>
+      <div class="bigNum">13</div>
+    </div>
+    <div class="toolbar">
+      <div class="chips" id="restChips"></div>
+      <span class="countLbl" id="restCount"></span>
+    </div>
+    <div class="grid" id="restGrid"></div>
+  </div>
+</section>
+
+<section id="nightlife" class="bandDark">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">Cartagena after dark</div>
+        <h2 class="h2">After dark, timing is <em>everything.</em></h2>
+        <p class="lede">Cocktail bars, salsa rooms and high-energy tables — sequenced around your group, with transportation and access already handled. The city has the energy; we give it direction.</p>
+      </div>
+      <div class="bigNum">11</div>
+    </div>
+    <div class="toolbar">
+      <div class="chips" id="niteChips"></div>
+      <span class="countLbl" id="niteCount"></span>
+    </div>
+    <div class="grid" id="niteGrid"></div>
+  </div>
+</section>
+
+<section id="evenings" class="bandDark2">
+  <div class="wrap">
+    <div class="sectionHead">
+      <div class="kicker">Curated evening itineraries</div>
+      <h2 class="h2">A table is not a night. <em>The sequence is.</em></h2>
+      <p class="lede">Dinner, first drinks, the main room, private transportation and the exact moment between them — designed as one living sequence. These are starting compositions, refined live around your group's music, energy and occasion.</p>
+    </div>
+    <div class="itinGrid" id="itinGrid"></div>
+
+    <div id="designer">
+      <div class="dzHead">
+        <div>
+          <div class="kicker">Your private night studio</div>
+          <h3 class="serif">Design <em>My Night.</em></h3>
+          <p class="lede" style="margin-top:10px;font-size:14.5px">Give us the feeling — not a list of venues. We compose the table, music, access, movement and return around your people.</p>
+        </div>
+        <div class="profileMeter">Night profile<b id="dzMeter">0%</b></div>
+      </div>
+      <div class="dzQ">
+        <h4>01 · What are we celebrating?</h4>
+        <p>The reason changes the room.</p>
+        <div class="dzOpts" data-q="occasion">
+          <button class="dzOpt" data-v="Celebration">Celebration</button>
+          <button class="dzOpt" data-v="Birthday">Birthday</button>
+          <button class="dzOpt" data-v="Date night">Date night</button>
+          <button class="dzOpt" data-v="Friends away">Friends away</button>
+        </div>
+      </div>
+      <div class="dzQ">
+        <h4>02 · Choose the energy</h4>
+        <p>We will control the pace.</p>
+        <div class="dzOpts" data-q="energy">
+          <button class="dzOpt" data-v="Polished &amp; intimate">Polished &amp; intimate</button>
+          <button class="dzOpt" data-v="Live &amp; Latin">Live &amp; Latin</button>
+          <button class="dzOpt" data-v="Full energy">Full energy</button>
+          <button class="dzOpt" data-v="A little of everything">A little of everything</button>
+        </div>
+      </div>
+      <div class="dzQ">
+        <h4>03 · Where should it begin?</h4>
+        <p>The first hour sets everything.</p>
+        <div class="dzOpts" data-q="start">
+          <button class="dzOpt" data-v="At sunset">At sunset</button>
+          <button class="dzOpt" data-v="With dinner">With dinner</button>
+          <button class="dzOpt" data-v="After dark">After dark</button>
+        </div>
+      </div>
+      <div class="dzQ">
+        <h4>04 · The essentials</h4>
+        <p>We personally refine the rest.</p>
+        <div class="dzFields">
+          <input id="dzDate" placeholder="Date"/>
+          <input id="dzGuests" type="number" min="1" placeholder="Guests"/>
+          <input id="dzMust" placeholder="Must-include venue (optional)"/>
+          <input id="dzNotes" placeholder="Anything we should know?"/>
+        </div>
+      </div>
+      <div id="dzRoute">
+        <div class="kicker">Your live direction — a starting composition, made personal next</div>
+        <div class="routeSteps" id="dzSteps"></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn gold" onclick="dzSend()">Continue with my concierge ↗</button>
+          <button class="btn ghost" onclick="dzAddTrip()">Add this night to My Cartagena +</button>
+        </div>
+        <p class="planNote">Your answers open a personal WhatsApp conversation — never an automated checkout. Access changes nightly; a local concierge replaces placeholders with the exact rooms, times and access available.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="city" class="bandLight light">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">The story of Cartagena de Indias · 10.3910° N, 75.4794° W</div>
+        <h2 class="h2">Every wall has <em>a pulse.</em></h2>
+        <p class="lede">Cartagena is not a backdrop. It is a living Caribbean city shaped by encounter, ambition, violence, resistance, freedom and reinvention. Eight chapters — select any to read.</p>
+      </div>
+    </div>
+    <div class="timeline" id="timeline"></div>
+    <div style="border:1px solid rgba(160,127,46,.35);border-radius:14px;padding:clamp(22px,3vw,36px);background:#fff;margin-top:20px">
+      <div class="kicker">The whole story matters</div>
+      <p style="font-size:15px;color:#5c5648;max-width:82ch">Cartagena was a major colonial port in the transatlantic trafficking of enslaved Africans. Its wealth and monuments cannot be separated from that history. Neither can its extraordinary Afro-Caribbean legacy — a story of survival, freedom-making and cultural creation that remains alive across the city and region.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px">
+        <button class="btn dark" onclick="filterExpAnd('culture')">Enter the living history of Palenque ↗</button>
+        <button class="btn ghost" style="border-color:rgba(20,17,10,.35);color:var(--ink)" onclick="filterExpAnd('culture')">Walk the city with context ↗</button>
+      </div>
+    </div>
+    <p class="srcRow">History, responsibly told — grounded in:
+      <a href="https://whc.unesco.org/en/list/285/" target="_blank" rel="noopener">UNESCO · Port, Fortresses &amp; Monuments</a>
+      <a href="https://fortificacionesdecartagena.com/" target="_blank" rel="noopener">Fortificaciones Cartagena</a>
+      <a href="https://www.banrepcultural.org/" target="_blank" rel="noopener">Banco de la República</a>
+      <a href="https://muhca.co/" target="_blank" rel="noopener">MUHCA</a>
+    </p>
+  </div>
+</section>
+
+<section id="concierge" class="bandDark">
+  <div class="wrap">
+    <div class="sectionHead">
+      <div class="kicker">Private concierge, without the distance</div>
+      <h2 class="h2">Nothing feels managed. <em>Everything is handled.</em></h2>
+      <p class="lede">One local relationship connects your home, people, reservations, transportation and every adjustment in between. Luxury should feel calm — that only happens when someone understands the whole plan, not just one reservation.</p>
+    </div>
+    <div class="phases">
+      <div class="phase"><h3>Arrive</h3><p>Private airport welcome, vehicles sized for the group and a home prepared before the door opens.</p></div>
+      <div class="phase"><h3>Live</h3><p>Chef, butler, housekeeping, security, groceries and in-villa wellness coordinated as one team.</p></div>
+      <div class="phase"><h3>Explore</h3><p>The right boat, island route, beach club, guide and transportation — timed properly.</p></div>
+      <div class="phase"><h3>Access</h3><p>Restaurant reservations, nightlife tables and local relationships that remove friction.</p></div>
+      <div class="phase"><h3>Return</h3><p>Departure timing, luggage and airport logistics handled through the final goodbye.</p></div>
+    </div>
+    <div class="specGrid">
+      <div class="spec"><h3>Private chef</h3><p>Menus designed around your group, dietary needs and the rhythm of each day.</p></div>
+      <div class="spec"><h3>Butler &amp; housekeeping</h3><p>A home that stays ready, organized and comfortable without interrupting the trip.</p></div>
+      <div class="spec"><h3>Security</h3><p>Professional private security available for the residence, transportation and nights out.</p></div>
+      <div class="spec"><h3>Transportation</h3><p>Airport welcome, private vehicles, drivers and group movements connected to the itinerary.</p></div>
+      <div class="spec"><h3>Provisioning</h3><p>Groceries, beverages, celebration setups and welcome details prepared before arrival.</p></div>
+      <div class="spec"><h3>Access &amp; reservations</h3><p>Dining, nightlife, beach clubs and cultural experiences coordinated through one contact.</p></div>
+    </div>
+    <div class="tickerWrap"><div class="ticker" id="ticker"></div></div>
+    <div class="promise">
+      <blockquote>“You should feel like Cartagena was <span>waiting for you.</span>”</blockquote>
+      <cite>The Cartagena Connect promise</cite>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="bandLight light">
+  <div class="wrap">
+    <div class="sectionHead headRow">
+      <div>
+        <div class="kicker">The Cartagena field guide</div>
+        <h2 class="h2">Cartagena, <em>answered.</em></h2>
+        <p class="lede">Clear answers before you hand us the trip — and one local team ready for every detail that follows. 22 local answers across five chapters.</p>
+      </div>
+      <div class="bigNum">22</div>
+    </div>
+    <div class="toolbar">
+      <div class="chips faqTabs" id="faqTabs"></div>
+      <div class="searchBox"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="faqSearch" placeholder="Search every answer…"/></div>
+    </div>
+    <div id="faqList"></div>
+  </div>
+</section>
+
+<section id="plan">
+  <div class="wrap">
+    <div class="sectionHead">
+      <div class="kicker">Your Cartagena starts here</div>
+      <h2 class="h2">One conversation. <em>A complete trip.</em></h2>
+      <p class="lede">Share the essentials. A real local concierge will reply with the right home and a thoughtful starting plan for your group. No automated booking maze — your request goes directly to our team.</p>
+    </div>
+    <div class="planGrid">
+      <div class="planForm">
+        <div class="segmented" id="planMode">
+          <button class="on" data-v="Complete trip">Complete trip</button>
+          <button data-v="Stay only">Stay only</button>
+        </div>
+        <div class="row">
+          <div><label>Your name</label><input id="pName" placeholder="Name"/></div>
+          <div><label>Travel dates</label><input id="pDates" placeholder="e.g. Dec 27 – Jan 2"/></div>
+        </div>
+        <div class="row">
+          <div><label>Guests</label><input id="pGuests" type="number" min="1" placeholder="How many?"/></div>
+          <div><label>Occasion</label>
+            <select id="pOccasion">
+              <option value="">Select…</option>
+              <option>Birthday</option><option>Bachelor / bachelorette</option><option>Family trip</option>
+              <option>Friends away</option><option>Couples escape</option><option>Corporate retreat</option><option>Just Cartagena</option>
+            </select>
+          </div>
+        </div>
+        <label>What should this trip feel like?</label>
+        <textarea id="pFeel" rows="3" placeholder="Tell us the feeling — we will design around it."></textarea>
+        <div id="planTripSummary"></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px">
+          <button class="btn gold" onclick="planSend()">Continue personally on WhatsApp ↗</button>
+          <button class="btn ghost" onclick="openDrawer()">Review My Cartagena</button>
+        </div>
+        <p class="planNote">Concierge online · replies personally · English &amp; Spanish</p>
+      </div>
+      <div>
+        <div class="kicker" style="margin-top:10px">A different standard of hospitality</div>
+        <h3 class="serif" style="font-size:clamp(26px,3vw,40px)">You are not booking a house.<br/><em style="color:var(--gold2)">You are handing us the trip.</em></h3>
+        <div class="dayLine" style="margin-top:30px">
+          <div class="d"><time>Before you book</time><b>We learn the group</b><span>Shortlist the right homes and build a clear proposal around your dates.</span></div>
+          <div class="d"><time>Before you land</time><b>Everything is coordinated</b><span>Airport transfers, groceries, villa staff, reservations and island plans are already set.</span></div>
+          <div class="d"><time>While you are here</time><b>One team, within reach</b><span>Every adjustment, table, vehicle and detail — handled by one local team.</span></div>
+          <div class="d"><time>Until you are home</time><b>Nothing unresolved</b><span>Departure logistics are handled and your group leaves with nothing unresolved.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footGrid">
+      <div class="footBrand">
+        <a class="brand" href="#hero"><b>Cartagena Connect</b><span>Cartagena de Indias</span></a>
+        <p>The city is waiting. We handle the rest. Based in Cartagena de Indias, Colombia.</p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <a href="#stays">Private stays</a>
+        <a href="#fleet">The fleet</a>
+        <a href="#experiences">Tours &amp; experiences</a>
+        <a href="#restaurants">Restaurants</a>
+        <a href="#city">The story of Cartagena</a>
+      </div>
+      <div>
+        <h4>After dark</h4>
+        <a href="#nightlife">Nightlife</a>
+        <a href="#evenings">Curated evenings</a>
+        <a href="#designer">Design My Night</a>
+        <a href="#faq">Questions answered</a>
+        <a href="#concierge">Concierge</a>
+      </div>
+      <div>
+        <h4>Connect</h4>
+        <a href="https://instagram.com/cartagenaconnect" target="_blank" rel="noopener">@cartagenaconnect ↗</a>
+        <a href="tel:+14168254334">+1 416 825 4334</a>
+        <a href="https://wa.me/14168254334" target="_blank" rel="noopener">Concierge on WhatsApp ↗</a>
+        <a href="#plan">Find a proposal</a>
+      </div>
+    </div>
+    <div class="footBase">
+      <span>© 2026 Cartagena Connect · Availability and operating conditions apply.</span>
+      <span>Exceptional stays. Seamless service. Cartagena unlocked.</span>
+    </div>
+  </div>
+</footer>
+
+<div id="overlay" onclick="closeDrawer()"></div>
+<aside id="drawer" aria-label="My Cartagena trip">
+  <div class="drawerHead">
+    <div>
+      <h3 class="serif">My <em>Cartagena.</em></h3>
+      <p>Begin anywhere — add a house, a boat, an experience or a table. We connect the rest around you.</p>
+    </div>
+    <button class="x" onclick="closeDrawer()">×</button>
+  </div>
+  <div id="drawerBody"></div>
+  <div class="drawerFoot">
+    <button class="btn gold" style="justify-content:center" onclick="tripSend()">Send my journey to the concierge ↗</button>
+    <button class="clear" onclick="tripClear()">Clear all selections</button>
+  </div>
+</aside>
+
+<div id="modal"><div class="back" onclick="closeModal()"></div><div class="modalCard" id="modalCard"></div></div>
+
+<div id="lightbox">
+  <button class="lbX" onclick="lbClose()">×</button>
+  <button class="lbNav prev" onclick="lbStep(-1)">‹</button>
+  <img id="lbImg" alt=""/>
+  <button class="lbNav next" onclick="lbStep(1)">›</button>
+  <div class="lbCount" id="lbCount"></div>
+</div>
+
+<div id="toast"></div>
+<button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<a id="waFloat" href="https://wa.me/14168254334" target="_blank" rel="noopener"><span class="dot"></span>Concierge online</a>
+
+<script>
+/* ================= DATA ================= */
+const MEDIA = "https://cartagena-connect.pureliveguy.chatgpt.site";
+const WA = "https://wa.me/14168254334";
+const simg = (f,n)=>MEDIA+"/media/stays/"+f+"/0"+n+".webp";
+const fimg = (f,n)=>MEDIA+"/media/fleet/"+f+"/0"+n+".webp";
+
+const STAYS = [
+ {n:"Popular 21",a:"Clock Tower, Cartagena",bd:21,gu:42,ba:"21",f:"popular-21",d:"A private 21-bedroom property in Old City, Cartagena, with 21 bathrooms and capacity for up to 42 guests — a pool overlooking the Clock Tower itself."},
+ {n:"Casa Escallón",a:"Old City, Cartagena",bd:18,gu:36,f:null,d:"A grand 18-bedroom residence in the Old City for groups of up to 36 who want to live under one roof."},
+ {n:"Oracle 16",a:"Clock Tower Plaza, Cartagena",bd:16,gu:32,f:"oracle-16",d:"Sixteen bedrooms on Clock Tower Plaza — scale and location for the largest celebrations."},
+ {n:"Casa Sultan",a:"Old City, Cartagena",bd:15,gu:30,f:"sultan",d:"A 15-bedroom Old City residence built for large groups who want the whole trip in one home."},
+ {n:"Casa Bella",a:"Old City, Cartagena",bd:13,gu:26,f:"bella",d:"Thirteen bedrooms of restored colonial architecture in the heart of the walled city."},
+ {n:"Casa Tumba",a:"Old City, Cartagena",bd:13,gu:26,f:"tumba",d:"A 13-bedroom Old City home where courtyards and shared spaces keep the group together."},
+ {n:"Casa Mantilla",a:"Old City, Cartagena",bd:12,gu:24,ba:"12",f:"mantilla",d:"A beautifully restored colonial home in the heart of the Old City — 12 bedrooms with 10 king beds and 3 double beds, each with a private en suite bathroom and air conditioning.",ft:["Large private pool","Rooftop jacuzzi","Full barbecue setup","Air-conditioned social areas","Butler and daily maid","Overnight security"]},
+ {n:"Casa Piñango",a:"Bocagrande, Cartagena",bd:12,gu:24,f:"pinango",d:"Twelve bedrooms in Bocagrande — modern comfort, bay air and room for the whole group."},
+ {n:"Casa Aduana",a:"Old City, Cartagena",bd:11,gu:22,f:"aduana",d:"An 11-bedroom colonial residence steps from the plazas of the Old City."},
+ {n:"Casa Cuartel",a:"Old City, Cartagena",bd:11,gu:22,ba:"11",f:"cuartel",d:"A recently renovated 7,000 sq ft home in the historic Old City blending colonial architecture with modern design. Its 11 bedrooms — 2 kings and 9 queens — each include a private en suite bathroom, making the villa ideal for large groups.",ft:["Private courtyard pool","Rooftop jacuzzi","Air-conditioned living area","Daily maid service","Dedicated butler","Overnight security"]},
+ {n:"Casa Manga",a:"Manga, Cartagena",bd:11,gu:25,f:null,d:"Eleven bedrooms in residential Manga — space, privacy and quick access to the historic center."},
+ {n:"Casa Marie",a:"Old City, Cartagena",bd:11,gu:22,f:"marie",d:"An 11-bedroom Old City home with the courtyards and light Cartagena is known for."},
+ {n:"Popular 11",a:"Clock Tower, Cartagena",bd:11,gu:22,ba:"11.5",f:"popular-11",d:"A private 11-bedroom property in Old City, Cartagena, with 11.5 bathrooms and capacity for up to 22 guests."},
+ {n:"Casa Madrid",a:"Old City, Cartagena",bd:9,gu:18,f:"madrid",d:"Nine bedrooms of colonial character in the walled city, made for multi-family trips."},
+ {n:"Oracle 9",a:"Clock Tower Plaza, Old City",bd:9,gu:20,f:"oracle-9",d:"Nine bedrooms above Clock Tower Plaza — the city at your door, the group under one roof."},
+ {n:"Casa Cabal",a:"Old City, Cartagena",bd:8,gu:16,f:null,d:"An eight-bedroom Old City residence balancing shared living and private space."},
+ {n:"Casa Palmas",a:"Old City, Cartagena",bd:8,gu:16,f:"palmas",d:"Eight bedrooms around a palm-shaded courtyard in the heart of the historic center."},
+ {n:"Laguito 8",a:"Laguito, Cartagena",bd:8,gu:16,f:null,d:"Eight bedrooms in Laguito — sea air, modern lines and space for sixteen."},
+ {n:"Casa Arsenal",a:"Old City, Cartagena",bd:7,gu:14,f:"arsenal",d:"A seven-bedroom home in the Old City, minutes from Cartagena's best tables."},
+ {n:"Casa del Toro",a:"Getsemaní, Cartagena",bd:7,gu:14,ba:"10",f:"toro",d:"A seven-bedroom colonial residence in Getsemaní, centered around one of the collection's most impressive private pools."},
+ {n:"Casa Hobo",a:"Old City, Cartagena",bd:7,gu:16,f:null,d:"Seven bedrooms and generous social space for groups of up to sixteen in the Old City."},
+ {n:"Casa Matuna",a:"Old City, Cartagena",bd:7,gu:14,f:"matuna",d:"A seven-bedroom walled-city residence built around easy group living."},
+ {n:"Oracle 7",a:"Clock Tower Plaza, Cartagena",bd:7,gu:16,f:"oracle-7",d:"Seven bedrooms on Clock Tower Plaza — arrive, open the doors and the city is already there."},
+ {n:"Casa Carbonera",a:"Old City, Cartagena",bd:6,gu:15,f:null,d:"Six bedrooms of colonial charm for up to fifteen guests in the historic center."},
+ {n:"Casa Cavalier",a:"Bocagrande, Cartagena",bd:6,gu:13,f:"cavalier",d:"A six-bedroom Bocagrande home with modern comfort and sea light."},
+ {n:"Casa Oasis",a:"Old City, Cartagena",bd:6,gu:14,f:"oasis",d:"Six bedrooms around a quiet courtyard pool — an oasis inside the walls."},
+ {n:"Retiro Privado en Barú",a:"Barú",bd:6,gu:14,f:"baru-private-island",isl:1,d:"A six-bedroom private retreat on Barú — Caribbean water, seclusion and full staff."},
+ {n:"Casa Larga",a:"Old City, Cartagena",bd:5,gu:13,f:null,d:"Five bedrooms for up to thirteen guests, deep in the Old City."},
+ {n:"Casa Mathias",a:"Old City, Cartagena",bd:5,gu:10,f:"mathias",d:"A five-bedroom colonial home balancing intimacy and walled-city location."},
+ {n:"Casa Papel",a:"Getsemaní, Cartagena",bd:5,gu:10,f:"papel",d:"Five bedrooms in colorful Getsemaní — character, rooftops and the barrio at your door."},
+ {n:"Casa Privada Barú",a:"Barú, Bolívar",bd:5,gu:15,f:"baru-private-estate",isl:1,d:"A private five-bedroom estate on Barú for up to fifteen guests — the Caribbean as your courtyard."},
+ {n:"Casa Puntales",a:"Old City, Cartagena",bd:5,gu:10,f:"puntales",d:"A five-bedroom home in the walled city, sized for an intimate group of ten."},
+ {n:"Casa Sebastián",a:"Getsemaní, Cartagena",bd:5,gu:10,ba:"5.5",f:"sebas",d:"Five private bedrooms with a pool and two rooftops in the heart of Getsemaní — an intimate base for a group of up to 10."},
+ {n:"Isla Privada Rosario",a:"Islas del Rosario",bd:5,gu:14,guT:"12–14 guests",f:"rosario-private-island",isl:1,d:"A five-bedroom private island in the Rosarios — reef water, full staff and total seclusion."},
+ {n:"Isla Privada Tierra Bomba",a:"Tierra Bomba",bd:5,gu:17,f:"tierra-bomba-private-island",isl:1,d:"A private five-bedroom island escape on Tierra Bomba, minutes from the city by boat."},
+ {n:"Casa Campo",a:"Old City, Cartagena",bd:4,gu:12,f:"campo",d:"Four bedrooms for up to twelve guests — colonial bones, easy living."},
+ {n:"Casa Chicheria",a:"Old City, Cartagena",bd:4,gu:10,f:"chicheria",d:"A four-bedroom walled-city home with character in every corner."},
+ {n:"Casa Teheran",a:"Old City, Cartagena",bd:4,gu:12,f:"teheran",d:"Four bedrooms and generous shared space in the historic center."},
+ {n:"Laguito 1",a:"Laguito, Cartagena",bd:4,gu:8,f:"laguito-1",d:"A four-bedroom Laguito apartment with sea views for a group of eight."},
+ {n:"Laguito 2",a:"Laguito, Cartagena",bd:4,gu:8,f:"laguito-2",d:"Four bedrooms in Laguito — modern, bright and steps from the water."},
+ {n:"Casa Reno",a:"Old City, Cartagena",bd:3,gu:7,f:null,d:"An intimate three-bedroom home inside the walls for up to seven guests."},
+ {n:"SDS 201",a:"Old City, Cartagena",bd:3,gu:8,f:null,d:"A three-bedroom Old City apartment for eight — location first."},
+ {n:"SDS 305",a:"Old City, Cartagena",bd:3,gu:6,f:null,d:"Three bedrooms in the walled city for an easy group of six."},
+ {n:"Cala del Sol",a:"Cartagena de Indias",bd:null,gu:null,guT:"Private group",f:"cala-del-sol",d:"A private-group property personally quoted around your dates and party."},
+ {n:"Casa Aria",a:"Cartagena de Indias",bd:null,gu:null,guT:"Private group",f:"casa-aria",d:"A private-group residence — details and pairing personally arranged by your concierge."},
+ {n:"Casa Mangatta",a:"Cartagena de Indias",bd:null,gu:null,guT:"Private group",f:"casa-mangatta",d:"A private-group residence matched personally to the occasion."},
+ {n:"Duplex Montu",a:"Cartagena de Indias",bd:null,gu:null,guT:"Private group",f:"duplex-montu",d:"A private duplex arranged for the right group — ask your concierge."},
+ {n:"Isla Privada Isla Pirata",a:"Islas del Rosario",bd:3,bdT:"3 suites",gu:8,guT:"Up to 8 guests",f:"isla-pirata-private-island",isl:1,d:"Three suites on your own Rosario island — Isla Pirata, staffed and utterly private, for up to eight."},
+ {n:"Sunset Balcone",a:"Cartagena de Indias",bd:null,gu:null,guT:"Private group",f:"sunset-balcone",d:"A golden-hour balcony property above the city — quoted personally for private groups."}
+];
+
+const FLEET = [
+ {n:"CRAZY SEA",t:"yacht",tl:"Flagship yacht",ft:95,cap:16,f:"crazy-sea",d:"The flagship: a 95 ft yacht with scale, privacy and layered social spaces. Multiple lounges, a flybridge lounge, barbecue, tender, three bedrooms and a study create a true private-yacht environment.",fs:["3 bedrooms + study","3 bathrooms","Kitchen and dining","Multiple lounges","Flybridge lounge","Rodizio barbecue","Tender boat","Bow sunbed","Certified captain and crew"]},
+ {n:"SEABUBBLE",t:"yacht",tl:"Yacht",ft:82,cap:20,f:"seabubble",d:"An 82 ft yacht curated for groups of up to 20 guests, with a certified captain and crew.",fs:["4 cabins","3 bathrooms; primary with jacuzzi","Kitchen and dining area","Living room","Bow sun-lounging area","Flybridge with jacuzzi","Water toys","Coolers with ice","Certified captain and crew"]},
+ {n:"BOA",t:"yacht",tl:"Yacht",ft:72,cap:20,f:"boa"},
+ {n:"SKY",t:"yacht",tl:"Yacht",ft:72,cap:15,f:"sky"},
+ {n:"SEA PERSEVERANT",t:"yacht",tl:"Yacht",ft:70,cap:30,f:"sea-perserverant"},
+ {n:"SEALAND",t:"yacht",tl:"Yacht",ft:70,cap:30,f:"sealand"},
+ {n:"STAR SEA",t:"yacht",tl:"Yacht",ft:70,cap:30,f:"star-sea"},
+ {n:"NOSSEA",t:"yacht",tl:"Yacht",ft:64,cap:20,f:"nossea"},
+ {n:"VENESEA",t:"yacht",tl:"Yacht",ft:62,cap:15,f:"venesea"},
+ {n:"SEANNA",t:"yacht",tl:"Sailing yacht",ft:57,cap:13,f:"seanna"},
+ {n:"SEADREAM",t:"yacht",tl:"Yacht",ft:54,cap:18,f:"seadream"},
+ {n:"SEA STHER V",t:"yacht",tl:"Yacht",ft:48,cap:16,f:"sea-sther-v"},
+ {n:"SEAYA",t:"yacht",tl:"Yacht",ft:46,cap:12,f:"seaya"},
+ {n:"SESSA",t:"yacht",tl:"Yacht",ft:44,cap:12,f:"sessa"},
+ {n:"SEARENITY",t:"yacht",tl:"Yacht",ft:37,cap:10,f:"searenity"},
+ {n:"SEABAR II",t:"yacht",tl:"Yacht",ft:35,cap:10,f:"seabar-ii"},
+ {n:"MELA",t:"yacht",tl:"Yacht",ft:32,cap:10,f:"mela"},
+ {n:"CELE",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"cele"},
+ {n:"DRAKSEA",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"draksea"},
+ {n:"SAFIRO",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"safiro"},
+ {n:"SEAL I",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"seal-i"},
+ {n:"SEAL II",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"seal-ii"},
+ {n:"SEATA",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"seata"},
+ {n:"SKYSEA",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"skysea"},
+ {n:"VIKING SEA",t:"yacht",tl:"Yacht",ft:null,cap:null,f:"viking-sea"},
+ {n:"MAXI",t:"cat",tl:"Catamaran",ft:65,cap:80,capT:"56 islands / 80 bay",f:"maxi"},
+ {n:"SEASOUL",t:"cat",tl:"Premium catamaran",ft:61,cap:50,capT:"40 islands / 50 bay",f:"seasoul",d:"The fleet's large-group statement piece. Four bathrooms, two bedrooms, an air-conditioned kitchen, indoor lounge and flybridge with grill and jacuzzi make it a private venue on the water.",fs:["2 bedrooms","4 bathrooms","Air-conditioned kitchen","Indoor lounge","Bow sunbed","Flybridge with grill and jacuzzi","Coolers with ice","Certified captain and crew"]},
+ {n:"WARRIOR",t:"cat",tl:"Catamaran",ft:52,cap:40,f:"warrior"},
+ {n:"ODIN ON THE SEA",t:"cat",tl:"Catamaran",ft:51,cap:30,f:"odin-on-the-sea"},
+ {n:"SEASTER",t:"cat",tl:"Catamaran",ft:51,cap:30,f:"seaster"},
+ {n:"WHARRAN",t:"cat",tl:"Catamaran",ft:51,cap:40,capT:"30 islands / 40 bay",f:"wharran"},
+ {n:"AVAL SEA",t:"cat",tl:"Catamaran",ft:48,cap:25,f:"aval-sea"},
+ {n:"HOPESEA",t:"cat",tl:"Catamaran",ft:47,cap:30,f:"hopesea"},
+ {n:"ALISEA",t:"cat",tl:"Catamaran",ft:45,cap:40,f:"alisea"},
+ {n:"MISSEA",t:"cat",tl:"Catamaran",ft:45,cap:40,f:"missea"},
+ {n:"KAHUA",t:"cat",tl:"Catamaran",ft:44,cap:25,capT:"25 (max 20 in January)",f:"kahua"},
+ {n:"SEAMAU",t:"cat",tl:"Catamaran",ft:44,cap:35,capT:"25 islands / 35 bay",f:"seamau"},
+ {n:"ECLIPSE",t:"cat",tl:"Catamaran",ft:43,cap:30,f:"eclipse"},
+ {n:"ODDYSEA",t:"cat",tl:"Catamaran",ft:43,cap:20,f:"oddysea"},
+ {n:"ESCAPADE",t:"cat",tl:"Catamaran",ft:40,cap:17,f:"escapade"},
+ {n:"XEM-SEA",t:"cat",tl:"Catamaran",ft:40,cap:18,f:"xem-sea"},
+ {n:"ZENSEA",t:"sport",tl:"Sport boat",ft:46,cap:20,f:"zensea"},
+ {n:"SEAMOM",t:"sport",tl:"Sport boat",ft:45,cap:20,f:"seamom"},
+ {n:"RUBY ON THE SEA",t:"sport",tl:"Sport boat",ft:42,cap:20,f:"ruby-on-the-sea"},
+ {n:"SEABARNZ",t:"sport",tl:"Sport boat",ft:42,cap:20,f:"seabarnz"},
+ {n:"WIKEND",t:"sport",tl:"Sport boat",ft:42,cap:20,f:"wikend"},
+ {n:"AWA",t:"sport",tl:"Sport boat",ft:41,cap:20,f:"awa"},
+ {n:"MARMA",t:"sport",tl:"Sport boat",ft:41,cap:18,f:"marma"},
+ {n:"BENDITO",t:"sport",tl:"Sport boat",ft:40,cap:20,f:"bendito"},
+ {n:"DAPH",t:"sport",tl:"Sport boat",ft:40,cap:18,f:"daph"},
+ {n:"GHOST",t:"sport",tl:"Sport boat",ft:40,cap:20,f:"ghost"},
+ {n:"SEANGEL",t:"sport",tl:"Sport boat",ft:40,cap:18,f:"seangel"},
+ {n:"BRISA",t:"sport",tl:"Sport boat",ft:38,cap:18,f:"brisa"},
+ {n:"LA MOVIDA",t:"sport",tl:"Sport boat",ft:38,cap:16,f:"la-movida-boat"},
+ {n:"SEA TEAM",t:"sport",tl:"Sport boat",ft:38,cap:18,f:"sea-team"},
+ {n:"SEABLUE",t:"sport",tl:"Sport boat",ft:38,cap:15,f:"seablue"},
+ {n:"SEASON",t:"sport",tl:"Sport boat",ft:38,cap:15,f:"season"},
+ {n:"THALASSEA",t:"sport",tl:"Sport boat",ft:38,cap:16,f:"thalassea"},
+ {n:"YAMSEA",t:"sport",tl:"Sport boat",ft:38,cap:15,f:"yamsea"},
+ {n:"GALES",t:"sport",tl:"Sport boat",ft:36,cap:12,f:"gales"},
+ {n:"PAMPA",t:"sport",tl:"Sport boat",ft:35,cap:16,f:"pampa"},
+ {n:"BEBESITA",t:"sport",tl:"Sport boat",ft:34,cap:14,f:"bebesita"},
+ {n:"SOFICRIS",t:"sport",tl:"Sport boat",ft:34,cap:14,f:"soficris"},
+ {n:"CATA",t:"sport",tl:"Sport boat",ft:33,cap:12,f:"cata"},
+ {n:"COHIBA",t:"sport",tl:"Sport boat",ft:33,cap:14,f:"cohiba"},
+ {n:"MANGELIS",t:"sport",tl:"Sport boat",ft:32,cap:17,f:"mangelis"},
+ {n:"SEATURION",t:"sport",tl:"Sport boat",ft:32,cap:12,f:"seaturion"},
+ {n:"ALMA",t:"sport",tl:"Sport boat",ft:29,cap:9,f:"alma"},
+ {n:"BAJALE2",t:"sport",tl:"Sport boat",ft:29,cap:10,f:"bajale2"},
+ {n:"BLUESKY",t:"sport",tl:"Sport boat",ft:29,cap:8,f:"bluesky"},
+ {n:"LA VIE II",t:"sport",tl:"Sport boat",ft:29,cap:8,f:"la-vie-ii"},
+ {n:"LA VIE",t:"sport",tl:"Sport boat",ft:29,cap:8,f:"la-vie"},
+ {n:"MAKARELA",t:"sport",tl:"Sport boat",ft:29,cap:10,f:"makarela"},
+ {n:"SINCE",t:"sport",tl:"Sport boat",ft:29,cap:8,f:"since"},
+ {n:"EMILITA",t:"sport",tl:"Sport boat",ft:null,cap:null,f:"emilita"},
+ {n:"FANTASTIC",t:"sport",tl:"Sport boat",ft:null,cap:null,f:"fantastic"},
+ {n:"GRASEA",t:"sport",tl:"Sport boat",ft:null,cap:null,f:"grasea"},
+ {n:"MERESEA",t:"sport",tl:"Sport boat",ft:null,cap:null,f:"meresea"}
+];
+
+const TOURS = [
+ {n:"Palenque",c:"culture",cl:"Culture · living history",d:"A private journey into the living culture, music, medicine and legacy of San Basilio de Palenque.",dur:"Full cultural journey",pr:"From $2.950.000 COP",img:"/media/tours/palenque-1.webp"},
+ {n:"ATV Cartagena",c:"adventure",cl:"Adventure · coast & countryside",d:"An off-road escape across beaches, hills and countryside just beyond the city.",dur:"2.5–3 hours",pr:"From $475.000 COP",img:"/media/tours/atv-1.webp"},
+ {n:"Zipline",c:"adventure",cl:"Adventure · panoramic views",d:"Five zip lines, an off-road ascent and sweeping views across the coast toward Cartagena.",dur:"Half-day adventure",pr:"From $380.000 COP",img:"/media/tours/zipline-1.webp"},
+ {n:"VIP 5 Islands",c:"islands",cl:"Islands · full-day route",d:"A high-energy circuit through five emblematic island stops, from snorkeling to Cholón and Barú.",dur:"7:30 AM – 4:00 PM",pr:"From $390.000 COP",img:"/media/tours/rosario-1.webp"},
+ {n:"Volcán Totumo",c:"wellness",cl:"Wellness · natural ritual",d:"A private, hosted escape to the therapeutic mud of Volcán Totumo, with every practical detail handled.",dur:"2 hours of spa time",pr:"From $1.800.000 COP",img:"/media/tours/totumo-1.webp"},
+ {n:"Rum & Chocolate",c:"tastings",cl:"Tasting · Colombian craft",d:"Eight Colombian rums paired with artisanal chocolate and local bites in a guided sensory journey.",dur:"1 hour 45 minutes",pr:"From $390.000 COP",img:"/media/tours/rum-1.webp"},
+ {n:"Colombian Mixology",c:"tastings",cl:"Tasting · interactive",d:"Five cocktails built around biche, lulo, corozo and chocolate — with expert guidance throughout.",dur:"1 hour 45 minutes",pr:"From $360.000 COP",img:"/media/tours/mixology-1.webp"},
+ {n:"Historic Cartagena",c:"culture",cl:"Culture · private Old City",d:"Three unhurried hours through Cartagena's layered history, adapted entirely to your private group.",dur:"3 hours · comfortable pace",pr:"From $525.000 COP",img:"/media/tours/walking-1.webp"},
+ {n:"Castillo San Felipe",c:"culture",cl:"Culture · fortress & city",d:"Enter Cartagena's most formidable fortress with a private guide who turns stone, tunnels and sightlines into a living story.",dur:"Private half-day",pr:"Personally quoted",img:"/media/city/castillo-san-felipe.webp"},
+ {n:"Matute Birding",c:"nature",cl:"Nature · private family reserve",d:"A privately hosted immersion in tropical dry forest — more than 250 bird species, howler monkeys and a forest restored over four decades, with a specialist guide.",dur:"Morning or full-day",pr:"Personally quoted",img:"/media/tours/matute-manakin.webp"}
+];
+
+const REST = [
+ {n:"Alma",c:"signature",cl:"Signature",d:"An elegant Caribbean table for a polished first or final dinner in the Old City.",img:"/media/venues/directory/alma-hero.webp",pa:1},
+ {n:"Celele",c:"signature",cl:"Signature",d:"Contemporary Caribbean cooking for groups who want the destination to be part of every course.",img:"/media/venues/directory/celele-food.webp",pa:1},
+ {n:"Niku",c:"signature",cl:"Signature",d:"A design-led Nikkei experience that moves naturally from dinner into cocktails.",img:"/media/venues/partners/niku-food.webp",pa:1},
+ {n:"Casa Bohème",c:"lounge",cl:"Dinner to lounge",d:"A design-rich house where Mediterranean dining, art and music flow naturally into the lounge.",img:"/media/venues/partners/boheme-food.webp",pa:1},
+ {n:"Candé",c:"cartagena",cl:"Cartagena",d:"Cartagena flavours, music and energy — an expressive introduction to the city.",img:"/media/venues/directory/cande-hero.webp",pa:1},
+ {n:"Juan del Mar",c:"cartagena",cl:"Cartagena",d:"Seafood and plaza atmosphere for a lively dinner in the heart of the historic center.",img:"/media/venues/directory/juan-del-mar-hero.webp",pa:1},
+ {n:"El Burlador",c:"cartagena",cl:"Cartagena",d:"A spirited Spanish-Caribbean evening suited to groups who prefer dinner with rhythm.",img:"/media/venues/directory/el-burlador-hero.webp",pa:1},
+ {n:"Lobo de Mar",c:"group",cl:"Group dinner",d:"A social table with coastal character, ideal when the whole group wants to stay together.",img:"/media/venues/partners/lobo-table.webp",pa:1},
+ {n:"La Única",c:"group",cl:"Group dinner",d:"High-energy dining built for birthdays, celebrations and a seamless move into the night.",img:"/media/venues/directory/la-unica-food.webp",pa:1},
+ {n:"La Cabrera",c:"signature",cl:"Globally recognized parrilla",d:"The Cartagena expression of the acclaimed Argentine parrilla whose Buenos Aires original ranked No. 48 among the World's 101 Best Steak Restaurants in 2023.",img:"/media/venues/partners/cabrera.webp",pa:1,badge:"World No. 48 · 2023"},
+ {n:"Club de Pesca",c:"views",cl:"Views & sunset",d:"A waterfront setting best timed to let golden hour become dinner.",img:"/media/venues/directory/club-de-pesca-hero.webp",pa:1},
+ {n:"Viva La Vida",c:"views",cl:"Views & sunset",d:"Japanese rooftop energy, city views and a celebratory pace above the Old City.",img:"/media/venues/partners/viva-food.webp",pa:1},
+ {n:"Agua de León",c:"lounge",cl:"Dinner to drinks",d:"A contemporary dinner-to-drinks option when the group wants the evening to keep moving.",img:"/media/venues/partners/agua.webp",pa:0}
+];
+
+const NITE = [
+ {n:"Alquímico",c:"cocktails",cl:"World No. 11",d:"Officially ranked No. 11 in The World's 50 Best Bars 2025 — a three-floor celebration of Colombian cocktails, culture and community.",img:"/media/venues/partners/alquimico-interior.webp",pa:1,badge:"No. 11 · 50 Best Bars 2025"},
+ {n:"El Barón",c:"cocktails",cl:"Cocktails",d:"Intimate, precise and ideal for a first round before the city turns up the volume.",img:"/media/venues/directory/el-baron-hero.webp",pa:1},
+ {n:"Agua de León",c:"cocktails",cl:"Cocktails",d:"A polished bridge between dinner, drinks and whatever comes next.",img:"/media/venues/partners/agua.webp",pa:1},
+ {n:"Café Havana",c:"salsa",cl:"Salsa & live music",d:"Live salsa, brass and a timeless Getsemaní atmosphere made for dancing.",img:"/media/venues/directory/cafe-havana-hero.webp",pa:1},
+ {n:"Donde Fidel",c:"salsa",cl:"Salsa & live music",d:"An unfussy salsa institution for music, movement and a truly local pulse.",img:"/media/venues/directory/donde-fidel-hero.webp",pa:1},
+ {n:"La Movida",c:"clubs",cl:"Clubs & tables",d:"A high-energy Old City club where the right table and timing make all the difference.",img:"/media/venues/partners/movida-main-room.webp",pa:1},
+ {n:"La Jugada",c:"clubs",cl:"Clubs & tables",d:"Multiple rooms and moods for groups who want their night to keep evolving.",img:"/media/venues/partners/jugada-main-room.webp",pa:1},
+ {n:"El Voltaje",c:"clubs",cl:"Clubs & tables",d:"A late, high-output choice when the group is ready for full-volume Cartagena.",img:null,pa:1},
+ {n:"El Pasquín",c:"late",cl:"Dinner to late",d:"Live music, cocktails and two distinct rooms let dinner turn naturally into a late Cartagena night.",img:"/media/venues/partners/pasquin.webp",pa:1},
+ {n:"Bohème Lounge",c:"late",cl:"Dinner to late",d:"An intimate, design-led lounge for guest DJs, bottle service and a simply chic midnight mood.",img:"/media/venues/partners/boheme.webp",pa:1},
+ {n:"Mirador",c:"rooftop",cl:"Rooftop",d:"Open-air city views for sunset drinks, a first stop or a relaxed late round.",img:"/media/venues/partners/mirador-night.webp",pa:0}
+];
+
+const ITINS = [
+ {n:"Golden Hour to Main Room",tag:"Polished · cinematic · high energy",pace:"Sunset to late",ideal:"Birthdays · stylish groups",ch:[
+   ["5:45","Mirador","Golden-hour cocktails while the Old City changes color below."],
+   ["8:00","Niku / Agua de León","A design-led dinner with enough energy to keep the night moving."],
+   ["11:30","La Movida","The right table, secured for the moment the main room comes alive."],
+   ["Late","Private return","Your vehicle and local support remain connected through the final ride."]]},
+ {n:"Cartagena Rhythm",tag:"Local · live · soulful",pace:"Dinner to late",ideal:"Music lovers · dancers",ch:[
+   ["6:30","Candé","Cartagena flavours, music and energy to open the evening."],
+   ["9:00","Café Havana","Live salsa, brass and a timeless Getsemaní atmosphere."],
+   ["11:30","Donde Fidel","A truly local salsa institution for the final, unhurried hours."],
+   ["Late","Private return","Your vehicle and local support remain connected through the final ride."]]},
+ {n:"Design After Dark",tag:"Artful · intimate · unexpected",pace:"Evening to midnight",ideal:"Date nights · small groups",ch:[
+   ["7:00","Alquímico","A first round at the world's No. 11 bar — three floors of Colombian cocktails."],
+   ["9:30","Casa Bohème","Mediterranean dining where art and music flow naturally into the lounge."],
+   ["11:30","Bohème Lounge","Guest DJs, bottle service and a simply chic midnight mood."],
+   ["Late","Private return","Your vehicle and local support remain connected through the final ride."]]},
+ {n:"Full-Volume Celebration",tag:"Bold · social · all night",pace:"Dinner to sunrise",ideal:"Bachelor(ette)s · big groups",ch:[
+   ["8:30","La Única","High-energy dining built for celebrations and a seamless move into the night."],
+   ["11:00","La Jugada","Multiple rooms and moods as the group's night keeps evolving."],
+   ["1:00","El Voltaje","Full-volume Cartagena when the group is ready to go late."],
+   ["Late","Private return","Your vehicle and local support remain connected through the final ride."]]}
+];
+
+const CITY = [
+ {y:"Before 1533",t:"A Caribbean world before the walls",p:"Long before the fortifications, this coast belonged to Indigenous Caribbean peoples — fishing communities, trade routes and settlements shaped by the bay, the mangroves and the sea."},
+ {y:"1533",t:"The colonial city is founded",p:"Cartagena de Indias was founded as a Spanish colonial port. Its protected bay made it one of the most important gateways between Europe and the Americas — for treasure fleets, and for the human tragedy of the slave trade."},
+ {y:"1657",t:"San Felipe rises over the city",p:"The first phase of the fortress on Cerro de San Lázaro was completed. Its position protected the land approach and became central to Cartagena's defensive system."},
+ {y:"1741",t:"A fortress proves its purpose",p:"A massive British assault on Cartagena was repelled in one of history's most consequential sieges. The city's layered defenses — and its defenders — held, and the fortress legend was sealed."},
+ {y:"1811",t:"Independence comes from the people",p:"Cartagena declared absolute independence from Spain on 11 November 1811 — driven from below by the artisans and Afro-descendant neighborhoods of Getsemaní."},
+ {y:"1815",t:"The siege enters the city's memory",p:"A brutal royalist siege starved the city for months. Cartagena's resistance earned it the name 'La Heroica' — the Heroic City — a title it still carries."},
+ {y:"1984",t:"The world recognizes its legacy",p:"UNESCO inscribed Cartagena's port, fortresses and group of monuments as a World Heritage Site — the most complete fortification system in South America."},
+ {y:"Now",t:"A living city, never a museum",p:"Balconies, plazas and sea walls are only the surface. Cartagena today is a living Afro-Caribbean city of music, food, craft and reinvention — best entered with context, not just seen."}
+];
+
+const FAQ = [
+ {c:"Planning Cartagena",q:"What does Cartagena Connect arrange?",a:"We connect private villas, airport transportation, chefs, villa staff, security, yacht and boat charters, island days, private tours, restaurant reservations, nightlife access, wellness and departure logistics through one local concierge relationship."},
+ {c:"Planning Cartagena",q:"How does planning a Cartagena trip with you work?",a:"Start with your dates, group size, occasion and priorities. We shortlist the right homes and experiences, prepare a private proposal, refine it with you, reconfirm availability and then coordinate the complete journey from arrival through the airport ride home."},
+ {c:"Planning Cartagena",q:"How far in advance should I book Cartagena?",a:"For large groups, holiday weekends and the most sought-after villas, boats and tables, earlier is always better. Six to twelve weeks usually creates stronger options for ordinary dates; peak periods deserve more lead time. Last-minute trips are possible, but every element remains subject to availability."},
+ {c:"Planning Cartagena",q:"What is the best time of year to visit Cartagena?",a:"Cartagena works year-round; the best dates depend on whether your group values quieter streets, peak celebration energy, island conditions or a specific event. We plan around current weather, marine conditions, local calendars and your preferred pace rather than treating one month as perfect for everyone."},
+ {c:"Planning Cartagena",q:"Do you plan birthdays, bachelor or bachelorette trips and group celebrations?",a:"Yes. We design milestone trips around the group — not a generic party package. That can include the right private home, welcome setup, chef service, yacht day, dinners, nightlife tables, transportation, security and a calm return at the end of every night."},
+ {c:"Private villas & stays",q:"What is the best area to stay in Cartagena?",a:"The Walled City places architecture, dining and nightlife at your door. Getsemaní feels more colorful and lived-in while remaining close to the center. Bocagrande offers modern towers and bay or sea views, while private islands create a more secluded escape. The right answer depends on the group, not only the map."},
+ {c:"Private villas & stays",q:"Why choose a private villa instead of a Cartagena hotel?",a:"A private home lets the group live together around pools, courtyards, rooftops and shared meals while keeping bedrooms private. It also gives your concierge, chef and villa team one connected base. A hotel may suit smaller or more independent travelers; we recommend the format that fits the actual trip."},
+ {c:"Private villas & stays",q:"Can you match a Cartagena villa to my exact group size?",a:"Yes. We review guest count, bedroom and bed needs, preferred neighborhood, accessibility, occasion, shared-space priorities and house rules before recommending a home. A large bedroom count alone does not make a property the right fit."},
+ {c:"Private villas & stays",q:"Are the villas suitable for parties and events?",a:"Every property has different operating conditions and house rules. Tell us the occasion honestly and we will recommend homes that are appropriate for the group and intended use. Events, visitors, DJs and amplified music must always be approved before confirmation."},
+ {c:"Concierge & arrival",q:"Can you arrange Cartagena airport transfers?",a:"Yes. We coordinate private airport pickup around the flight and group size, then connect the arrival to villa access, luggage, groceries and any first-day plans. Departure transportation is planned with the same level of attention."},
+ {c:"Concierge & arrival",q:"Can the villa be stocked before we arrive?",a:"Yes. Your concierge can coordinate groceries, beverages, welcome bites and special requests before check-in, subject to the home's access schedule and final confirmation. The goal is for the group to arrive to a home that already feels ready."},
+ {c:"Concierge & arrival",q:"Do you provide private chefs, butlers, housekeeping and security?",a:"Yes. We coordinate trusted local professionals according to the house, schedule and group. Service hours, menus, staffing levels and operating conditions are confirmed in the private proposal so expectations are clear before arrival."},
+ {c:"Concierge & arrival",q:"Is Cartagena safe for visitors?",a:"Like any major tourism city, Cartagena requires good judgment and awareness. We reduce avoidable gaps with trusted transportation, neighborhood-specific guidance, coordinated returns and private security when appropriate. No city is risk-free; the advantage is having one reliable local team connected to the full plan."},
+ {c:"Concierge & arrival",q:"Do you offer bilingual concierge service?",a:"Yes. Cartagena Connect coordinates in English and Spanish, making it easier for international guests and local teams to stay aligned from the first conversation through departure."},
+ {c:"Boats, islands & experiences",q:"Can I book only a yacht or boat in Cartagena?",a:"Yes. You can request a standalone boat, yacht or catamaran charter, or connect it to a complete stay. We match vessel category, capacity, pace and occasion, then reconfirm the exact inclusions and operating conditions for your date."},
+ {c:"Boats, islands & experiences",q:"What is included with a Cartagena boat charter?",a:"Inclusions vary by vessel and route. Crew, fuel parameters, ice, water, departure point, permitted destinations, schedule and onboard amenities are reconfirmed in writing before payment. Your concierge can also coordinate provisioning, transportation and the rest of the island day."},
+ {c:"Boats, islands & experiences",q:"Can you plan a Rosario Islands day from Cartagena?",a:"Yes. We can design a private route or a curated multi-island experience around the group, marine conditions and desired pace. Boat selection, ground transfers, timing, food, drinks and the return to the villa can be coordinated as one day."},
+ {c:"Boats, islands & experiences",q:"What private tours do you offer beyond the Old City?",a:"Our collection includes Cartagena history and Castillo San Felipe, San Basilio de Palenque, Matute Birding Nature Reserve, Rosario Islands, adventure, wellness and tasting experiences. Each route is selected for real local context — not simply a checklist of stops."},
+ {c:"Dining & nightlife",q:"Can you reserve the best restaurants in Cartagena?",a:"We curate restaurants around the occasion, group size, preferred cuisine and the evening that follows. Our concierge requests the right table, confirms timing and connects transportation, cocktails or nightlife afterward. Reservations always remain subject to venue availability."},
+ {c:"Dining & nightlife",q:"Can you arrange VIP tables and club access in Cartagena?",a:"Yes. We coordinate table requests, arrival timing, transportation and private return for venues such as La Movida, La Jugada and other rooms suited to the group. Access, minimum spend and table location depend on the venue, date and final confirmation."},
+ {c:"Dining & nightlife",q:"Is Alquímico really one of the best bars in the world?",a:"Yes. Alquímico was officially ranked No. 11 in The World's 50 Best Bars 2025. We position it as a defining Cartagena cocktail experience and can connect it to dinner, transportation and the rest of the night."},
+ {c:"Dining & nightlife",q:"Can you design the complete evening instead of one reservation?",a:"That is the point of Design My Night. We shape the sequence around the occasion, preferred energy and group — often beginning with sunset or dinner, moving into cocktails or a main room and ending with transportation already waiting."}
+];
+
+const MOODS = [
+ {n:"Celebrate",d:"A milestone worth a private city. Big rooms, big tables, the night never loses momentum.",picks:[
+   ["Stay","Popular 21","21 bedrooms over the Clock Tower"],
+   ["On the water","CRAZY SEA","95 ft flagship · 16 guests"],
+   ["Experience","VIP 5 Islands","Five island stops, full-day route"],
+   ["The table","La Única","High-energy celebration dining"],
+   ["The night","Full-Volume Celebration","La Única → La Jugada → El Voltaje"]]},
+ {n:"Exhale",d:"Slow mornings, reef water, golden hour. The trip that lowers everyone's shoulders.",picks:[
+   ["Stay","Isla Privada Rosario","Your own Rosario island · 5 bedrooms"],
+   ["On the water","SEASOUL","61 ft premium catamaran"],
+   ["Experience","Volcán Totumo","A private, hosted wellness ritual"],
+   ["The table","Club de Pesca","Waterfront golden hour into dinner"],
+   ["The night","Mirador & El Barón","Rooftop sunset, one perfect cocktail"]]},
+ {n:"Discover",d:"Context over checklists. The city's living history, opened by the right people.",picks:[
+   ["Stay","Casa del Toro","7 bedrooms in living Getsemaní"],
+   ["On the water","SEANNA","57 ft sailing yacht"],
+   ["Experience","Palenque","The living culture of San Basilio"],
+   ["The table","Celele","The destination in every course"],
+   ["The night","Cartagena Rhythm","Candé → Café Havana → Donde Fidel"]]},
+ {n:"Indulge",d:"Chef at home, parrilla at nine, a design-led lounge past midnight. Yes to everything.",picks:[
+   ["Stay","Casa Mantilla","12 bedrooms, restored colonial"],
+   ["On the water","SEABUBBLE","82 ft yacht · flybridge jacuzzi"],
+   ["Experience","Rum & Chocolate","Eight rums, artisanal chocolate"],
+   ["The table","Alma","An elegant Caribbean signature"],
+   ["The night","Golden Hour to Main Room","Mirador → Niku → La Movida"]]}
+];
+</script>
+
+<script>
+/* ================= HELPERS ================= */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const initials = n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join("");
+function imgTag(src,alt,cls){
+  if(!src) return '<div class="ph">'+esc(initials(alt))+'</div>';
+  return '<div class="ph">'+esc(initials(alt))+'</div><img loading="lazy" src="'+src+'" alt="'+esc(alt)+'" onerror="this.remove()"/>';
+}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2400);}
+function wa(msg){window.open(WA+"?text="+encodeURIComponent(msg),"_blank");}
+function waGeneric(){wa("Hello Cartagena Connect — I'd like to start planning a trip to Cartagena.");}
+function closeMobile(){document.getElementById("mobileMenu").classList.remove("open");}
+
+/* ================= TRIP (My Cartagena) ================= */
+let TRIP = [];
+try{TRIP = JSON.parse(localStorage.getItem("ccTrip")||"[]");}catch(e){TRIP=[];}
+function tripSave(){localStorage.setItem("ccTrip",JSON.stringify(TRIP));renderTrip();}
+function tripHas(cat,name){return TRIP.some(i=>i.cat===cat&&i.name===name);}
+function tripAdd(cat,name,meta){
+  if(tripHas(cat,name)){toast(name+" is already in My Cartagena");return;}
+  TRIP.push({cat,name,meta});tripSave();
+  toast(name+" added to My Cartagena");
+  renderAll();
+}
+function tripRemove(i){TRIP.splice(i,1);tripSave();renderAll();}
+function tripClear(){if(!TRIP.length)return;TRIP=[];tripSave();renderAll();toast("Selections cleared");}
+function renderTrip(){
+  $("#tripCount").textContent = TRIP.length;
+  const body = $("#drawerBody");
+  if(!TRIP.length){
+    body.innerHTML = '<div class="drawerEmpty"><span class="serif">Begin anywhere.</span>Add a house, a boat, an experience or a table.<br/>We will connect the rest around you.<div style="margin-top:22px"><a class="btn gold" href="#stays" onclick="closeDrawer()">Start with a stay ↗</a></div></div>';
+    return;
+  }
+  const order = ["Stay","Vessel","Experience","Table","Nightlife","Evening"];
+  let html = "";
+  order.forEach(cat=>{
+    const items = TRIP.map((it,i)=>({...it,i})).filter(it=>it.cat===cat);
+    if(!items.length)return;
+    html += '<div class="tripCat">'+cat+(items.length>1?"s":"")+'</div>';
+    items.forEach(it=>{
+      html += '<div class="tripItem"><div><b>'+esc(it.name)+'</b><span>'+esc(it.meta||"")+'</span></div><button class="rm" onclick="tripRemove('+it.i+')" title="Remove">×</button></div>';
+    });
+  });
+  html += '<p style="font-size:11.5px;color:var(--mutedD);margin-top:16px">Your selections stay with you as you explore — saved on this device.</p>';
+  body.innerHTML = html;
+  const sum = $("#planTripSummary");
+  if(sum) sum.innerHTML = "✦ My Cartagena so far: " + TRIP.map(i=>esc(i.name)).join(" · ");
+}
+function tripMsg(){
+  if(!TRIP.length) return "";
+  let m = "\n\nMy Cartagena selections:";
+  TRIP.forEach(i=>{m += "\n• "+i.cat+": "+i.name+(i.meta?" ("+i.meta+")":"");});
+  return m;
+}
+function tripSend(){
+  let m = "Hello Cartagena Connect — here is the journey I've been building:" + (tripMsg()||"\n(no selections yet)");
+  m += "\n\nCan you turn this into a complete proposal?";
+  wa(m);
+}
+function openDrawer(){$("#drawer").classList.add("open");$("#overlay").classList.add("show");}
+function closeDrawer(){$("#drawer").classList.remove("open");$("#overlay").classList.remove("show");}
+
+/* ================= HERO ================= */
+const heroImgs = [simg("popular-21",1),simg("toro",1),fimg("crazy-sea",1),MEDIA+"/media/venues/partners/mirador-night.webp",MEDIA+"/media/tours/rosario-1.webp"];
+const hs = $("#heroSlides");
+heroImgs.forEach((u,i)=>{const d=document.createElement("div");d.className="slide"+(i===0?" on":"");d.style.backgroundImage="url('"+u+"')";hs.appendChild(d);});
+let heroI = 0;
+setInterval(()=>{const s=hs.children;s[heroI].classList.remove("on");heroI=(heroI+1)%s.length;s[heroI].classList.add("on");},6000);
+const swaps = ["taken care of.","already waiting.","unlocked.","connected.","yours."];
+let swapI = 0;
+setInterval(()=>{const el=$("#heroSwap");el.style.opacity=0;setTimeout(()=>{swapI=(swapI+1)%swaps.length;el.textContent=swaps[swapI];el.style.transition="opacity .6s";el.style.opacity=1;},600);},4200);
+
+/* clock + city mood (America/Bogota, UTC-5) */
+function tickClock(){
+  const now = new Date(new Date().toLocaleString("en-US",{timeZone:"America/Bogota"}));
+  const h = now.getHours(), m = String(now.getMinutes()).padStart(2,"0");
+  $("#clock").textContent = ((h%12)||12)+":"+m+" "+(h<12?"AM":"PM");
+  const mood = h<6?"The city sleeps — the walls keep watch":h<11?"Coffee in the courtyard hour":h<15?"Island water at its brightest":h<18?"The walls are turning gold":h<21?"The hour between pool and table":"The night is finding its rhythm";
+  $("#cityMood").textContent = mood;
+}
+tickClock();setInterval(tickClock,30000);
+
+/* counters */
+const io1 = new IntersectionObserver(es=>{es.forEach(e=>{if(!e.isIntersecting)return;io1.unobserve(e.target);
+  e.target.querySelectorAll("[data-count]").forEach(b=>{const t=+b.dataset.count;let c=0;const step=()=>{c+=Math.max(1,Math.ceil(t/40));if(c>=t)c=t;b.textContent=c;if(c<t)requestAnimationFrame(step);};step();});
+});},{threshold:.4});
+io1.observe($(".heroStats"));
+
+/* ================= MOODS ================= */
+const mg = $("#moodGrid");
+MOODS.forEach((m,i)=>{
+  const b=document.createElement("button");b.className="moodCard";b.dataset.n="0"+(i+1);
+  b.innerHTML="<h3>"+m.n+"</h3><p>"+m.d+"</p>";
+  b.onclick=()=>showMood(i,b);mg.appendChild(b);
+});
+function showMood(i,btn){
+  document.querySelectorAll(".moodCard").forEach(c=>c.classList.remove("on"));btn.classList.add("on");
+  const m = MOODS[i];
+  const r = $("#moodResult");
+  r.innerHTML = '<h3 class="serif">A Cartagena built to <em>'+m.n.toLowerCase()+'.</em></h3>'
+    + '<div class="moodPicks">'+m.picks.map(p=>'<div class="moodPick"><small>'+p[0]+'</small><b>'+esc(p[1])+'</b><span>'+esc(p[2])+'</span></div>').join("")+'</div>'
+    + '<div style="display:flex;gap:12px;flex-wrap:wrap"><button class="btn gold" onclick="moodTrip('+i+')">Add this journey to My Cartagena +</button>'
+    + '<button class="btn ghost" onclick="moodSend('+i+')">Send it to my concierge ↗</button></div>';
+  r.classList.add("show");
+  r.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+const MOODCATS = ["Stay","Vessel","Experience","Table","Evening"];
+function moodTrip(i){
+  MOODS[i].picks.forEach((p,j)=>{const cat=MOODCATS[j]||"Experience";if(!tripHas(cat,p[1]))TRIP.push({cat,name:p[1],meta:p[2]});});
+  tripSave();renderAll();toast("The "+MOODS[i].n+" journey is in My Cartagena");
+}
+function moodSend(i){
+  const m=MOODS[i];
+  wa("Hello Cartagena Connect — Cartagena should feel like: "+m.n+".\n\nThe starting picks that caught my eye:\n"+m.picks.map(p=>"• "+p[0]+": "+p[1]).join("\n")+"\n\nCan you build the full journey around this?");
+}
+
+/* ================= STAYS ================= */
+let stayFilter="all", stayLimit=12;
+const stayChipDefs=[["all","All stays"],["small","Up to 5 bedrooms"],["mid","6–10 bedrooms"],["large","11+ bedrooms"],["island","Private islands"]];
+const sc=$("#stayChips");
+stayChipDefs.forEach(([v,l],i)=>{const b=document.createElement("button");b.className="chip"+(i===0?" on":"");b.textContent=l;b.onclick=()=>{stayFilter=v;stayLimit=12;sc.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));b.classList.add("on");renderStays();};sc.appendChild(b);});
+$("#staySearch").addEventListener("input",()=>{stayLimit=12;renderStays();});
+$("#staySort").addEventListener("change",renderStays);
+function stayBucket(s){if(s.isl)return"island";if(s.bd==null)return"special";if(s.bd<=5)return"small";if(s.bd<=10)return"mid";return"large";}
+function renderStays(){
+  const q=$("#staySearch").value.trim().toLowerCase(), sort=$("#staySort").value;
+  let list = STAYS.map((s,i)=>({...s,i})).filter(s=>{
+    if(stayFilter!=="all"&&stayBucket(s)!==stayFilter&&!(stayFilter==="island"&&s.isl))return false;
+    if(q&&!(s.n+" "+s.a).toLowerCase().includes(q))return false;
+    return true;
+  });
+  if(sort==="bd")list.sort((a,b)=>(b.bd||0)-(a.bd||0));
+  if(sort==="gu")list.sort((a,b)=>(b.gu||0)-(a.gu||0));
+  if(sort==="az")list.sort((a,b)=>a.n.localeCompare(b.n));
+  $("#stayCount").textContent=list.length+" of 49 stays";
+  const shown=list.slice(0,stayLimit);
+  $("#stayGrid").innerHTML = shown.map(s=>{
+    const bd = s.bdT||(s.bd!=null?s.bd+" bedrooms":"— bedrooms");
+    const gu = s.guT||(s.gu!=null?s.gu+" guests":"");
+    return '<article class="card"><div class="cardImg" onclick="openStay('+s.i+')">'
+      +(s.isl?'<span class="tag">Private island</span>':"")
+      +imgTag(s.f?simg(s.f,1):null,s.n)
+      +'</div><div class="cardBody"><h3>'+esc(s.n)+'</h3><div class="loc">'+esc(s.a)+'</div>'
+      +'<div class="meta"><b>'+bd+'</b>'+(gu?' · '+gu:"")+'</div>'
+      +'<div class="cardActions"><button class="miniBtn" onclick="openStay('+s.i+')">Explore</button>'
+      +'<button class="miniBtn '+(tripHas("Stay",s.n)?"added":"solid")+'" onclick="tripAdd(\'Stay\',\''+s.n.replace(/'/g,"\\'")+'\',\''+bd+(gu?" · "+gu:"")+'\')">'+(tripHas("Stay",s.n)?"✓ In trip":"+ Trip")+'</button></div></div></article>';
+  }).join("")||'<div class="empty">No stays match — try another filter.</div>';
+  $("#stayMore").style.display = list.length>stayLimit?"":"none";
+}
+function openStay(i){
+  const s=STAYS[i];
+  const bd=s.bdT||(s.bd!=null?s.bd:"—"), gu=s.guT||(s.gu!=null?"Up to "+s.gu:"Private group");
+  const gal=s.f?Array.from({length:s.f&&["cuartel","mantilla","popular-11","popular-21","sebas","toro"].includes(s.f)?8:7},(_,k)=>simg(s.f,k+1)):[];
+  const feats=s.ft||["Private pool or courtyard","Concierge coordination","Private transportation available","Vessels and experiences available","Chef, butler & housekeeping on request","24/7 security available"];
+  openModal({
+    loc:s.a+" · Private residence",title:s.n,lead:s.d,gal,
+    stats:[[bd,"Bedrooms"],[s.ba||"—","Bathrooms"],[gu,"Guests"]],
+    feats,
+    day:[["07:30","The house wakes before you do.","Coffee is ready, breakfast is taking shape and the courtyard still belongs to the morning."],
+         ["11:00","Cartagena comes to the house.","A private chef, a slow pool, music in the courtyard — or a car waiting whenever the group is ready."],
+         ["17:45","Everyone finds their way back.","Golden hour brings the whole group together before the city changes pace."],
+         ["21:30","The night begins at your door.","The table is confirmed, the vehicle is outside and your concierge already knows what comes next."]],
+    cat:"Stay",meta:(s.bd!=null?bd+" bedrooms · ":"")+gu,
+    waText:"Hello Cartagena Connect — I'd like to check availability for "+s.n+" ("+s.a+")."
+  });
+}
+
+/* ================= FLEET ================= */
+let fleetFilter="all", fleetLimit=12;
+const fleetChipDefs=[["all","Complete fleet"],["yacht","Yachts"],["cat","Catamarans"],["sport","Sport boats"]];
+const fc=$("#fleetChips");
+fleetChipDefs.forEach(([v,l],i)=>{const b=document.createElement("button");b.className="chip"+(i===0?" on":"");b.textContent=l;b.onclick=()=>{fleetFilter=v;fleetLimit=12;fc.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));b.classList.add("on");renderFleet();};fc.appendChild(b);});
+$("#fleetSearch").addEventListener("input",()=>{fleetLimit=12;renderFleet();});
+$("#fleetFit").addEventListener("input",()=>{fleetLimit=12;renderFleet();});
+$("#fleetSort").addEventListener("change",renderFleet);
+function renderFleet(){
+  const q=$("#fleetSearch").value.trim().toLowerCase(), fit=+$("#fleetFit").value||0, sort=$("#fleetSort").value;
+  let list=FLEET.map((v,i)=>({...v,i})).filter(v=>{
+    if(fleetFilter!=="all"&&v.t!==fleetFilter)return false;
+    if(q&&!(v.n+" "+v.tl).toLowerCase().includes(q))return false;
+    if(fit&&(v.cap==null||v.cap<fit))return false;
+    return true;
+  });
+  if(sort==="ft")list.sort((a,b)=>(b.ft||0)-(a.ft||0));
+  if(sort==="cap")list.sort((a,b)=>(b.cap||0)-(a.cap||0));
+  if(sort==="az")list.sort((a,b)=>a.n.localeCompare(b.n));
+  $("#fleetCount").textContent=list.length+" of 78 vessels";
+  $("#fleetGrid").innerHTML=list.slice(0,fleetLimit).map(v=>{
+    const spec=(v.ft?v.ft+" ft":"")+(v.ft&&(v.capT||v.cap)?" · ":"")+(v.capT?v.capT:(v.cap?v.cap+" guests":""));
+    return '<article class="card"><div class="cardImg" onclick="openBoat('+v.i+')">'
+      +'<span class="tag">'+v.tl+'</span>'
+      +(v.n==="CRAZY SEA"?'<span class="badge">Flagship</span>':"")
+      +imgTag(fimg(v.f,1),v.n)
+      +'</div><div class="cardBody"><h3>'+esc(v.n)+'</h3><div class="loc">'+v.tl+'</div>'
+      +'<div class="meta"><b>'+(spec||"Details on request")+'</b></div>'
+      +'<div class="cardActions"><button class="miniBtn" onclick="openBoat('+v.i+')">On board</button>'
+      +'<button class="miniBtn '+(tripHas("Vessel",v.n)?"added":"solid")+'" onclick="tripAdd(\'Vessel\',\''+v.n.replace(/'/g,"\\'")+'\',\''+(spec||v.tl)+'\')">'+(tripHas("Vessel",v.n)?"✓ In trip":"+ Trip")+'</button></div></div></article>';
+  }).join("")||'<div class="empty">No vessels match — try widening the search.</div>';
+  $("#fleetMore").style.display=list.length>fleetLimit?"":"none";
+}
+function openBoat(i){
+  const v=FLEET[i];
+  const spec=(v.capT?v.capT:(v.cap?v.cap+" guests":"On request"));
+  openModal({
+    loc:"The fleet · "+v.tl,title:v.n,
+    lead:v.d||(v.n+" is a "+(v.ft?v.ft+" ft ":"")+v.tl.toLowerCase()+(v.cap?" curated for groups of up to "+v.cap+" guests":"")+", with a certified captain and crew. We coordinate the boat, crew, transportation, island route, timing and every detail around the group — then connect it seamlessly to your stay."),
+    gal:Array.from({length:7},(_,k)=>fimg(v.f,k+1)),
+    stats:[[v.ft?v.ft+" ft":"—","Length"],[spec,"Capacity"],["Included","Captain & crew"]],
+    feats:v.fs||["Certified captain and crew","Coolers with ice","Island routes: Rosario, Cholón, Barú","Provisioning available","Connected ground transportation","Timed around your villa day"],
+    cat:"Vessel",meta:(v.ft?v.ft+" ft · ":"")+spec,
+    waText:"Hello Cartagena Connect — I'd like to check availability for the vessel "+v.n+" ("+(v.ft?v.ft+" ft ":"")+v.tl+")."
+  });
+}
+
+/* ================= EXPERIENCES ================= */
+let expFilter="all";
+const expChipDefs=[["all","All experiences"],["culture","Culture"],["adventure","Adventure"],["islands","Islands"],["wellness","Wellness"],["tastings","Tastings"],["nature","Nature"]];
+const ec=$("#expChips");
+expChipDefs.forEach(([v,l],i)=>{const b=document.createElement("button");b.className="chip"+(i===0?" on":"");b.textContent=l;b.onclick=()=>{expFilter=v;ec.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));b.classList.add("on");renderExp();};ec.appendChild(b);});
+function filterExpAnd(cat){
+  expFilter=cat;
+  ec.querySelectorAll(".chip").forEach((c,i)=>c.classList.toggle("on",expChipDefs[i][0]===cat));
+  renderExp();
+  document.getElementById("experiences").scrollIntoView({behavior:"smooth"});
+}
+function renderExp(){
+  const list=TOURS.map((t,i)=>({...t,i})).filter(t=>expFilter==="all"||t.c===expFilter);
+  $("#expCount").textContent=list.length+" of 10 experiences";
+  $("#expGrid").innerHTML=list.map(t=>
+    '<article class="card expCard"><div class="cardImg">'
+    +'<span class="tag">'+t.cl+'</span>'
+    +imgTag(MEDIA+t.img,t.n)
+    +'</div><div class="cardBody"><h3>'+esc(t.n)+'</h3>'
+    +'<div class="desc">'+t.d+'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:6px"><span class="dur">'+t.dur+'</span><span class="price">'+t.pr+'</span></div>'
+    +'<div class="cardActions"><button class="miniBtn" onclick="wa(\'Hello Cartagena Connect — I\\\'d love to know more about the '+t.n.replace(/'/g,"\\'")+' experience.\')">Ask about it</button>'
+    +'<button class="miniBtn '+(tripHas("Experience",t.n)?"added":"solid")+'" onclick="tripAdd(\'Experience\',\''+t.n.replace(/'/g,"\\'")+'\',\''+t.dur+" · "+t.pr+'\')">'+(tripHas("Experience",t.n)?"✓ In trip":"+ Trip")+'</button></div></div></article>').join("");
+}
+
+/* ================= RESTAURANTS ================= */
+let restFilter="all";
+const restChipDefs=[["all","All"],["signature","Signature"],["cartagena","Cartagena"],["group","Group dinner"],["views","Views & sunset"],["lounge","Dinner to drinks"]];
+const rc=$("#restChips");
+restChipDefs.forEach(([v,l],i)=>{const b=document.createElement("button");b.className="chip"+(i===0?" on":"");b.textContent=l;b.onclick=()=>{restFilter=v;rc.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));b.classList.add("on");renderRest();};rc.appendChild(b);});
+function renderRest(){
+  const list=REST.map((r,i)=>({...r,i})).filter(r=>restFilter==="all"||r.c===restFilter);
+  $("#restCount").textContent=list.length+" of 13 tables";
+  $("#restGrid").innerHTML=list.map(r=>
+    '<article class="card"><div class="cardImg">'
+    +'<span class="tag">'+r.cl+'</span>'
+    +(r.badge?'<span class="badge">'+r.badge+'</span>':(r.pa?'<span class="badge" style="background:rgba(58,156,142,.92);color:#fff">Partner access</span>':""))
+    +imgTag(r.img?MEDIA+r.img:null,r.n)
+    +'</div><div class="cardBody"><h3>'+esc(r.n)+'</h3>'
+    +'<div class="desc">'+r.d+'</div>'
+    +'<div class="cardActions"><button class="miniBtn" onclick="wa(\'Hello Cartagena Connect — could you request a table at '+r.n.replace(/'/g,"\\'")+' for my group?\')">Request table</button>'
+    +'<button class="miniBtn '+(tripHas("Table",r.n)?"added":"solid")+'" onclick="tripAdd(\'Table\',\''+r.n.replace(/'/g,"\\'")+'\',\''+r.cl+'\')">'+(tripHas("Table",r.n)?"✓ In trip":"+ Trip")+'</button></div></div></article>').join("");
+}
+
+/* ================= NIGHTLIFE ================= */
+let niteFilter="all";
+const niteChipDefs=[["all","All"],["cocktails","Cocktails"],["salsa","Salsa & live music"],["clubs","Clubs & tables"],["late","Dinner to late"],["rooftop","Rooftop"]];
+const nc=$("#niteChips");
+niteChipDefs.forEach(([v,l],i)=>{const b=document.createElement("button");b.className="chip"+(i===0?" on":"");b.textContent=l;b.onclick=()=>{niteFilter=v;nc.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));b.classList.add("on");renderNite();};nc.appendChild(b);});
+function renderNite(){
+  const list=NITE.map((r,i)=>({...r,i})).filter(r=>niteFilter==="all"||r.c===niteFilter);
+  $("#niteCount").textContent=list.length+" of 11 venues";
+  $("#niteGrid").innerHTML=list.map(r=>
+    '<article class="card"><div class="cardImg">'
+    +'<span class="tag">'+r.cl+'</span>'
+    +(r.badge?'<span class="badge">'+r.badge+'</span>':(r.pa?'<span class="badge" style="background:rgba(58,156,142,.92);color:#fff">Partner access</span>':""))
+    +imgTag(r.img?MEDIA+r.img:null,r.n)
+    +'</div><div class="cardBody"><h3>'+esc(r.n)+'</h3>'
+    +'<div class="desc">'+r.d+'</div>'
+    +'<div class="cardActions"><button class="miniBtn" onclick="wa(\'Hello Cartagena Connect — could you arrange access / a table at '+r.n.replace(/'/g,"\\'")+'?\')">Arrange access</button>'
+    +'<button class="miniBtn '+(tripHas("Nightlife",r.n)?"added":"solid")+'" onclick="tripAdd(\'Nightlife\',\''+r.n.replace(/'/g,"\\'")+'\',\''+r.cl+'\')">'+(tripHas("Nightlife",r.n)?"✓ In trip":"+ Trip")+'</button></div></div></article>').join("");
+}
+
+/* ================= EVENING ITINERARIES ================= */
+const ig=$("#itinGrid");
+ITINS.forEach((it,i)=>{
+  const d=document.createElement("div");d.className="itin"+(i===0?" open":"");
+  d.innerHTML='<header onclick="this.parentElement.classList.toggle(\'open\')"><small>'+it.tag+'</small><h3>'+it.n+'</h3><span class="pm">+</span>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:8px;letter-spacing:.12em;text-transform:uppercase">'+it.pace+' · '+it.ideal+'</div></header>'
+    +'<div class="chapters">'+it.ch.map(c=>'<div class="chapter"><time>'+c[0]+'</time><div><b>'+c[1]+'</b><span>'+c[2]+'</span></div></div>').join("")+'</div>'
+    +'<div class="itinFoot"><button class="miniBtn solid" onclick="itinTrip('+i+')">+ Add night to trip</button>'
+    +'<button class="miniBtn" onclick="itinSend('+i+')">Tailor this evening ↗</button></div>';
+  ig.appendChild(d);
+});
+function itinTrip(i){const it=ITINS[i];tripAdd("Evening",it.n,it.ch.map(c=>c[1]).slice(0,3).join(" → "));}
+function itinSend(i){const it=ITINS[i];wa("Hello Cartagena Connect — I'd like to tailor the '"+it.n+"' evening ("+it.ch.map(c=>c[0]+" "+c[1]).join(" → ")+") for my group.");}
+
+/* ================= NIGHT DESIGNER ================= */
+const dz={occasion:null,energy:null,start:null};
+document.querySelectorAll(".dzOpts").forEach(g=>{
+  g.querySelectorAll(".dzOpt").forEach(b=>{
+    b.onclick=()=>{g.querySelectorAll(".dzOpt").forEach(x=>x.classList.remove("on"));b.classList.add("on");dz[g.dataset.q]=b.dataset.v;dzUpdate();};
+  });
+});
+["dzDate","dzGuests","dzMust","dzNotes"].forEach(id=>$("#"+id).addEventListener("input",dzUpdate));
+function dzRouteFor(){
+  const e=dz.energy||"";
+  let route;
+  if(e.startsWith("Polished"))route=[["First hour","El Barón","Intimate, precise cocktails"],["The table","Casa Bohème","Design-rich Mediterranean dining"],["Past midnight","Bohème Lounge","Guest DJs, chic midnight mood"]];
+  else if(e.startsWith("Live"))route=[["First hour","Candé","Cartagena flavours and music"],["The room","Café Havana","Live salsa and brass"],["Past midnight","Donde Fidel","A truly local pulse"]];
+  else if(e==="Full energy")route=[["The table","La Única","High-energy celebration dining"],["The room","La Jugada","Rooms that keep evolving"],["Past midnight","El Voltaje","Full-volume Cartagena"]];
+  else route=[["First hour","Alquímico","World No. 11 cocktails"],["The table","Niku","Nikkei dinner with momentum"],["Past midnight","La Movida","The main room, timed right"]];
+  if(dz.start==="At sunset")route.unshift(["Sunset","Mirador","Golden hour above the Old City"]);
+  route.push(["Late","Private return","Vehicle and support through the final ride"]);
+  return route;
+}
+function dzUpdate(){
+  let score=0;
+  if(dz.occasion)score+=25;if(dz.energy)score+=30;if(dz.start)score+=15;
+  if($("#dzDate").value)score+=10;if($("#dzGuests").value)score+=10;
+  if($("#dzMust").value||$("#dzNotes").value)score+=10;
+  $("#dzMeter").textContent=Math.min(100,score)+"%";
+  if(dz.energy||dz.start){
+    $("#dzRoute").classList.add("show");
+    $("#dzSteps").innerHTML=dzRouteFor().map((s,i)=>'<div class="routeStep"><small>0'+(i+1)+' · '+s[0]+'</small><b>'+s[1]+'</b><span>'+s[2]+'</span></div>').join("");
+  }
+}
+function dzMsg(){
+  const r=dzRouteFor().map(s=>s[1]).join(" → ");
+  return "Hello Cartagena Connect — Design My Night, please:\n"
+    +"• Occasion: "+(dz.occasion||"—")+"\n• Energy: "+(dz.energy||"—")+"\n• Begins: "+(dz.start||"—")
+    +"\n• Date: "+($("#dzDate").value||"—")+"\n• Guests: "+($("#dzGuests").value||"—")
+    +($("#dzMust").value?"\n• Must include: "+$("#dzMust").value:"")
+    +($("#dzNotes").value?"\n• Notes: "+$("#dzNotes").value:"")
+    +"\n\nStarting direction on the site: "+r+"\nPlease make it personal.";
+}
+function dzSend(){wa(dzMsg());}
+function dzAddTrip(){tripAdd("Evening","Designed night ("+(dz.energy||"my energy")+")",dzRouteFor().map(s=>s[1]).slice(0,3).join(" → "));}
+
+/* ================= CITY TIMELINE ================= */
+$("#timeline").innerHTML=CITY.map((c,i)=>'<div class="tCard" onclick="this.classList.toggle(\'open\')"><div class="yr">'+c.y+'</div><h3>'+c.t+'</h3><p>'+c.p+'</p><span class="more">Read chapter +</span></div>').join("");
+
+/* ================= CONCIERGE TICKER ================= */
+const tickItems=["Airport welcome","Private chef","Butler & housekeeping","24/7 security","Villa provisioning","Dining access","Nightlife tables","Wellness at home","Island days","Departure logistics"];
+$("#ticker").innerHTML=(tickItems.concat(tickItems)).map(t=>"<span>"+t+" <i>✦</i></span>").join("");
+
+/* ================= FAQ ================= */
+let faqFilter="All";
+const faqCats=["All"].concat([...new Set(FAQ.map(f=>f.c))]);
+const ft=$("#faqTabs");
+faqCats.forEach((c,i)=>{const b=document.createElement("button");b.className="chip"+(i===0?" on":"");b.textContent=c;b.onclick=()=>{faqFilter=c;ft.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));b.classList.add("on");renderFaq();};ft.appendChild(b);});
+$("#faqSearch").addEventListener("input",renderFaq);
+function renderFaq(){
+  const q=$("#faqSearch").value.trim().toLowerCase();
+  let html="",lastCat="";
+  FAQ.forEach((f,i)=>{
+    if(faqFilter!=="All"&&f.c!==faqFilter)return;
+    if(q&&!(f.q+" "+f.a).toLowerCase().includes(q))return;
+    if(f.c!==lastCat){html+='<div class="faqCat">'+f.c+'</div>';lastCat=f.c;}
+    html+='<div class="faqItem"><button class="q" onclick="toggleFaq(this)">'+f.q+'<span class="pm">+</span></button><div class="a"><p>'+f.a+'</p></div></div>';
+  });
+  $("#faqList").innerHTML=html||'<div class="empty" style="color:#877f6d">No answers match — ask us directly on WhatsApp.</div>';
+}
+function toggleFaq(btn){btn.parentElement.classList.toggle("open");}
+
+/* ================= MODAL ================= */
+let LB={imgs:[],i:0};
+function openModal(o){
+  const mc=$("#modalCard");
+  const galHtml=o.gal.length?'<div class="modalGal"><div class="main" onclick="lbOpen(0)">'+imgTag(o.gal[0],o.title)+'</div>'
+    +'<div class="thumbCol"><div class="thumb" onclick="lbOpen(1)">'+imgTag(o.gal[1],o.title)+'</div>'
+    +'<div class="thumb" onclick="lbOpen(2)">'+imgTag(o.gal[2],o.title)+(o.gal.length>3?'<div class="moreCount" onclick="event.stopPropagation();lbOpen(3)">+'+(o.gal.length-3)+' more</div>':"")+'</div></div></div>':"";
+  mc.innerHTML='<button class="modalX" onclick="closeModal()">×</button>'+galHtml
+    +'<div class="modalBody"><div class="loc">'+esc(o.loc)+'</div><h2>'+esc(o.title)+'</h2>'
+    +'<p class="lead">'+o.lead+'</p>'
+    +'<div class="statRow">'+o.stats.map(s=>'<div><b>'+s[0]+'</b><span>'+s[1]+'</span></div>').join("")+'</div>'
+    +'<div class="kicker" style="margin-top:26px">Considered for how you will live</div>'
+    +'<ul class="featList">'+o.feats.map(f=>"<li>"+f+"</li>").join("")+'</ul>'
+    +(o.day?'<div class="kicker" style="margin-top:26px">A day here — a living itinerary</div><div class="dayLine">'+o.day.map(d=>'<div class="d"><time>'+d[0]+'</time><b>'+d[1]+'</b><span>'+d[2]+'</span></div>').join("")+'</div>':"")
+    +'<div class="modalCtas"><button class="btn gold" onclick="wa(\''+o.waText.replace(/'/g,"\\'")+'\')">Check availability ↗</button>'
+    +'<button class="btn ghost" onclick="tripAdd(\''+o.cat+'\',\''+o.title.replace(/'/g,"\\'")+'\',\''+String(o.meta).replace(/'/g,"\\'")+'\');closeModal()">Add to My Cartagena +</button></div>'
+    +'<p class="planNote" style="margin-top:18px">Your concierge can pair this with airport transportation, private staff, dining, nightlife and a vessel selected around the same group.</p></div>';
+  LB.imgs=o.gal;LB.title=o.title;
+  $("#modal").classList.add("open");document.body.style.overflow="hidden";
+  mc.scrollTop=0;
+}
+function closeModal(){$("#modal").classList.remove("open");document.body.style.overflow="";}
+
+/* ================= LIGHTBOX ================= */
+function lbOpen(i){if(!LB.imgs.length)return;LB.i=i;lbShow();$("#lightbox").classList.add("open");}
+function lbShow(){$("#lbImg").src=LB.imgs[LB.i];$("#lbImg").alt=LB.title||"";$("#lbCount").textContent=(LB.i+1)+" / "+LB.imgs.length;}
+function lbStep(d){LB.i=(LB.i+d+LB.imgs.length)%LB.imgs.length;lbShow();}
+function lbClose(){$("#lightbox").classList.remove("open");}
+document.addEventListener("keydown",e=>{
+  if($("#lightbox").classList.contains("open")){
+    if(e.key==="Escape")lbClose();if(e.key==="ArrowRight")lbStep(1);if(e.key==="ArrowLeft")lbStep(-1);
+  } else if(e.key==="Escape"){closeModal();closeDrawer();}
+});
+
+/* ================= PLANNER ================= */
+let planMode="Complete trip";
+$("#planMode").querySelectorAll("button").forEach(b=>{b.onclick=()=>{$("#planMode").querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");planMode=b.dataset.v;};});
+function planSend(){
+  let m="Hello Cartagena Connect — I'd like a proposal.\n"
+    +"• Request: "+planMode
+    +"\n• Name: "+($("#pName").value||"—")
+    +"\n• Dates: "+($("#pDates").value||"—")
+    +"\n• Guests: "+($("#pGuests").value||"—")
+    +($("#pOccasion").value?"\n• Occasion: "+$("#pOccasion").value:"")
+    +($("#pFeel").value?"\n• The trip should feel: "+$("#pFeel").value:"");
+  m+=tripMsg();
+  wa(m);
+}
+
+/* ================= SCROLL FX ================= */
+const nav=$("#nav");
+window.addEventListener("scroll",()=>{
+  nav.classList.toggle("scrolled",scrollY>40);
+  const h=document.documentElement;
+  $("#progress").style.width=(scrollY/(h.scrollHeight-innerHeight)*100)+"%";
+  $("#toTop").classList.toggle("show",scrollY>900);
+},{passive:true});
+const secIds=["stays","fleet","experiences","restaurants","nightlife","city","concierge","faq"];
+const spy=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){document.querySelectorAll("nav.links a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+e.target.id));}});},{rootMargin:"-40% 0px -55% 0px"});
+secIds.forEach(id=>{const el=document.getElementById(id);if(el)spy.observe(el);});
+const rev=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");rev.unobserve(e.target);}});},{threshold:.12});
+document.querySelectorAll(".reveal").forEach(el=>rev.observe(el));
+
+/* ================= INIT ================= */
+function renderAll(){renderStays();renderFleet();renderExp();renderRest();renderNite();renderTrip();}
+renderAll();renderFaq();
+</script>
+</body>
+</html>
