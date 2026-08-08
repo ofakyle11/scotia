@@ -556,8 +556,7 @@
       © 2026 Mycora Mushroom Co. All products sold by Mycora are psilocybin-free and legal for sale in Canada.
       Statements on this site have not been evaluated by Health Canada. Our products are not intended to diagnose,
       treat, cure, or prevent any disease. Consult a healthcare practitioner before use if you are pregnant, nursing,
-      taking medication, or have a medical condition. Product photography by Wikimedia Commons contributors
-      (Creative Commons / public domain) — see <a href="images/README.md">images/README.md</a> for individual credits.
+      taking medication, or have a medical condition.
     </p>
   </div>
 </footer>
@@ -576,6 +575,23 @@
   </div>
 </aside>
 
+<div class="modal" id="loginModal" aria-label="Admin login">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head">
+      <h3 id="loginTitle">Admin login</h3>
+      <button class="drawer-close" id="loginClose" aria-label="Close login">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="loginForm">
+        <div class="field"><label for="pw1" id="pw1Label">Password</label><input id="pw1" type="password" required minlength="6" autocomplete="current-password"></div>
+        <div class="field" id="pw2Wrap" style="display:none;margin-top:12px"><label for="pw2">Confirm password</label><input id="pw2" type="password" autocomplete="new-password"></div>
+        <p class="admin-note" id="loginNote"></p>
+        <div class="form-actions"><button class="btn btn-primary" type="submit" id="loginBtn">Log in</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="adminModal" aria-label="Manage products">
   <div class="modal-box">
     <div class="modal-head">
@@ -591,6 +607,11 @@
           <div class="field"><label for="pBadge">Badge (optional)</label><input id="pBadge" maxlength="20" placeholder="e.g. New"></div>
           <div class="field full"><label for="pDesc">Description</label><textarea id="pDesc" maxlength="200" placeholder="One or two short sentences."></textarea></div>
           <div class="field full"><label for="pImg">Photo (optional, JPG/PNG)</label><input id="pImg" type="file" accept="image/*"></div>
+          <div class="field full" id="removePhotoWrap" style="display:none">
+            <label for="pRemoveImg" style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:500">
+              <input type="checkbox" id="pRemoveImg" style="width:auto"> Remove this product's current photo
+            </label>
+          </div>
         </div>
         <div class="form-actions">
           <button class="btn btn-primary" type="submit" id="saveBtn">Add product</button>
@@ -603,6 +624,8 @@
         <div class="admin-tools">
           <button class="mini-btn" id="exportBtn">Export catalog (JSON)</button>
           <label class="mini-btn" style="cursor:pointer">Import catalog<input id="importFile" type="file" accept="application/json" style="display:none"></label>
+          <button class="mini-btn" id="pwBtn">Change password</button>
+          <button class="mini-btn" id="logoutBtn">Log out</button>
         </div>
         <p class="admin-note">Products you add here are saved in this browser only. To make them
         permanent for all visitors, export the catalog and bake it into the site file — or hand
@@ -620,18 +643,18 @@
   // (drop the file in the images/ folder). Products without img keep the
   // illustrated tile.
   const PRODUCTS = [
-    {id:"lm-caps", img:"images/lions-mane.jpg",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#E6EFE3", color:"#2E6B3E", badge:"Best seller"},
-    {id:"reishi-tinc", img:"images/reishi.jpg",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#F1E7EC", color:"#7A4A5E"},
-    {id:"cord-powder", img:"images/cordyceps.jpg",name:"Cordyceps Energy Powder",     cat:"Supplements",     price:27.99, desc:"100 g pure cordyceps militaris powder — pre-workout, no caffeine.",  tint:"#F5EBDD", color:"#C08A2D"},
-    {id:"tt-caps", img:"images/turkey-tail.jpg",   name:"Turkey Tail Immunity Capsules",cat:"Supplements",     price:32.99, desc:"90 capsules · beta-glucan-rich extract for immune support.",         tint:"#E7EDF0", color:"#4A6B7A"},
-    {id:"complex-gum", img:"images/gummies.jpg",name:"10-Mushroom Complex Gummies", cat:"Supplements",     price:28.99, desc:"60 berry gummies blending ten functional species in one chew.",      tint:"#F0E7F1", color:"#6E4A7A", badge:"New"},
-    {id:"chaga-tea", img:"images/chaga.jpg", name:"Chaga Chai Tea",               cat:"Coffee & Pantry", price:19.99, desc:"20 bags of wild-harvested chaga blended with warming chai spice.",   tint:"#EFE6DC", color:"#7A5A3A"},
-    {id:"mush-coffee", img:"images/coffee.jpg",name:"Mushroom Coffee Blend",       cat:"Coffee & Pantry", price:24.99, desc:"340 g dark roast with lion's mane & chaga. Tastes like coffee.",     tint:"#EAE3DB", color:"#4A3A2E", badge:"Best seller"},
-    {id:"reishi-cocoa", img:"images/cocoa.jpg",name:"Reishi Hot Cocoa",           cat:"Coffee & Pantry", price:21.99, desc:"250 g rich cocoa with reishi extract — the calmest nightcap.",       tint:"#F0E4E0", color:"#8A4A3A"},
-    {id:"oyster-kit", img:"images/pink-oyster.jpg",name:"Pink Oyster Grow Kit",         cat:"Grow Kits",       price:39.99, desc:"Cut, mist, harvest in 10 days. Two to three flushes per block.",     tint:"#F5E5E8", color:"#C05A72", badge:"Staff pick"},
-    {id:"shiitake-kit", img:"images/shiitake.jpg",name:"Shiitake Grow Kit",          cat:"Grow Kits",       price:36.99, desc:"Fruits rich, meaty shiitake on a hardwood block. Beginner-proof.",   tint:"#EAE6DC", color:"#6B5A3A"},
-    {id:"porcini", img:"images/porcini.jpg",   name:"Dried Porcini",                cat:"Gourmet Dried",   price:18.99, desc:"50 g of grade-A porcini. Rehydrate for risotto, pasta, and broth.",  tint:"#F0EADF", color:"#9A7A4A"},
-    {id:"medley", img:"images/medley.jpg",    name:"Shiitake & Oyster Medley",     cat:"Gourmet Dried",   price:16.99, desc:"100 g mixed dried mushrooms — a pantry staple for instant umami.",   tint:"#E8ECE3", color:"#5C6B5E"},
+    {id:"lm-caps",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#E6EFE3", color:"#2E6B3E", badge:"Best seller"},
+    {id:"reishi-tinc",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#F1E7EC", color:"#7A4A5E"},
+    {id:"cord-powder",name:"Cordyceps Energy Powder",     cat:"Supplements",     price:27.99, desc:"100 g pure cordyceps militaris powder — pre-workout, no caffeine.",  tint:"#F5EBDD", color:"#C08A2D"},
+    {id:"tt-caps",   name:"Turkey Tail Immunity Capsules",cat:"Supplements",     price:32.99, desc:"90 capsules · beta-glucan-rich extract for immune support.",         tint:"#E7EDF0", color:"#4A6B7A"},
+    {id:"complex-gum",name:"10-Mushroom Complex Gummies", cat:"Supplements",     price:28.99, desc:"60 berry gummies blending ten functional species in one chew.",      tint:"#F0E7F1", color:"#6E4A7A", badge:"New"},
+    {id:"chaga-tea", name:"Chaga Chai Tea",               cat:"Coffee & Pantry", price:19.99, desc:"20 bags of wild-harvested chaga blended with warming chai spice.",   tint:"#EFE6DC", color:"#7A5A3A"},
+    {id:"mush-coffee",name:"Mushroom Coffee Blend",       cat:"Coffee & Pantry", price:24.99, desc:"340 g dark roast with lion's mane & chaga. Tastes like coffee.",     tint:"#EAE3DB", color:"#4A3A2E", badge:"Best seller"},
+    {id:"reishi-cocoa",name:"Reishi Hot Cocoa",           cat:"Coffee & Pantry", price:21.99, desc:"250 g rich cocoa with reishi extract — the calmest nightcap.",       tint:"#F0E4E0", color:"#8A4A3A"},
+    {id:"oyster-kit",name:"Pink Oyster Grow Kit",         cat:"Grow Kits",       price:39.99, desc:"Cut, mist, harvest in 10 days. Two to three flushes per block.",     tint:"#F5E5E8", color:"#C05A72", badge:"Staff pick"},
+    {id:"shiitake-kit",name:"Shiitake Grow Kit",          cat:"Grow Kits",       price:36.99, desc:"Fruits rich, meaty shiitake on a hardwood block. Beginner-proof.",   tint:"#EAE6DC", color:"#6B5A3A"},
+    {id:"porcini",   name:"Dried Porcini",                cat:"Gourmet Dried",   price:18.99, desc:"50 g of grade-A porcini. Rehydrate for risotto, pasta, and broth.",  tint:"#F0EADF", color:"#9A7A4A"},
+    {id:"medley",    name:"Shiitake & Oyster Medley",     cat:"Gourmet Dried",   price:16.99, desc:"100 g mixed dried mushrooms — a pantry staple for instant umami.",   tint:"#E8ECE3", color:"#5C6B5E"},
   ];
   const CATS = ["All","Supplements","Coffee & Pantry","Grow Kits","Gourmet Dried"];
   const fmt = n => "$" + n.toFixed(2);
@@ -759,7 +782,14 @@
   document.getElementById("cartOpen").addEventListener("click", openCart);
   document.getElementById("cartClose").addEventListener("click", closeCart);
   overlay.addEventListener("click", closeCart);
-  document.addEventListener("keydown", e => { if(e.key==="Escape"){ closeCart(); const m=document.getElementById("adminModal"); if(m.classList.contains("open")){ m.classList.remove("open"); } } });
+  document.addEventListener("keydown", e => {
+    if(e.key!=="Escape") return;
+    closeCart();
+    for(const id of ["adminModal","loginModal"]){
+      const m = document.getElementById(id);
+      if(m && m.classList.contains("open")) m.classList.remove("open");
+    }
+  });
   document.getElementById("checkoutBtn").addEventListener("click", () =>
     showToast("Demo checkout — connect Shopify, Square, or Stripe to go live"));
 
@@ -774,7 +804,79 @@
   const fName = document.getElementById("pName"), fPrice = document.getElementById("pPrice"),
         fCat = document.getElementById("pCat"), fBadge = document.getElementById("pBadge"),
         fDesc = document.getElementById("pDesc"), fImg = document.getElementById("pImg");
-  let editingId = null;
+  const removePhotoWrap = document.getElementById("removePhotoWrap");
+  const fRemoveImg = document.getElementById("pRemoveImg");
+  let editingId = null;       // id of a custom product being edited
+  let editingBuiltin = null;  // id of a built-in product being edited (saved as an editable copy)
+
+  // ---- admin login ----
+  // Client-side gate: only a hash of the password is stored, in this browser.
+  // It keeps visitors out of the manager; it is not server-grade security.
+  const HASH_KEY = "mycora-admin-hash", UNLOCK_KEY = "mycora-admin-unlocked";
+  const loginModal = document.getElementById("loginModal");
+  const loginForm = document.getElementById("loginForm");
+  const loginTitle = document.getElementById("loginTitle");
+  const loginNote = document.getElementById("loginNote");
+  const loginBtn = document.getElementById("loginBtn");
+  const pw1 = document.getElementById("pw1"), pw2 = document.getElementById("pw2");
+  const pw2Wrap = document.getElementById("pw2Wrap");
+  async function hashPw(pw){
+    if(crypto.subtle){
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("mycora:"+pw));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+    let h = 5381;
+    for(const ch of "mycora:"+pw){ h = ((h*33) ^ ch.charCodeAt(0)) >>> 0; }
+    return "x" + h.toString(16);
+  }
+  const isUnlocked = () => sessionStorage.getItem(UNLOCK_KEY) === "1";
+  function openLogin(){
+    const firstRun = !localStorage.getItem(HASH_KEY);
+    loginTitle.textContent = firstRun ? "Set an admin password" : "Admin login";
+    loginBtn.textContent = firstRun ? "Set password & open" : "Log in";
+    pw2Wrap.style.display = firstRun ? "" : "none";
+    pw2.required = firstRun;
+    loginNote.textContent = firstRun
+      ? "First time here: choose a password (6+ characters). You'll need it to manage products in this browser."
+      : "";
+    loginForm.reset();
+    loginModal.classList.add("open");
+    pw1.focus();
+  }
+  function closeLogin(){ loginModal.classList.remove("open"); }
+  document.getElementById("loginClose").addEventListener("click", closeLogin);
+  loginModal.addEventListener("click", e => { if(e.target===loginModal) closeLogin(); });
+  loginForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const firstRun = !localStorage.getItem(HASH_KEY);
+    if(firstRun){
+      if(pw1.value.length < 6){ loginNote.textContent = "Password must be at least 6 characters."; return; }
+      if(pw1.value !== pw2.value){ loginNote.textContent = "Passwords don't match — try again."; return; }
+      localStorage.setItem(HASH_KEY, await hashPw(pw1.value));
+    } else if(await hashPw(pw1.value) !== localStorage.getItem(HASH_KEY)){
+      loginNote.textContent = "Wrong password.";
+      pw1.select();
+      return;
+    }
+    sessionStorage.setItem(UNLOCK_KEY, "1");
+    closeLogin();
+    openAdmin();
+  });
+  document.getElementById("pwBtn").addEventListener("click", async () => {
+    const cur = prompt("Current password:");
+    if(cur === null) return;
+    if(await hashPw(cur) !== localStorage.getItem(HASH_KEY)){ showToast("Wrong password"); return; }
+    const nw = prompt("New password (6+ characters):");
+    if(nw === null) return;
+    if(nw.length < 6){ showToast("Password must be at least 6 characters"); return; }
+    localStorage.setItem(HASH_KEY, await hashPw(nw));
+    showToast("Password changed");
+  });
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    closeAdmin();
+    showToast("Logged out");
+  });
 
   function refreshAll(){
     if(!currentCats().includes(activeCat)) activeCat = "All";
@@ -787,6 +889,7 @@
       rows.push(`<div class="admin-row${off?" hidden-row":""}">
         <span class="a-name">${esc(p.name)} <span class="a-cat">· ${esc(p.cat)}</span></span>
         <span class="a-price price">${fmt(p.price)}</span>
+        <button class="mini-btn" data-edit="${esc(p.id)}">Edit</button>
         <button class="mini-btn" data-toggle="${esc(p.id)}">${off?"Show":"Hide"}</button>
       </div>`);
     }
@@ -804,13 +907,18 @@
   function resetForm(){
     productForm.reset();
     editingId = null;
+    editingBuiltin = null;
     formTitle.textContent = "Add a product";
     saveBtn.textContent = "Add product";
     cancelEdit.style.display = "none";
+    removePhotoWrap.style.display = "none";
   }
   function openAdmin(){ renderAdminList(); adminModal.classList.add("open"); fName.focus(); }
   function closeAdmin(){ adminModal.classList.remove("open"); resetForm(); }
-  document.getElementById("adminOpen").addEventListener("click", e => { e.preventDefault(); openAdmin(); });
+  document.getElementById("adminOpen").addEventListener("click", e => {
+    e.preventDefault();
+    if(isUnlocked()) openAdmin(); else openLogin();
+  });
   document.getElementById("adminClose").addEventListener("click", closeAdmin);
   adminModal.addEventListener("click", e => { if(e.target===adminModal) closeAdmin(); });
   cancelEdit.addEventListener("click", resetForm);
@@ -847,8 +955,22 @@
         p.name = fName.value.trim(); p.cat = fCat.value.trim();
         p.price = price; p.desc = fDesc.value.trim();
         p.badge = fBadge.value.trim() || undefined;
-        if(img) p.img = img;
+        if(fRemoveImg.checked) p.img = null;
+        else if(img) p.img = img;
       }
+      showToast("Product updated");
+    } else if(editingBuiltin){
+      // Saving an edit of a built-in product: hide the original and store
+      // the edited version as a copy, so the built-in list stays intact.
+      const orig = PRODUCTS.find(x=>x.id===editingBuiltin);
+      custom.push({
+        id: "custom-" + Date.now().toString(36),
+        name: fName.value.trim(), cat: fCat.value.trim(), price,
+        desc: fDesc.value.trim(), badge: fBadge.value.trim() || undefined,
+        img: fRemoveImg.checked ? null : (img || (orig && orig.img) || null),
+        tint: (orig && orig.tint) || "#E8ECE3", color: (orig && orig.color) || "#5C6B5E",
+      });
+      if(!hidden.includes(editingBuiltin)) hidden.push(editingBuiltin);
       showToast("Product updated");
     } else {
       custom.push({
@@ -870,11 +992,15 @@
       saveCatalog(); refreshAll();
     }
     if(ed){
-      const p = custom.find(x=>x.id===ed.dataset.edit);
+      const id = ed.dataset.edit;
+      const p = custom.find(x=>x.id===id) || PRODUCTS.find(x=>x.id===id);
       if(!p) return;
-      editingId = p.id;
+      if(custom.includes(p)){ editingId = p.id; editingBuiltin = null; }
+      else { editingBuiltin = p.id; editingId = null; }
       fName.value = p.name; fPrice.value = p.price; fCat.value = p.cat;
       fBadge.value = p.badge || ""; fDesc.value = p.desc || ""; fImg.value = "";
+      fRemoveImg.checked = false;
+      removePhotoWrap.style.display = p.img ? "" : "none";
       formTitle.textContent = "Edit product";
       saveBtn.textContent = "Save changes";
       cancelEdit.style.display = "";
