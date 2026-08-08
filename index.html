@@ -513,7 +513,8 @@
       © 2026 Mycora Mushroom Co. All products sold by Mycora are psilocybin-free and legal for sale in Canada.
       Statements on this site have not been evaluated by Health Canada. Our products are not intended to diagnose,
       treat, cure, or prevent any disease. Consult a healthcare practitioner before use if you are pregnant, nursing,
-      taking medication, or have a medical condition.
+      taking medication, or have a medical condition. Product photography by Wikimedia Commons contributors
+      (Creative Commons / public domain) — see <a href="images/README.md">images/README.md</a> for individual credits.
     </p>
   </div>
 </footer>
@@ -540,18 +541,18 @@
   // (drop the file in the images/ folder). Products without img keep the
   // illustrated tile.
   const PRODUCTS = [
-    {id:"lm-caps",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#E6EFE3", color:"#2E6B3E", badge:"Best seller"},
-    {id:"reishi-tinc",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#F1E7EC", color:"#7A4A5E"},
-    {id:"cord-powder",name:"Cordyceps Energy Powder",     cat:"Supplements",     price:27.99, desc:"100 g pure cordyceps militaris powder — pre-workout, no caffeine.",  tint:"#F5EBDD", color:"#C08A2D"},
-    {id:"tt-caps",   name:"Turkey Tail Immunity Capsules",cat:"Supplements",     price:32.99, desc:"90 capsules · beta-glucan-rich extract for immune support.",         tint:"#E7EDF0", color:"#4A6B7A"},
-    {id:"complex-gum",name:"10-Mushroom Complex Gummies", cat:"Supplements",     price:28.99, desc:"60 berry gummies blending ten functional species in one chew.",      tint:"#F0E7F1", color:"#6E4A7A", badge:"New"},
-    {id:"chaga-tea", name:"Chaga Chai Tea",               cat:"Coffee & Pantry", price:19.99, desc:"20 bags of wild-harvested chaga blended with warming chai spice.",   tint:"#EFE6DC", color:"#7A5A3A"},
-    {id:"mush-coffee",name:"Mushroom Coffee Blend",       cat:"Coffee & Pantry", price:24.99, desc:"340 g dark roast with lion's mane & chaga. Tastes like coffee.",     tint:"#EAE3DB", color:"#4A3A2E", badge:"Best seller"},
-    {id:"reishi-cocoa",name:"Reishi Hot Cocoa",           cat:"Coffee & Pantry", price:21.99, desc:"250 g rich cocoa with reishi extract — the calmest nightcap.",       tint:"#F0E4E0", color:"#8A4A3A"},
-    {id:"oyster-kit",name:"Pink Oyster Grow Kit",         cat:"Grow Kits",       price:39.99, desc:"Cut, mist, harvest in 10 days. Two to three flushes per block.",     tint:"#F5E5E8", color:"#C05A72", badge:"Staff pick"},
-    {id:"shiitake-kit",name:"Shiitake Grow Kit",          cat:"Grow Kits",       price:36.99, desc:"Fruits rich, meaty shiitake on a hardwood block. Beginner-proof.",   tint:"#EAE6DC", color:"#6B5A3A"},
-    {id:"porcini",   name:"Dried Porcini",                cat:"Gourmet Dried",   price:18.99, desc:"50 g of grade-A porcini. Rehydrate for risotto, pasta, and broth.",  tint:"#F0EADF", color:"#9A7A4A"},
-    {id:"medley",    name:"Shiitake & Oyster Medley",     cat:"Gourmet Dried",   price:16.99, desc:"100 g mixed dried mushrooms — a pantry staple for instant umami.",   tint:"#E8ECE3", color:"#5C6B5E"},
+    {id:"lm-caps", img:"images/lions-mane.jpg",   name:"Lion's Mane Focus Capsules",   cat:"Supplements",     price:34.99, desc:"120 capsules · 1000 mg fruiting-body extract for focus and memory.", tint:"#E6EFE3", color:"#2E6B3E", badge:"Best seller"},
+    {id:"reishi-tinc", img:"images/reishi.jpg",name:"Reishi Calm Tincture",        cat:"Supplements",     price:29.99, desc:"60 ml dual-extract tincture for evening wind-down and rest.",        tint:"#F1E7EC", color:"#7A4A5E"},
+    {id:"cord-powder", img:"images/cordyceps.jpg",name:"Cordyceps Energy Powder",     cat:"Supplements",     price:27.99, desc:"100 g pure cordyceps militaris powder — pre-workout, no caffeine.",  tint:"#F5EBDD", color:"#C08A2D"},
+    {id:"tt-caps", img:"images/turkey-tail.jpg",   name:"Turkey Tail Immunity Capsules",cat:"Supplements",     price:32.99, desc:"90 capsules · beta-glucan-rich extract for immune support.",         tint:"#E7EDF0", color:"#4A6B7A"},
+    {id:"complex-gum", img:"images/gummies.jpg",name:"10-Mushroom Complex Gummies", cat:"Supplements",     price:28.99, desc:"60 berry gummies blending ten functional species in one chew.",      tint:"#F0E7F1", color:"#6E4A7A", badge:"New"},
+    {id:"chaga-tea", img:"images/chaga.jpg", name:"Chaga Chai Tea",               cat:"Coffee & Pantry", price:19.99, desc:"20 bags of wild-harvested chaga blended with warming chai spice.",   tint:"#EFE6DC", color:"#7A5A3A"},
+    {id:"mush-coffee", img:"images/coffee.jpg",name:"Mushroom Coffee Blend",       cat:"Coffee & Pantry", price:24.99, desc:"340 g dark roast with lion's mane & chaga. Tastes like coffee.",     tint:"#EAE3DB", color:"#4A3A2E", badge:"Best seller"},
+    {id:"reishi-cocoa", img:"images/cocoa.jpg",name:"Reishi Hot Cocoa",           cat:"Coffee & Pantry", price:21.99, desc:"250 g rich cocoa with reishi extract — the calmest nightcap.",       tint:"#F0E4E0", color:"#8A4A3A"},
+    {id:"oyster-kit", img:"images/pink-oyster.jpg",name:"Pink Oyster Grow Kit",         cat:"Grow Kits",       price:39.99, desc:"Cut, mist, harvest in 10 days. Two to three flushes per block.",     tint:"#F5E5E8", color:"#C05A72", badge:"Staff pick"},
+    {id:"shiitake-kit", img:"images/shiitake.jpg",name:"Shiitake Grow Kit",          cat:"Grow Kits",       price:36.99, desc:"Fruits rich, meaty shiitake on a hardwood block. Beginner-proof.",   tint:"#EAE6DC", color:"#6B5A3A"},
+    {id:"porcini", img:"images/porcini.jpg",   name:"Dried Porcini",                cat:"Gourmet Dried",   price:18.99, desc:"50 g of grade-A porcini. Rehydrate for risotto, pasta, and broth.",  tint:"#F0EADF", color:"#9A7A4A"},
+    {id:"medley", img:"images/medley.jpg",    name:"Shiitake & Oyster Medley",     cat:"Gourmet Dried",   price:16.99, desc:"100 g mixed dried mushrooms — a pantry staple for instant umami.",   tint:"#E8ECE3", color:"#5C6B5E"},
   ];
   const CATS = ["All","Supplements","Coffee & Pantry","Grow Kits","Gourmet Dried"];
   const fmt = n => "$" + n.toFixed(2);
