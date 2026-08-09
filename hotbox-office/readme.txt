@@ -3,7 +3,7 @@ Contributors: hotboxoffice
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Tags: e-commerce, dark, one-column, custom-logo, custom-menu, featured-images, footer-widgets, translation-ready
@@ -14,8 +14,8 @@ champagne type, greenhouse-green accents.
 == Description ==
 
 Converted from the Hotbox Office single-page store into a full WordPress + WooCommerce
-theme. Ships dark by default; a white/light scheme is one click away under
-Appearance > Customize > Store Details > Color Scheme.
+theme. Ships light (white) by default; the original black-and-champagne dark scheme is
+one click away under Appearance > Customize > Store Details > Color Scheme.
 
 Features:
 
@@ -53,6 +53,10 @@ Features:
    gateways under WooCommerce > Settings > Payments.
 
 == Changelog ==
+
+= 1.2.0 =
+* Light (white) is now the default color scheme; dark remains available in the
+  Customizer.
 
 = 1.1.0 =
 * Added white/light color scheme, switchable in the Customizer (Store Details >

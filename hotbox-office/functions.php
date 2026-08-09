@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HOTBOX_OFFICE_VERSION', '1.1.0' );
+define( 'HOTBOX_OFFICE_VERSION', '1.2.0' );
 
 /**
  * Theme setup.
@@ -123,7 +123,7 @@ function hotbox_office_customize_register( $wp_customize ) {
 	$wp_customize->add_setting(
 		'hotbox_scheme',
 		array(
-			'default'           => 'dark',
+			'default'           => 'light',
 			'sanitize_callback' => 'hotbox_office_sanitize_scheme',
 		)
 	);
@@ -167,7 +167,7 @@ add_action( 'customize_register', 'hotbox_office_customize_register' );
  * @return string
  */
 function hotbox_office_sanitize_scheme( $value ) {
-	return in_array( $value, array( 'dark', 'light' ), true ) ? $value : 'dark';
+	return in_array( $value, array( 'dark', 'light' ), true ) ? $value : 'light';
 }
 
 /**
@@ -177,7 +177,7 @@ function hotbox_office_sanitize_scheme( $value ) {
  * @return array
  */
 function hotbox_office_body_class( $classes ) {
-	if ( 'light' === get_theme_mod( 'hotbox_scheme', 'dark' ) ) {
+	if ( 'light' === get_theme_mod( 'hotbox_scheme', 'light' ) ) {
 		$classes[] = 'hb-light';
 	}
 
