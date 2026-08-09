@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HOTBOX_OFFICE_VERSION', '1.0.0' );
+define( 'HOTBOX_OFFICE_VERSION', '1.1.0' );
 
 /**
  * Theme setup.
@@ -120,6 +120,26 @@ function hotbox_office_customize_register( $wp_customize ) {
 		)
 	);
 
+	$wp_customize->add_setting(
+		'hotbox_scheme',
+		array(
+			'default'           => 'dark',
+			'sanitize_callback' => 'hotbox_office_sanitize_scheme',
+		)
+	);
+	$wp_customize->add_control(
+		'hotbox_scheme',
+		array(
+			'label'   => __( 'Color Scheme', 'hotbox-office' ),
+			'section' => 'hotbox_office_store',
+			'type'    => 'radio',
+			'choices' => array(
+				'dark'  => __( 'Dark (black & champagne)', 'hotbox-office' ),
+				'light' => __( 'Light (white & greenhouse green)', 'hotbox-office' ),
+			),
+		)
+	);
+
 	foreach ( hotbox_office_option_defaults() as $id => $field ) {
 		$wp_customize->add_setting(
 			$id,
@@ -139,6 +159,31 @@ function hotbox_office_customize_register( $wp_customize ) {
 	}
 }
 add_action( 'customize_register', 'hotbox_office_customize_register' );
+
+/**
+ * Sanitize the color-scheme choice.
+ *
+ * @param string $value Raw value.
+ * @return string
+ */
+function hotbox_office_sanitize_scheme( $value ) {
+	return in_array( $value, array( 'dark', 'light' ), true ) ? $value : 'dark';
+}
+
+/**
+ * Add the light-scheme body class when selected.
+ *
+ * @param array $classes Body classes.
+ * @return array
+ */
+function hotbox_office_body_class( $classes ) {
+	if ( 'light' === get_theme_mod( 'hotbox_scheme', 'dark' ) ) {
+		$classes[] = 'hb-light';
+	}
+
+	return $classes;
+}
+add_filter( 'body_class', 'hotbox_office_body_class' );
 
 /**
  * Customizer field definitions and defaults.
@@ -362,12 +407,12 @@ function hotbox_office_svg_defs() {
 				<rect x="-1.1" y="-2" width="2.2" height="11" rx="1.1"/>
 			</g>
 			<g id="hb-mark">
-				<path d="M52 16 C45 12 56 7 49 1" fill="none" stroke="#EDE6D3" stroke-width="3" stroke-linecap="round"/>
+				<path d="M52 16 C45 12 56 7 49 1" fill="none" stroke="var(--hb-mark-detail, #EDE6D3)" stroke-width="3" stroke-linecap="round"/>
 				<path d="M50 22 L86 46 L86 100 Q86 104 82 104 L18 104 Q14 104 14 100 L14 46 Z" fill="none" stroke="url(#hb-green)" stroke-width="4" stroke-linejoin="round"/>
 				<path d="M50 22 L50 104" fill="none" stroke="url(#hb-green)" stroke-width="3"/>
 				<use href="#hb-leaf" transform="translate(32,88) scale(.92)" fill="url(#hb-green)"/>
-				<use href="#shroom" transform="translate(55,53) scale(.34)" fill="#EDE6D3"/>
-				<use href="#shroom" transform="translate(66,80) scale(.17)" fill="#EDE6D3"/>
+				<use href="#shroom" transform="translate(55,53) scale(.34)" fill="var(--hb-mark-detail, #EDE6D3)"/>
+				<use href="#shroom" transform="translate(66,80) scale(.17)" fill="var(--hb-mark-detail, #EDE6D3)"/>
 			</g>
 		</defs>
 	</svg>

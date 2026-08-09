@@ -3,8 +3,8 @@ Theme Name: Hotbox Office
 Theme URI: https://github.com/ofakyle11/scotia
 Author: Hotbox Office
 Author URI: https://github.com/ofakyle11/scotia
-Description: A dark WooCommerce theme for Hotbox Office — cannabis & mushroom store. Black chassis, champagne type, greenhouse-green accents, pill buttons, and the greenhouse logo mark. Full WooCommerce support: product grids with category chips, single product pages, cart, checkout, and account pages. The brand commits to one dark look — no light theme.
-Version: 1.0.0
+Description: A WooCommerce theme for Hotbox Office — cannabis & mushroom store. Black chassis, champagne type, greenhouse-green accents, pill buttons, and the greenhouse logo mark. Ships dark by default with a white/light scheme switchable under Appearance > Customize > Store Details. Full WooCommerce support: product grids with category chips, single product pages, cart, checkout, and account pages.
+Version: 1.1.0
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
@@ -555,6 +555,35 @@ article.hb-post { margin-bottom: 44px; }
   .hb-hero__grid { grid-template-columns: 1fr; }
   .hb-visit__grid { grid-template-columns: 1fr; }
 }
+/* ==========================================================================
+   Light scheme — body.hb-light (Customizer: Store Details > Color Scheme)
+   Warm white chassis, dark greenhouse green, same champagne announcement bar.
+   The hero wordmark panel intentionally stays dark as a brand chip.
+   ========================================================================== */
+body.hb-light {
+  --hb-bg: #F7F6F0;
+  --hb-surface: #FFFFFF;
+  --hb-surface-2: #EFEEE3;
+  --hb-ink: #1C2114;
+  --hb-muted: #6B7160;
+  --hb-line: #E1E0D2;
+  --hb-accent: #5F8F3B;
+  --hb-accent-hover: #4E7A2F;
+  --hb-accent-ink: #FFFFFF;
+  --hb-accent-soft: #EAF0DD;
+  --hb-gold: #D8C39A;
+  --hb-shadow: 0 1px 2px rgba(28, 33, 20, 0.06), 0 10px 28px rgba(28, 33, 20, 0.10);
+  /* Champagne logo details (smoke, mushroom panes) flip to ink on white. */
+  --hb-mark-detail: #1C2114;
+}
+body.hb-light .hb-header { background: rgba(247, 246, 240, 0.88); }
+body.hb-light .hb-hero__panel::after {
+  background-image: radial-gradient(rgba(140, 179, 90, 0.22) 1.5px, transparent 1.5px);
+}
+/* Inside the dark brand panel the logo details stay champagne. */
+.hb-hero__panel { --hb-mark-detail: #EDE6D3; }
+body.hb-light .select2-dropdown { background: #FFFFFF !important; }
+
 @media (max-width: 760px) {
   .hb-menu-toggle { display: inline-flex; margin-left: auto; }
   .hb-nav {
