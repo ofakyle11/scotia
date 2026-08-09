@@ -6,7 +6,7 @@
  * woocommerce_before_main_content / woocommerce_after_main_content
  * hooks registered in functions.php.
  *
- * @package Scotia_Tire
+ * @package Hotbox_Office
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

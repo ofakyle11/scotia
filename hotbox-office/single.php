@@ -2,7 +2,7 @@
 /**
  * Single post template.
  *
- * @package Scotia_Tire
+ * @package Hotbox_Office
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,14 +12,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 get_header();
 ?>
 
-<main id="primary" class="st-main">
-	<div class="st-container">
+<main id="primary" class="hb-main">
+	<div class="hb-wrap">
 
 		<?php while ( have_posts() ) : ?>
 			<?php the_post(); ?>
 
-			<article id="post-<?php the_ID(); ?>" <?php post_class( 'st-post st-entry' ); ?>>
-				<div class="st-post__meta">
+			<article id="post-<?php the_ID(); ?>" <?php post_class( 'hb-post hb-entry' ); ?>>
+				<div class="hb-post__meta">
 					<?php echo esc_html( get_the_date() ); ?>
 					<?php if ( get_the_category_list( ', ' ) ) : ?>
 						&nbsp;&middot;&nbsp; <?php echo wp_kses_post( get_the_category_list( ', ' ) ); ?>
@@ -31,7 +31,7 @@ get_header();
 					<?php the_post_thumbnail( 'large' ); ?>
 				<?php endif; ?>
 
-				<div class="st-post__content">
+				<div class="hb-post__content">
 					<?php
 					the_content();
 					wp_link_pages();
@@ -39,9 +39,9 @@ get_header();
 				</div>
 			</article>
 
-			<nav class="st-pagination" aria-label="<?php esc_attr_e( 'Post navigation', 'scotia-tire' ); ?>">
-				<?php previous_post_link( '%link', esc_html__( '← Previous', 'scotia-tire' ) ); ?>
-				<?php next_post_link( '%link', esc_html__( 'Next →', 'scotia-tire' ) ); ?>
+			<nav class="hb-pagination" aria-label="<?php esc_attr_e( 'Post navigation', 'hotbox-office' ); ?>">
+				<?php previous_post_link( '%link', esc_html__( '← Previous', 'hotbox-office' ) ); ?>
+				<?php next_post_link( '%link', esc_html__( 'Next →', 'hotbox-office' ) ); ?>
 			</nav>
 
 			<?php

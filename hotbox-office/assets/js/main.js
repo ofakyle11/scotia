@@ -1,12 +1,12 @@
 /**
- * Scotia Tire & Alignment — mobile navigation toggle.
+ * Hotbox Office — mobile navigation toggle.
  */
 ( function () {
 	'use strict';
 
 	document.addEventListener( 'DOMContentLoaded', function () {
-		var toggle = document.querySelector( '.st-menu-toggle' );
-		var nav = document.getElementById( 'st-nav' );
+		var toggle = document.querySelector( '.hb-menu-toggle' );
+		var nav = document.getElementById( 'hb-nav' );
 
 		if ( ! toggle || ! nav ) {
 			return;
