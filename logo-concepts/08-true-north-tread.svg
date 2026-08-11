@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 440" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+  <defs>
+    <path id="leaf" d="M200 40 l18 40 34 -15 -8 42 40 -6 -16 38 36 14 -32 24 12 34 -38 -8 2 40 -34 -26 -14 38 -14 -38 -34 26 2 -40 -38 8 12 -34 -32 -24 36 -14 -16 -38 40 6 -8 -42 34 15 z"/>
+    <clipPath id="leafclip"><use href="#leaf"/></clipPath>
+  </defs>
+  <!-- stem -->
+  <rect x="196" y="248" width="9" height="38" rx="2" fill="var(--lg-red,#C8102E)"/>
+  <!-- maple leaf cut from rib tread -->
+  <use href="#leaf" fill="var(--lg-red,#C8102E)"/>
+  <g clip-path="url(#leafclip)" fill="var(--lg-paper,#FFFFFF)">
+    <rect x="118" y="30" width="6" height="240"/>
+    <rect x="142" y="30" width="6" height="240"/>
+    <rect x="166" y="30" width="6" height="240"/>
+    <rect x="190" y="30" width="6" height="240"/>
+    <rect x="214" y="30" width="6" height="240"/>
+    <rect x="238" y="30" width="6" height="240"/>
+    <rect x="262" y="30" width="6" height="240"/>
+    <rect x="286" y="30" width="6" height="240"/>
+  </g>
+  <text x="200" y="352" text-anchor="middle" font-size="56" font-style="italic" font-weight="900" letter-spacing="1">
+    <tspan fill="var(--lg-ink,#16171A)">JF&#160;</tspan><tspan fill="var(--lg-red,#C8102E)">TIRE</tspan>
+  </text>
+  <text x="200" y="384" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2.5" fill="var(--lg-steel,#6E747D)">CANADIAN OWNED &#8226; COMMERCIAL TIRE</text>
+</svg>

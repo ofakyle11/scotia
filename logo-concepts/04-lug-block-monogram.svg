@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 300" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+  <!-- letters built from tread lugs, slight forward lean -->
+  <g transform="translate(27 0) skewX(-6)">
+    <g fill="var(--lg-ink,#16171A)">
+      <!-- J -->
+      <rect x="210" y="40" width="30" height="24" rx="3"/>
+      <rect x="210" y="70" width="30" height="24" rx="3"/>
+      <rect x="210" y="100" width="30" height="24" rx="3"/>
+      <rect x="210" y="130" width="30" height="24" rx="3"/>
+      <rect x="138" y="130" width="30" height="24" rx="3"/>
+      <rect x="138" y="160" width="30" height="24" rx="3"/>
+      <rect x="174" y="160" width="30" height="24" rx="3"/>
+      <rect x="210" y="160" width="30" height="24" rx="3"/>
+      <!-- F -->
+      <rect x="278" y="40" width="30" height="24" rx="3"/>
+      <rect x="278" y="70" width="30" height="24" rx="3"/>
+      <rect x="278" y="100" width="30" height="24" rx="3"/>
+      <rect x="278" y="130" width="30" height="24" rx="3"/>
+      <rect x="278" y="160" width="30" height="24" rx="3"/>
+      <rect x="314" y="40" width="30" height="24" rx="3"/>
+      <rect x="314" y="100" width="30" height="24" rx="3"/>
+    </g>
+    <rect x="350" y="40" width="30" height="24" rx="3" fill="var(--lg-red,#C8102E)"/>
+  </g>
+  <text x="270" y="236" text-anchor="middle" font-size="24" font-weight="900" letter-spacing="7" fill="var(--lg-ink,#16171A)">JF&#160;TIRE</text>
+  <text x="270" y="266" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="3.5" fill="var(--lg-steel,#6E747D)">COMMERCIAL TRUCK TIRES</text>
+</svg>

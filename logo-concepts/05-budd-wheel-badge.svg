@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+  <defs>
+    <path id="arctop" d="M 82 210 A 128 128 0 0 1 338 210"/>
+    <path id="arcbot" d="M 66 252 A 150 150 0 0 0 354 252"/>
+  </defs>
+  <!-- tire: lugged outer ring + solid casing line -->
+  <circle cx="210" cy="210" r="186" fill="none" stroke="var(--lg-ink,#16171A)" stroke-width="28" stroke-dasharray="22 14.5"/>
+  <circle cx="210" cy="210" r="168" fill="none" stroke="var(--lg-ink,#16171A)" stroke-width="10"/>
+  <!-- circular type -->
+  <text font-size="40" font-weight="900" letter-spacing="6" fill="var(--lg-ink,#16171A)">
+    <textPath href="#arctop" startOffset="50%" text-anchor="middle">JF&#160;TIRE</textPath>
+  </text>
+  <text font-family="Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="3" fill="var(--lg-steel,#6E747D)">
+    <textPath href="#arcbot" startOffset="50%" text-anchor="middle">COMMERCIAL &#8226; FLEET &#8226; TRAILER</textPath>
+  </text>
+  <circle cx="63" cy="210" r="5" fill="var(--lg-red,#C8102E)"/>
+  <circle cx="357" cy="210" r="5" fill="var(--lg-red,#C8102E)"/>
+  <!-- hub-piloted wheel: red rim, steel disc, 10 studs -->
+  <circle cx="210" cy="210" r="112" fill="var(--lg-red,#C8102E)"/>
+  <circle cx="210" cy="210" r="98" fill="var(--lg-ink,#16171A)"/>
+  <g fill="var(--lg-paper,#FFFFFF)">
+    <circle cx="210" cy="134" r="8"/><circle cx="254.7" cy="148.5" r="8"/><circle cx="282.3" cy="186.5" r="8"/><circle cx="282.3" cy="233.5" r="8"/><circle cx="254.7" cy="271.5" r="8"/>
+    <circle cx="210" cy="286" r="8"/><circle cx="165.3" cy="271.5" r="8"/><circle cx="137.7" cy="233.5" r="8"/><circle cx="137.7" cy="186.5" r="8"/><circle cx="165.3" cy="148.5" r="8"/>
+  </g>
+  <g fill="var(--lg-ink,#16171A)">
+    <circle cx="210" cy="134" r="3.5"/><circle cx="254.7" cy="148.5" r="3.5"/><circle cx="282.3" cy="186.5" r="3.5"/><circle cx="282.3" cy="233.5" r="3.5"/><circle cx="254.7" cy="271.5" r="3.5"/>
+    <circle cx="210" cy="286" r="3.5"/><circle cx="165.3" cy="271.5" r="3.5"/><circle cx="137.7" cy="233.5" r="3.5"/><circle cx="137.7" cy="186.5" r="3.5"/><circle cx="165.3" cy="148.5" r="3.5"/>
+  </g>
+  <text x="210" y="235" text-anchor="middle" font-size="72" font-style="italic" font-weight="900" fill="var(--lg-paper,#FFFFFF)">JF</text>
+</svg>

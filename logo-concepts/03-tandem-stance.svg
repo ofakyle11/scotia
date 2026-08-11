@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 250" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+  <defs>
+    <path id="lug3" d="M0 10 L5 0 H16 L11 10 Z"/>
+  </defs>
+  <!-- fender bar over the tandem -->
+  <rect x="32" y="56" width="226" height="13" rx="6.5" fill="var(--lg-ink,#16171A)"/>
+  <!-- rear dual -->
+  <g>
+    <circle cx="98" cy="138" r="52" fill="none" stroke="var(--lg-ink,#16171A)" stroke-width="20" stroke-dasharray="20.4 6.8"/>
+    <circle cx="98" cy="138" r="42" fill="var(--lg-ink,#16171A)"/>
+    <circle cx="98" cy="138" r="13" fill="var(--lg-red,#C8102E)"/>
+    <g fill="var(--lg-paper,#FFFFFF)">
+      <circle cx="98" cy="112" r="5.5"/><circle cx="122.7" cy="130" r="5.5"/><circle cx="113.3" cy="159" r="5.5"/><circle cx="82.7" cy="159" r="5.5"/><circle cx="73.3" cy="130" r="5.5"/>
+    </g>
+  </g>
+  <!-- front dual, separated by a paper keyline -->
+  <circle cx="192" cy="138" r="68" fill="var(--lg-paper,#FFFFFF)"/>
+  <g>
+    <circle cx="192" cy="138" r="52" fill="none" stroke="var(--lg-ink,#16171A)" stroke-width="20" stroke-dasharray="20.4 6.8"/>
+    <circle cx="192" cy="138" r="42" fill="var(--lg-ink,#16171A)"/>
+    <circle cx="192" cy="138" r="13" fill="var(--lg-red,#C8102E)"/>
+    <g fill="var(--lg-paper,#FFFFFF)">
+      <circle cx="192" cy="112" r="5.5"/><circle cx="216.7" cy="130" r="5.5"/><circle cx="207.3" cy="159" r="5.5"/><circle cx="176.7" cy="159" r="5.5"/><circle cx="167.3" cy="130" r="5.5"/>
+    </g>
+  </g>
+  <!-- tread print on the ground -->
+  <g fill="var(--lg-red,#C8102E)">
+    <use href="#lug3" x="36" y="212"/><use href="#lug3" x="62" y="212"/><use href="#lug3" x="88" y="212"/><use href="#lug3" x="114" y="212"/>
+    <use href="#lug3" x="140" y="212"/><use href="#lug3" x="166" y="212"/><use href="#lug3" x="192" y="212"/><use href="#lug3" x="218" y="212"/><use href="#lug3" x="244" y="212"/>
+  </g>
+  <text x="286" y="136" font-size="68" font-style="italic" font-weight="900" letter-spacing="1">
+    <tspan fill="var(--lg-ink,#16171A)">JF&#160;</tspan><tspan fill="var(--lg-red,#C8102E)">TIRE</tspan>
+  </text>
+  <rect x="290" y="156" width="350" height="3" fill="var(--lg-red,#C8102E)"/>
+  <text x="290" y="188" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="2.5" fill="var(--lg-steel,#6E747D)">TRUCK &amp; TRAILER TIRE SPECIALISTS</text>
+</svg>

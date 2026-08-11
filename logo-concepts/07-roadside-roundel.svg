@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+  <defs>
+    <path id="arctop7" d="M 78 210 A 132 132 0 0 1 342 210"/>
+    <path id="arcbot7" d="M 84.9 252 A 132 132 0 0 0 335.1 252"/>
+  </defs>
+  <!-- tire -->
+  <circle cx="210" cy="210" r="188" fill="none" stroke="var(--lg-ink,#16171A)" stroke-width="30" stroke-dasharray="26 16.2"/>
+  <circle cx="210" cy="210" r="166" fill="none" stroke="var(--lg-ink,#16171A)" stroke-width="8"/>
+  <text font-size="34" font-weight="900" letter-spacing="6" fill="var(--lg-ink,#16171A)">
+    <textPath href="#arctop7" startOffset="50%" text-anchor="middle">JF&#160;TIRE</textPath>
+  </text>
+  <path d="M78 202 l8 8 -8 8 -8 -8 z" fill="var(--lg-red,#C8102E)"/>
+  <path d="M342 202 l8 8 -8 8 -8 -8 z" fill="var(--lg-red,#C8102E)"/>
+  <text x="212" y="232" text-anchor="middle" font-size="96" font-style="italic" font-weight="900">
+    <tspan fill="var(--lg-ink,#16171A)">24</tspan><tspan fill="var(--lg-red,#C8102E)">/</tspan><tspan fill="var(--lg-ink,#16171A)">7</tspan>
+  </text>
+  <rect x="110" y="258" width="200" height="42" rx="4" fill="var(--lg-red,#C8102E)"/>
+  <text x="214" y="287" text-anchor="middle" font-size="23" font-weight="900" letter-spacing="7" fill="#FFFFFF">ROADSIDE</text>
+  <text font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="2.5" fill="var(--lg-steel,#6E747D)">
+    <textPath href="#arcbot7" startOffset="50%" text-anchor="middle">MOBILE TIRE SERVICE</textPath>
+  </text>
+</svg>
