@@ -1,20 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 210" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 200" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
   <defs>
-    <path id="chevband" d="M0 0 h30 l34 46 -34 46 h-30 l34 -46 z"/>
-    <path id="lug6" d="M0 10 L5 0 H16 L11 10 Z"/>
+    <path id="chevband" d="M0 0 h26 l30 40 -30 40 h-26 l30 -40 z"/>
   </defs>
-  <!-- tread chevrons pulling forward -->
-  <use href="#chevband" transform="translate(36 30)" fill="var(--lg-steel,#6E747D)"/>
-  <use href="#chevband" transform="translate(80 30)" fill="var(--lg-ink,#16171A)"/>
-  <use href="#chevband" transform="translate(124 30)" fill="var(--lg-red,#C8102E)"/>
-  <text x="228" y="102" font-size="74" font-style="italic" font-weight="900" letter-spacing="1">
-    <tspan fill="var(--lg-ink,#16171A)">JF&#160;</tspan><tspan fill="var(--lg-red,#C8102E)">TIRE</tspan>
+  <use href="#chevband" transform="translate(44 28)" fill="var(--lg-ink,#0B0B0C)"/>
+  <use href="#chevband" transform="translate(86 28)" fill="var(--lg-red,#C8102E)"/>
+  <text x="176" y="100" font-size="68" font-weight="900" letter-spacing="-1">
+    <tspan fill="var(--lg-ink,#0B0B0C)">JF&#160;</tspan><tspan fill="var(--lg-red,#C8102E)">TIRE</tspan>
   </text>
-  <!-- tread baseline -->
-  <g fill="var(--lg-ink,#16171A)">
-    <use href="#lug6" x="232" y="120"/><use href="#lug6" x="256" y="120"/><use href="#lug6" x="280" y="120"/><use href="#lug6" x="304" y="120"/><use href="#lug6" x="328" y="120"/>
-    <use href="#lug6" x="352" y="120"/><use href="#lug6" x="376" y="120"/><use href="#lug6" x="400" y="120"/><use href="#lug6" x="424" y="120"/><use href="#lug6" x="448" y="120"/>
-    <use href="#lug6" x="472" y="120"/><use href="#lug6" x="496" y="120"/><use href="#lug6" x="520" y="120"/><use href="#lug6" x="544" y="120"/><use href="#lug6" x="568" y="120"/>
-  </g>
-  <text x="232" y="172" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="3" fill="var(--lg-steel,#6E747D)">DRIVE &#8226; STEER &#8226; TRAILER</text>
+  <rect x="178" y="122" width="266" height="5" fill="var(--lg-red,#C8102E)"/>
+  <text x="178" y="166" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="4" fill="var(--lg-ink,#0B0B0C)">DRIVE &#8226; STEER &#8226; TRAILER</text>
 </svg>

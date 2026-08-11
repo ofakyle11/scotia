@@ -1,41 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 300" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
-  <defs>
-    <path id="lug" d="M0 14 L6 0 H19 L13 14 Z"/>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 290" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
   <!-- trailer -->
-  <rect x="120" y="62" width="250" height="92" rx="5" fill="var(--lg-ink,#16171A)"/>
-  <!-- landing gear -->
-  <rect x="336" y="154" width="7" height="15" fill="var(--lg-ink,#16171A)"/>
-  <!-- exhaust stack -->
-  <rect x="373" y="56" width="6" height="30" fill="var(--lg-ink,#16171A)"/>
-  <!-- cab + hood -->
-  <path d="M382 154 V88 q0-7 7-7 h48 l24 30 h44 q9 0 9 9 v34 z" fill="var(--lg-ink,#16171A)"/>
-  <!-- wheels: trailer tandems, drive tandems, steer -->
-  <g stroke="var(--lg-paper,#FFFFFF)" stroke-width="4">
-    <circle cx="150" cy="155" r="21" fill="var(--lg-ink,#16171A)"/>
-    <circle cx="200" cy="155" r="21" fill="var(--lg-ink,#16171A)"/>
-    <circle cx="398" cy="155" r="21" fill="var(--lg-ink,#16171A)"/>
-    <circle cx="444" cy="155" r="21" fill="var(--lg-ink,#16171A)"/>
-    <circle cx="500" cy="155" r="21" fill="var(--lg-ink,#16171A)"/>
+  <rect x="120" y="64" width="246" height="88" rx="10" fill="var(--lg-ink,#0B0B0C)"/>
+  <!-- cab -->
+  <path d="M382 152 V96 q0-10 10-10 h40 l22 28 h42 q10 0 10 10 v28 z" fill="var(--lg-ink,#0B0B0C)"/>
+  <!-- wheels -->
+  <g fill="var(--lg-ink,#0B0B0C)" stroke="var(--lg-paper,#FFFFFF)" stroke-width="6">
+    <circle cx="152" cy="156" r="20"/>
+    <circle cx="200" cy="156" r="20"/>
+    <circle cx="398" cy="156" r="20"/>
+    <circle cx="444" cy="156" r="20"/>
+    <circle cx="496" cy="156" r="20"/>
   </g>
-  <g fill="var(--lg-paper,#FFFFFF)">
-    <circle cx="150" cy="155" r="6.5"/>
-    <circle cx="200" cy="155" r="6.5"/>
-    <circle cx="398" cy="155" r="6.5"/>
-    <circle cx="444" cy="155" r="6.5"/>
-    <circle cx="500" cy="155" r="6.5"/>
-  </g>
-  <!-- red tread track laid on the road -->
-  <g fill="var(--lg-red,#C8102E)">
-    <use href="#lug" x="60" y="186"/><use href="#lug" x="85" y="186"/><use href="#lug" x="110" y="186"/><use href="#lug" x="135" y="186"/>
-    <use href="#lug" x="160" y="186"/><use href="#lug" x="185" y="186"/><use href="#lug" x="210" y="186"/><use href="#lug" x="235" y="186"/>
-    <use href="#lug" x="260" y="186"/><use href="#lug" x="285" y="186"/><use href="#lug" x="310" y="186"/><use href="#lug" x="335" y="186"/>
-    <use href="#lug" x="360" y="186"/><use href="#lug" x="385" y="186"/><use href="#lug" x="410" y="186"/><use href="#lug" x="435" y="186"/>
-    <use href="#lug" x="460" y="186"/><use href="#lug" x="485" y="186"/><use href="#lug" x="510" y="186"/><use href="#lug" x="535" y="186"/>
-    <use href="#lug" x="560" y="186"/><use href="#lug" x="585" y="186"/>
-  </g>
-  <text x="330" y="262" text-anchor="middle" font-size="66" font-style="italic" font-weight="900" letter-spacing="1">
-    <tspan fill="var(--lg-ink,#16171A)">JF&#160;</tspan><tspan fill="var(--lg-red,#C8102E)">TIRE</tspan>
+  <!-- road -->
+  <line x1="74" y1="192" x2="586" y2="192" stroke="var(--lg-red,#C8102E)" stroke-width="8" stroke-linecap="round" stroke-dasharray="32 24"/>
+  <text x="330" y="254" text-anchor="middle" font-size="64" font-weight="900" letter-spacing="0">
+    <tspan fill="var(--lg-ink,#0B0B0C)">JF&#160;</tspan><tspan fill="var(--lg-red,#C8102E)">TIRE</tspan>
   </text>
-  <text x="330" y="290" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="5" fill="var(--lg-steel,#6E747D)">COMMERCIAL FLEET &amp; TRAILER TIRE SERVICE</text>
+  <text x="332" y="282" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="5" fill="var(--lg-ink,#0B0B0C)">COMMERCIAL &#8226; FLEET &#8226; TRAILER</text>
 </svg>

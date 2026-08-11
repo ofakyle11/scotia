@@ -1,28 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 480" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 470" font-family="'Arial Black',Arial,'Helvetica Neue',sans-serif">
   <defs>
-    <clipPath id="flapclip"><rect x="40" y="40" width="240" height="396" rx="12"/></clipPath>
+    <clipPath id="flapclip"><rect x="48" y="36" width="224" height="390" rx="14"/></clipPath>
   </defs>
-  <!-- hanger bar + bolts -->
-  <rect x="26" y="24" width="268" height="16" rx="3" fill="#4A4E55"/>
-  <g fill="#C9CDD3">
-    <circle cx="54" cy="32" r="5"/><circle cx="124" cy="32" r="5"/><circle cx="196" cy="32" r="5"/><circle cx="266" cy="32" r="5"/>
-  </g>
-  <!-- flap (dark-native: fixed colors on both grounds) -->
-  <rect x="40" y="40" width="240" height="396" rx="12" fill="#1A1B1E" stroke="#33363C" stroke-width="2"/>
+  <!-- flap: dark-native, fixed colours on both grounds -->
+  <rect x="48" y="36" width="224" height="390" rx="14" fill="#0F0F10"/>
   <g clip-path="url(#flapclip)">
-    <text x="160" y="175" text-anchor="middle" font-size="116" font-weight="900" fill="#FFFFFF">JF</text>
-    <text x="167" y="250" text-anchor="middle" font-size="54" font-weight="900" letter-spacing="16" fill="#E5352B">TIRE</text>
-    <rect x="80" y="282" width="160" height="3" fill="#4A4E55"/>
-    <text x="160" y="318" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="7" fill="#C9CDD3">HEAVY DUTY</text>
-    <!-- hazard band -->
-    <rect x="40" y="352" width="240" height="84" fill="#111214"/>
-    <g fill="#F2B900">
-      <path d="M8 436 l36 -84 h30 l-36 84 z"/>
-      <path d="M64 436 l36 -84 h30 l-36 84 z"/>
-      <path d="M120 436 l36 -84 h30 l-36 84 z"/>
-      <path d="M176 436 l36 -84 h30 l-36 84 z"/>
-      <path d="M232 436 l36 -84 h30 l-36 84 z"/>
-      <path d="M288 436 l36 -84 h30 l-36 84 z"/>
-    </g>
+    <circle cx="80" cy="66" r="5" fill="#FFFFFF"/>
+    <circle cx="240" cy="66" r="5" fill="#FFFFFF"/>
+    <text x="160" y="192" text-anchor="middle" font-size="120" font-weight="900" fill="#FFFFFF">JF</text>
+    <text x="167" y="264" text-anchor="middle" font-size="52" font-weight="900" letter-spacing="14" fill="#E5352B">TIRE</text>
+    <text x="163" y="330" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="6" fill="#FFFFFF">HEAVY DUTY</text>
+    <rect x="48" y="384" width="224" height="42" fill="#C8102E"/>
+    <text x="161" y="411" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="3" fill="#FFFFFF">JFTIRE.CA</text>
   </g>
 </svg>
