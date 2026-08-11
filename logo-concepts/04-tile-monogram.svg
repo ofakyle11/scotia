@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 340" font-family="Arial,'Helvetica Neue',sans-serif">
+<rect x="170" y="28" width="200" height="200" rx="44" fill="var(--lg-ink,#0B0B0C)"/>
+<g transform="translate(198.8 160) scale(0.133540,-0.133540)"><path transform="translate(0 0)" d="M103 -10Q60 -10 21.5 -5.0Q-17 0 -53 13L-11 214Q12 204 40.0 199.5Q68 195 97 195Q148 195 167.5 213.0Q187 231 197 275L275 644H517L426 216Q411 143 373.5 92.5Q336 42 270.5 16.0Q205 -10 103 -10Z" fill="var(--lg-paper,#FFFFFF)"/><path transform="translate(457 0)" d="M-21 0 115 644H630L593 470H320L308 412H543L505 232H270L221 0Z" fill="var(--lg-paper,#FFFFFF)"/></g>
+<rect x="181" y="121" width="174" height="6" fill="var(--lg-red,#C8102E)"/>
+<text x="270" y="280" text-anchor="middle" font-size="22" font-weight="700" letter-spacing="6" fill="var(--lg-ink,#0B0B0C)">JF&#160;TIRE</text>
+<text x="271" y="308" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="3" fill="var(--lg-ink,#0B0B0C)">COMMERCIAL TRUCK TIRES</text>
+</svg>
