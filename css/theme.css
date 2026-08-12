@@ -61,7 +61,7 @@
   --text-hi:    #F4F6FB;   /* headlines, primary copy            */
   --text-mid:   #B7C0D4;   /* body copy                          */
   --text-dim:   #8B93A7;   /* captions, meta, mono readouts      */
-  --text-faint: #5A6378;   /* disabled / watermarks — never info */
+  --text-faint: #767F95;   /* lowest readable tier — 5.05:1 on --void */
 
   /* ---- Semantic ---- */
   --ok:    #34E3A0;
