@@ -2640,7 +2640,7 @@
                type="password" inputmode="text"
                autocomplete="off" autocapitalize="characters"
                spellcheck="false" maxlength="64"
-               placeholder="●●●●●●●●●●●●"
+               placeholder="ENTER CODE"
                aria-label="Access code"
                aria-describedby="at-status" />
         <span class="access-terminal__caret" aria-hidden="true"></span>
@@ -3541,7 +3541,9 @@
 
     var code = String(input.value || '').trim().toUpperCase();
     if (!code) {
-      deny('ACCESS DENIED — INVALID CREDENTIAL');
+      // Distinct from a wrong code: tells the operator their keystrokes
+      // never reached the field, rather than implying the code was wrong.
+      deny('NO CREDENTIAL ENTERED');
       return;
     }
 
