@@ -301,6 +301,7 @@ body { overflow: hidden; }
      04 · Productions table
      05 · Stage badges
      06 · Progress bars (shared by table + queue)
+     06B · Budget estimator
      07 · Render queue
      08 · Activity feed
      09 · Live-change flashes & keyframes
@@ -709,10 +710,173 @@ body { overflow: hidden; }
 
 
 /* ================================================================
+   06B · BUDGET ESTIMATOR — cost model over the shot list
+   ----------------------------------------------------------------
+   Inputs on the left register, derived readouts on the right.
+   Everything is plain CSS grid so the panel collapses to one
+   column on narrow screens without a media query of its own.
+   ================================================================ */
+
+.prod-estimator {
+  padding: var(--sp-5);
+  /* Explicit placement: auto-flow would drop this into the sidebar
+     column and push the queue/feed aside down into row 2. */
+  grid-column: 1;
+}
+
+.prod-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.prod-estimator__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+/* -- Controls ---------------------------------------------------- */
+
+.prod-estimator__controls {
+  display: grid;
+  /* 132px floor keeps two columns at 390px viewport (310px of inner
+     width): 132 + 16 gap + 132 = 280. A 150px floor drops to one. */
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: var(--sp-4) var(--sp-4);
+  margin: 0 0 var(--sp-5);
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.prod-field { min-width: 0; }
+
+.prod-field__label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod-field__input {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-data);
+  letter-spacing: var(--track-data);
+  color: var(--text-hi);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  transition: border-color 350ms var(--ease-hover, ease),
+              box-shadow 350ms var(--ease-hover, ease);
+}
+
+select.prod-field__input {
+  padding-right: 1.9rem;
+  cursor: pointer;
+  /* caret drawn inline so the control needs no extra wrapper */
+  background-image: linear-gradient(45deg, transparent 50%, #8B93A7 50%),
+                    linear-gradient(135deg, #8B93A7 50%, transparent 50%);
+  background-position: calc(100% - 15px) calc(50% + 1px),
+                       calc(100% - 10px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.prod-field__input:hover { border-color: var(--line-bright); }
+
+.prod-field__input:focus-visible {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);   /* --cyan at 15% */
+}
+
+/* -- Readouts ---------------------------------------------------- */
+
+.prod-estimator__out {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.prod-out__label {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod-out__value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--text-hi);
+}
+
+.prod-out__value--spend { color: var(--cyan); }
+
+/* Allocation cell carries the same holo bar as the budget tile. */
+.prod-estimator__bar {
+  margin-top: 0.6rem;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.prod-estimator__bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  transition: width 420ms var(--ease-hover, ease), background 300ms linear;
+}
+
+/* Over allocation — amber, not alarm red: it is an estimate. */
+.prod-estimator.is-over .prod-out__value--alloc { color: var(--warn); }
+.prod-estimator.is-over .prod-estimator__bar-fill {
+  background: linear-gradient(90deg, var(--warn), var(--magenta));
+}
+
+.prod-estimator__note {
+  margin: var(--sp-4) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  color: var(--text-faint);
+}
+
+/* ================================================================
    07 · RENDER QUEUE
    ================================================================ */
 
 .prod__side {
+  grid-column: 2;
+  grid-row: 1 / span 2;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
@@ -951,6 +1115,10 @@ body { overflow: hidden; }
 
 @media (max-width: 1100px) {
   .prod__columns { grid-template-columns: minmax(0, 1fr); }
+
+  /* single column — drop the explicit placement and stack in source order */
+  .prod-estimator,
+  .prod__side { grid-column: auto; grid-row: auto; }
 
   .prod__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
@@ -2513,6 +2681,97 @@ body { overflow: hidden; }
     </section>
 
     <!-- ──────────────────────────────────────────────
+         BUDGET ESTIMATOR — shot list → projected spend
+         ────────────────────────────────────────────── -->
+    <section class="panel prod-estimator" id="prod-estimator" data-reveal
+             style="--reveal-delay: 200ms" aria-labelledby="prod-est-title">
+
+      <header class="panel__header prod-estimator__header">
+        <h2 class="prod-panel-title" id="prod-est-title">BUDGET&nbsp;ESTIMATOR&nbsp;//&nbsp;COST&nbsp;MODEL</h2>
+        <span class="chip chip--cyan">
+          <span class="chip__dot" aria-hidden="true"></span><span id="prod-est-alloc-label">Q3&nbsp;ALLOCATION</span>
+        </span>
+      </header>
+
+      <fieldset class="prod-estimator__controls">
+        <legend class="prod-visually-hidden">Estimate inputs</legend>
+
+        <div class="prod-field">
+          <label class="prod-field__label" for="est-production">Production</label>
+          <select class="prod-field__input" id="est-production">
+            <option value="last-signal">The Last Signal</option>
+            <option value="meridian-drift">Meridian Drift</option>
+            <option value="saltwater-empire">Saltwater Empire</option>
+            <option value="quiet-machine">A Quiet Machine</option>
+            <option value="vermillion-sky">Vermillion Sky</option>
+            <option value="hollow-orbit">Hollow Orbit</option>
+          </select>
+        </div>
+
+        <div class="prod-field">
+          <label class="prod-field__label" for="est-shots">Shots</label>
+          <input class="prod-field__input" id="est-shots" type="number"
+                 inputmode="numeric" min="1" max="2000" step="1" value="24" />
+        </div>
+
+        <div class="prod-field">
+          <label class="prod-field__label" for="est-length">Avg&nbsp;Shot&nbsp;(sec)</label>
+          <input class="prod-field__input" id="est-length" type="number"
+                 inputmode="decimal" min="1" max="120" step="0.5" value="6" />
+        </div>
+
+        <div class="prod-field">
+          <label class="prod-field__label" for="est-tier">Model&nbsp;Tier</label>
+          <select class="prod-field__input" id="est-tier">
+            <option value="draft">Draft</option>
+            <option value="standard" selected>Standard</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+
+        <div class="prod-field">
+          <label class="prod-field__label" for="est-res">Output</label>
+          <select class="prod-field__input" id="est-res">
+            <option value="hd">1080p</option>
+            <option value="uhd" selected>4K</option>
+          </select>
+        </div>
+
+        <div class="prod-field">
+          <label class="prod-field__label" for="est-passes">Passes</label>
+          <input class="prod-field__input" id="est-passes" type="number"
+                 inputmode="numeric" min="1" max="10" step="1" value="2" />
+        </div>
+      </fieldset>
+
+      <div class="prod-estimator__out">
+        <div>
+          <p class="prod-out__label">Estimated Spend</p>
+          <p class="prod-out__value prod-out__value--spend" id="est-spend"
+             role="status" aria-live="polite" data-numeric>$0</p>
+        </div>
+        <div>
+          <p class="prod-out__label">Render Hours</p>
+          <p class="prod-out__value" id="est-hours" data-numeric>0</p>
+        </div>
+        <div>
+          <p class="prod-out__label">Billable Seconds</p>
+          <p class="prod-out__value" id="est-seconds" data-numeric>0</p>
+        </div>
+        <div>
+          <p class="prod-out__label">Allocation Used</p>
+          <p class="prod-out__value prod-out__value--alloc" id="est-alloc" data-numeric>0%</p>
+          <div class="prod-estimator__bar" role="img" id="est-bar-wrap"
+               aria-label="Allocation used 0 percent">
+            <div class="prod-estimator__bar-fill" id="est-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="prod-estimator__note" id="est-note"></p>
+    </section>
+
+    <!-- ──────────────────────────────────────────────
          RIGHT COLUMN — render queue + activity feed
          ────────────────────────────────────────────── -->
     <aside class="prod__side">
@@ -3102,7 +3361,8 @@ body { overflow: hidden; }
     stats: 'cin_stats',
     projects: 'cin_projects',
     queue: 'cin_queue',
-    activity: 'cin_activity'
+    activity: 'cin_activity',
+    estimate: 'cin_estimate'
   };
 
   var reducedMotion = false;
@@ -3322,7 +3582,10 @@ body { overflow: hidden; }
     if (els.framesDelta) { els.framesDelta.textContent = '+' + formatGrouped(statsState.framesToday) + ' today'; }
     if (els.hours) { els.hours.textContent = formatGrouped(statsState.hours); }
     if (els.budget) { els.budget.textContent = Math.round(statsState.budget) + '%'; }
-    if (els.budgetFill) { els.budgetFill.style.width = Math.round(statsState.budget) + '%'; }
+    if (els.budgetFill) {
+      /* estimates can exceed 100% — the bar saturates, the number does not */
+      els.budgetFill.style.width = Math.min(100, Math.round(statsState.budget)) + '%';
+    }
     if (els.productions) { els.productions.textContent = String(statsState.productions); }
     if (changed) { flash(changed); }
   }
@@ -3379,7 +3642,8 @@ body { overflow: hidden; }
   /* BUDGET — glacial creep, capped well below alarm territory. */
   function scheduleBudgetTick() {
     later(function () {
-      if (!document.hidden && statsState.budget < 78 && Math.random() < 0.5) {
+      if (!document.hidden && !estimateActive &&
+          statsState.budget < 78 && Math.random() < 0.5) {
         statsState.budget += 1;
         writeStore(KEYS.stats, statsState);
         renderStats(els.budget);
@@ -3747,6 +4011,165 @@ body { overflow: hidden; }
      5 · BOOT
      -------------------------------------------------------------- */
 
+  /* --------------------------------------------------------------
+     5B · BUDGET ESTIMATOR
+     ----------------------------------------------------------------
+     Turns the shot list into a projected spend. Pure arithmetic —
+     no network, no simulation. Rates are per second of FINISHED
+     output at 1080p; resolution and revision passes scale from
+     there. Once the producer touches a control the estimate owns
+     the Budget Utilization tile and the ambient creep stands down,
+     so the tile never fights the number the producer just typed.
+     -------------------------------------------------------------- */
+
+  /* $/sec and render-hours/sec of finished output, 1080p baseline. */
+  var EST_TIERS = {
+    draft:    { rate: 1.80,  hours: 0.04, label: 'DRAFT' },
+    standard: { rate: 4.50,  hours: 0.09, label: 'STANDARD' },
+    premium:  { rate: 11.00, hours: 0.22, label: 'PREMIUM' }
+  };
+
+  var EST_RES = {
+    hd:  { mult: 1,   label: '1080P' },
+    uhd: { mult: 2.4, label: '4K' }
+  };
+
+  var EST_ALLOCATION = 250000;   /* Q3 founder-tier ceiling, USD */
+
+  var estEls = {
+    root:     $('#prod-estimator'),
+    prod:     $('#est-production'),
+    shots:    $('#est-shots'),
+    length:   $('#est-length'),
+    tier:     $('#est-tier'),
+    res:      $('#est-res'),
+    passes:   $('#est-passes'),
+    spend:    $('#est-spend'),
+    hours:    $('#est-hours'),
+    seconds:  $('#est-seconds'),
+    alloc:    $('#est-alloc'),
+    bar:      $('#est-bar'),
+    barWrap:  $('#est-bar-wrap'),
+    note:     $('#est-note'),
+    budgetDelta: $('#prod-delta-budget')
+  };
+
+  /* Set once the producer edits any control. */
+  var estimateActive = false;
+
+  /* Clamp a control's value into its own min/max, tolerating junk. */
+  function estNum(el, fallback) {
+    if (!el) { return fallback; }
+    var v = parseFloat(el.value);
+    if (!isFinite(v)) { return fallback; }
+    var min = parseFloat(el.getAttribute('min'));
+    var max = parseFloat(el.getAttribute('max'));
+    if (isFinite(min) && v < min) { v = min; }
+    if (isFinite(max) && v > max) { v = max; }
+    return v;
+  }
+
+  function estCompute() {
+    var tier = EST_TIERS[estEls.tier && estEls.tier.value] || EST_TIERS.standard;
+    var res = EST_RES[estEls.res && estEls.res.value] || EST_RES.uhd;
+    var shots = estNum(estEls.shots, 24);
+    var len = estNum(estEls.length, 6);
+    var passes = estNum(estEls.passes, 2);
+
+    var seconds = shots * len * passes;
+    var spend = seconds * tier.rate * res.mult;
+    var hours = seconds * tier.hours * res.mult;
+    var pct = EST_ALLOCATION > 0 ? (spend / EST_ALLOCATION) * 100 : 0;
+
+    return {
+      seconds: seconds, spend: spend, hours: hours, pct: pct,
+      tier: tier, res: res, shots: shots, len: len, passes: passes
+    };
+  }
+
+  function estRender() {
+    var r = estCompute();
+    var pctRounded = Math.round(r.pct);
+    var over = r.pct > 100;
+
+    if (estEls.spend) { estEls.spend.textContent = '$' + formatGrouped(Math.round(r.spend)); }
+    if (estEls.hours) { estEls.hours.textContent = formatGrouped(Math.round(r.hours)); }
+    if (estEls.seconds) { estEls.seconds.textContent = formatGrouped(Math.round(r.seconds)); }
+    if (estEls.alloc) { estEls.alloc.textContent = pctRounded + '%'; }
+
+    if (estEls.bar) { estEls.bar.style.width = Math.max(0, Math.min(100, r.pct)) + '%'; }
+    if (estEls.barWrap) {
+      estEls.barWrap.setAttribute('aria-label', 'Allocation used ' + pctRounded + ' percent');
+    }
+    if (estEls.root) { estEls.root.classList.toggle('is-over', over); }
+
+    if (estEls.note) {
+      estEls.note.textContent =
+        r.tier.label + ' · ' + r.res.label + ' · ' +
+        formatGrouped(r.shots) + ' SHOTS × ' + r.len + 'S × ' +
+        r.passes + ' PASS' + (r.passes === 1 ? '' : 'ES') + ' — ' +
+        (over
+          ? 'OVER Q3 ALLOCATION BY $' + formatGrouped(Math.round(r.spend - EST_ALLOCATION))
+          : '$' + formatGrouped(Math.round(EST_ALLOCATION - r.spend)) + ' REMAINING OF $' +
+            formatGrouped(EST_ALLOCATION));
+    }
+
+    /* Drive the portfolio tile from the live estimate. */
+    if (estimateActive) {
+      statsState.budget = pctRounded;
+      writeStore(KEYS.stats, statsState);
+      renderStats(els.budget);
+      if (estEls.budgetDelta) {
+        estEls.budgetDelta.textContent =
+          'Estimate · ' + (estEls.prod
+            ? estEls.prod.options[estEls.prod.selectedIndex].text
+            : 'portfolio');
+      }
+    }
+
+    writeStore(KEYS.estimate, {
+      production: estEls.prod ? estEls.prod.value : null,
+      shots: r.shots, len: r.len, passes: r.passes,
+      tier: estEls.tier ? estEls.tier.value : 'standard',
+      res: estEls.res ? estEls.res.value : 'uhd',
+      active: estimateActive
+    });
+  }
+
+  function initEstimator() {
+    if (!estEls.root) { return; }
+
+    /* Restore a prior estimate for this session. */
+    var saved = readStore(KEYS.estimate, null);
+    if (saved && typeof saved === 'object') {
+      if (estEls.prod && saved.production) { estEls.prod.value = saved.production; }
+      if (estEls.shots && isFinite(saved.shots)) { estEls.shots.value = saved.shots; }
+      if (estEls.length && isFinite(saved.len)) { estEls.length.value = saved.len; }
+      if (estEls.passes && isFinite(saved.passes)) { estEls.passes.value = saved.passes; }
+      if (estEls.tier && saved.tier) { estEls.tier.value = saved.tier; }
+      if (estEls.res && saved.res) { estEls.res.value = saved.res; }
+      estimateActive = !!saved.active;
+    }
+
+    var controls = [estEls.prod, estEls.shots, estEls.length,
+                    estEls.tier, estEls.res, estEls.passes];
+    var i;
+    for (i = 0; i < controls.length; i++) {
+      if (!controls[i]) { continue; }
+      controls[i].addEventListener('input', function () {
+        estimateActive = true;
+        estRender();
+      });
+      /* change covers select keyboard commits and number spinners */
+      controls[i].addEventListener('change', function () {
+        estimateActive = true;
+        estRender();
+      });
+    }
+
+    estRender();
+  }
+
   renderActivity();
   renderStats(null);
   redrawSpark();
@@ -3759,6 +4182,8 @@ body { overflow: hidden; }
   writeStore(KEYS.projects, projectsState);
   writeStore(KEYS.queue, queueState);
   writeStore(KEYS.activity, activityState);
+
+  initEstimator();
 
   scheduleFramesTick();
   scheduleHoursTick();
