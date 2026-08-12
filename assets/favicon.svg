@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Cinamate">
+  <!-- CINAMATE favicon — reduction form per Brand Spec §1.2:
+       Layers 2 + 3 only, single accent color, heavier strokes for tiny sizes. -->
+  <rect x="0" y="0" width="100" height="100" rx="22" fill="#05060A"/>
+
+  <!-- Aperture blades as circuit traces, single-color cyan -->
+  <g fill="none" stroke="#22D3EE" stroke-width="5" stroke-linecap="round">
+    <polyline points="50,10 63.545,32.664 57.388,40.544"/>
+    <polyline points="84.641,30 71.786,53.062 61.883,51.67"/>
+    <polyline points="84.641,70 58.241,70.398 54.495,61.126"/>
+    <polyline points="50,90 36.455,67.336 42.612,59.456"/>
+    <polyline points="15.359,70 28.214,46.938 38.117,48.33"/>
+    <polyline points="15.359,30 41.759,29.602 45.505,38.874"/>
+  </g>
+  <g fill="#22D3EE">
+    <circle cx="57.388" cy="40.544" r="3.4"/>
+    <circle cx="61.883" cy="51.67" r="3.4"/>
+    <circle cx="54.495" cy="61.126" r="3.4"/>
+    <circle cx="42.612" cy="59.456" r="3.4"/>
+    <circle cx="38.117" cy="48.33" r="3.4"/>
+    <circle cx="45.505" cy="38.874" r="3.4"/>
+  </g>
+
+  <!-- Center core -->
+  <circle cx="50" cy="50" r="7" fill="#F4F6FB"/>
+</svg>

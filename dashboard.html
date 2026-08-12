@@ -1,0 +1,4923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CINAMATE — Operations</title>
+<meta name="description" content="Cinamate operator console — Producer Suite and AI Generation.">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="stylesheet" href="css/theme.css">
+<style>
+/* ================================================================
+   CINAMATE — dashboard.html · consolidated page styles
+   01 · App shell (rail / statusbar / main)  — built per dashboard spec
+   02 · Producer Suite fragment styles       — frag-producer.css
+   03 · AI Generation fragment styles        — frag-aigen.css
+   ================================================================ */
+
+/* ================================================================
+   01 · APP SHELL
+   ================================================================ */
+
+html, body { height: 100%; }
+body { overflow: hidden; }
+
+.dash-stars {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-below);
+  pointer-events: none;
+}
+
+.dash-noscript {
+  display: block;
+  padding: var(--sp-5);
+  font-family: var(--font-mono);
+  font-size: var(--fs-data);
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--warn);
+  text-align: center;
+}
+
+.shell {
+  display: grid;
+  grid-template:
+    "rail statusbar" 48px
+    "rail main"      1fr
+    / 76px minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ---- Left rail ---- */
+
+.rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-4) 0 var(--sp-3);
+  background: var(--surface-1);            /* fallback */
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  border-right: 1px solid var(--line);
+  z-index: var(--z-nav);
+}
+
+.rail__logo {
+  display: block;
+  margin-bottom: var(--sp-4);
+  line-height: 0;
+  border-radius: var(--r-sm);
+}
+
+.rail__logo img {
+  width: 36px;
+  height: 36px;
+  animation: glow-pulse 4s ease-in-out infinite alternate;
+}
+
+.rail__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: var(--sp-3) 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+
+.rail__item svg {
+  width: 20px;
+  height: 20px;
+  transition: color var(--dur-hover) var(--ease-hover),
+              filter var(--dur-hover) var(--ease-hover);
+}
+
+.rail__item:hover { color: var(--text-mid); }
+.rail__item:hover svg { filter: drop-shadow(0 0 6px var(--cyan-25)); }
+
+.rail__item.is-active { color: var(--text-hi); }
+.rail__item.is-active svg { color: var(--cyan); }
+
+.rail__item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--grad-holo);
+}
+
+.rail__item:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+/* completion ping from AI Generation (cross-view hint) */
+.rail__item.is-pinged svg {
+  color: var(--ok);
+  filter: drop-shadow(0 0 8px rgba(52, 227, 160, 0.6));
+}
+
+.rail__spacer { flex: 1 1 auto; }
+
+.rail__divider {
+  width: 36px;
+  height: 1px;
+  flex: none;
+  margin: var(--sp-2) 0;
+  background: var(--line);
+}
+
+/* ---- Top status bar ---- */
+
+.statusbar {
+  grid-area: statusbar;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: 0 var(--sp-5);
+  background: var(--surface-1);            /* fallback */
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  z-index: var(--z-nav);
+  font-variant-numeric: tabular-nums;
+}
+
+.statusbar__sep { color: var(--text-faint); flex: none; }
+
+.statusbar__seg { flex: none; }
+
+.statusbar__seg--operator b {
+  font-weight: 600;
+  color: var(--cyan);
+}
+
+.statusbar__cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusbar__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 8px rgba(52, 227, 160, 0.6);
+  animation: glow-pulse 2s ease-in-out infinite alternate;
+}
+
+.statusbar__render {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--cyan-25);
+  border-radius: var(--r-pill);
+  color: var(--cyan);
+  background: var(--cyan-12);
+}
+
+.statusbar__clock {
+  margin-left: auto;
+  flex: none;
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Main scroll region & view toggling ---- */
+
+.shell__main {
+  grid-area: main;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* id selectors so [hidden] outranks the fragments' own display rules */
+#view-producer[hidden],
+#view-generate[hidden] { display: none; }
+
+/* ---- Responsive shell: rail → bottom tab bar under 900px ---- */
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template:
+      "statusbar" 48px
+      "main"      1fr
+      "rail"      58px
+      / minmax(0, 1fr);
+  }
+
+  .rail {
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .rail__logo,
+  .rail__divider,
+  .rail__spacer { display: none; }
+
+  .rail__item {
+    width: auto;
+    flex: 1 1 0;
+    justify-content: center;
+    padding: var(--sp-2) 0;
+  }
+
+  .rail__item.is-active::before {
+    left: 22%;
+    right: 22%;
+    top: 0;
+    bottom: auto;
+    width: auto;
+    height: 2px;
+  }
+
+  .statusbar { padding: 0 var(--sp-4); }
+  .statusbar__seg--session,
+  .statusbar__cluster,
+  .statusbar__sep { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail__logo img,
+  .statusbar__dot { animation: none; opacity: 1; }
+}
+
+/* ================================================================
+   02 · PRODUCER SUITE (frag-producer.css)
+   ================================================================ */
+
+/* ================================================================
+   CINAMATE — DASHBOARD · PRODUCER SUITE (fragment styles)
+   ----------------------------------------------------------------
+   Scoped entirely under `.prod` (the #view-producer container).
+   Consumes css/theme.css tokens only — no token redefinition, no
+   raw color values except where a token has no alpha variant (all
+   such literals are derived from token hexes and commented).
+
+   CONTENTS
+     01 · View scaffold & header
+     02 · Stat tiles + sparklines
+     03 · Panel titles / meta (shared registers)
+     04 · Productions table
+     05 · Stage badges
+     06 · Progress bars (shared by table + queue)
+     07 · Render queue
+     08 · Activity feed
+     09 · Live-change flashes & keyframes
+     10 · Responsive (1100 / 600)
+     11 · Reduced-motion guard
+   ================================================================ */
+
+
+/* ================================================================
+   01 · VIEW SCAFFOLD & HEADER
+   ================================================================ */
+
+.prod {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.prod__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.prod__heading { display: grid; gap: var(--sp-2); }
+
+.prod__title {
+  font-size: var(--fs-h2);
+  letter-spacing: -0.01em;
+}
+
+.prod__sub {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod__header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-1);
+}
+
+.prod__feed-stamp {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+
+/* ================================================================
+   02 · STAT TILES
+   ================================================================ */
+
+.prod__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.prod-tile {
+  --tile-accent: var(--cyan);
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.prod-tile--cyan    { --tile-accent: var(--cyan); }
+.prod-tile--violet  { --tile-accent: var(--violet); }
+.prod-tile--magenta { --tile-accent: var(--magenta); }
+
+.prod-tile:hover {
+  border-color: var(--line-bright);
+  box-shadow: var(--glow-cyan);
+  transform: translateY(-2px);
+}
+
+.prod-tile__label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod-tile__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.75rem, 2.4vw, 2.125rem);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--text-hi);
+  transition: text-shadow 150ms var(--ease-hover), color 150ms var(--ease-hover);
+}
+
+/* brief brightness flash on live change (JS toggles .is-flash) */
+.prod-tile__value.is-flash {
+  color: var(--text-hi);
+  text-shadow: 0 0 14px var(--tile-accent, var(--cyan));
+}
+
+.prod-tile__delta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  color: var(--text-dim);
+  min-height: 1.2em;
+}
+
+.prod-tile__delta--up { color: var(--ok); }
+
+.prod-tile__spark {
+  width: 100%;
+  height: 40px;
+  margin-top: auto;
+  overflow: visible;
+}
+
+/* Budget tile — thin holo progress bar in place of the sparkline */
+.prod-tile__bar {
+  margin-top: auto;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.prod-tile__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--grad-holo);
+  background-size: 200% 100%;
+  animation: holo-border-shift 6s linear infinite;
+  transition: width 900ms var(--ease-out-soft);
+}
+
+
+/* ================================================================
+   03 · PANEL TITLES / META — the mono "system label" register
+   ================================================================ */
+
+.prod-panel-title {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-hi);
+}
+
+.prod-panel-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+
+/* ================================================================
+   04 · PRODUCTIONS TABLE
+   ================================================================ */
+
+.prod__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.prod-projects { padding: var(--sp-5) var(--sp-5) var(--sp-4); }
+
+.prod-projects__header { margin-bottom: var(--sp-4); }
+
+.prod-projects__scroll { overflow-x: auto; }
+
+.prod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.prod-table thead th {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--text-dim);
+  padding: 0 var(--sp-3) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.prod-table td {
+  padding: var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.prod-table tbody tr:last-child td { border-bottom: 0; }
+
+.prod-row {
+  transition: background var(--dur-hover) var(--ease-hover);
+}
+
+.prod-row:hover { background: var(--surface-2); }
+
+.prod-row__title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-hi);
+  transition: text-shadow var(--dur-hover) var(--ease-hover);
+}
+
+.prod-row:hover .prod-row__title {
+  text-shadow: 0 0 12px var(--cyan-25);
+}
+
+.prod-row__runtime {
+  font-family: var(--font-mono);
+  font-size: var(--fs-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--track-data);
+  color: var(--text-mid);
+}
+
+.prod-row__updated {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod-row__updated--live {
+  color: var(--cyan);
+  animation: glow-pulse 4s ease-in-out infinite alternate;
+}
+
+.prod-projects__footer {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ================================================================
+   05 · STAGE BADGES — 12% tint + 1px border + full-strength text
+   ================================================================ */
+
+.prod-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-mid);
+  background: var(--surface-2);
+  transition:
+    color      var(--dur-hover) var(--ease-hover),
+    border-color var(--dur-hover) var(--ease-hover),
+    background var(--dur-hover) var(--ease-hover),
+    box-shadow var(--dur-hover) var(--ease-hover);
+}
+
+.prod-badge__dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  animation: glow-pulse 2s ease-in-out infinite alternate;
+}
+
+.prod-badge--script {
+  color: var(--text-mid);
+  border-color: var(--line-bright);
+  background: rgba(183, 192, 212, 0.08); /* --text-mid @ 8% */
+}
+
+.prod-badge--storyboard {
+  color: var(--violet);
+  border-color: var(--violet);
+  background: var(--violet-12);
+}
+
+.prod-badge--generating {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  background: var(--cyan-12);
+}
+
+.prod-badge--grading {
+  color: var(--magenta);
+  border-color: var(--magenta);
+  background: var(--magenta-12);
+}
+
+.prod-badge--mastered {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: rgba(52, 227, 160, 0.12); /* --ok @ 12% */
+}
+
+/* transient glow when a project flips stage (JS adds .is-flash) */
+.prod-badge.is-flash {
+  box-shadow: 0 0 18px var(--cyan-25), 0 0 40px var(--violet-12);
+}
+
+
+/* ================================================================
+   06 · PROGRESS BARS — shared by table rows and queue jobs
+   ================================================================ */
+
+.prod-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 150px;
+}
+
+.prod-progress__track {
+  flex: 1 1 auto;
+  height: 4px;
+  min-width: 90px;
+  border-radius: var(--r-pill);
+  background: rgba(35, 43, 62, 0.6); /* --line @ 60% */
+  overflow: hidden;
+}
+
+.prod-progress__fill {
+  --fill-accent: var(--cyan);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--fill-accent);
+  box-shadow: 0 0 8px var(--fill-accent);
+  transition: width 700ms var(--ease-out-soft), background var(--dur-hover) var(--ease-hover);
+}
+
+.prod-progress__pct {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--track-data);
+  color: var(--text-mid);
+  min-width: 3.2em;
+  text-align: right;
+}
+
+/* per-stage fill accents (JS keeps these classes in sync) */
+.prod-progress__fill--script     { --fill-accent: var(--text-faint); box-shadow: none; }
+.prod-progress__fill--storyboard { --fill-accent: var(--violet); }
+.prod-progress__fill--generating { --fill-accent: var(--cyan); }
+.prod-progress__fill--grading    { --fill-accent: var(--magenta); }
+.prod-progress__fill--mastered   { --fill-accent: var(--ok); }
+
+/* GENERATING rows: slow diagonal light band across the fill */
+.prod-progress__fill--generating {
+  background-image: linear-gradient(100deg,
+    var(--cyan) 0%,
+    var(--cyan) 38%,
+    rgba(244, 246, 251, 0.75) 50%, /* light band */
+    var(--cyan) 62%,
+    var(--cyan) 100%);
+  background-size: 300% 100%;
+  animation: prod-shimmer 3s linear infinite;
+}
+
+
+/* ================================================================
+   07 · RENDER QUEUE
+   ================================================================ */
+
+.prod__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.prod-queue { padding: var(--sp-5); }
+
+.prod-queue__header { margin-bottom: var(--sp-4); }
+
+.prod-queue__chip { font-size: 0.625rem; padding: 0.2rem 0.6rem; }
+
+.prod-queue__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.prod-job {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  max-height: 8rem;
+  transition:
+    max-height 200ms var(--ease-inout),
+    opacity    200ms var(--ease-inout),
+    padding    200ms var(--ease-inout);
+}
+
+.prod-job:last-child { border-bottom: 0; }
+
+/* enter: fade-slide up */
+.prod-job.is-entering {
+  animation: prod-job-enter 250ms var(--ease-out-soft) 1;
+}
+
+/* exit: 200ms height collapse */
+.prod-job.is-leaving {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
+.prod-job__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.prod-job__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--track-data);
+  color: var(--text-hi);
+}
+
+.prod-job__pct {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--track-data);
+  color: var(--cyan);
+}
+
+.prod-job__target {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prod-job__track { min-width: 0; }
+
+.prod-job__fill { --fill-accent: var(--cyan); }
+
+.prod-job__meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* completed job: green flash + DONE */
+.prod-job.is-done .prod-job__pct  { color: var(--ok); }
+.prod-job.is-done .prod-job__fill {
+  --fill-accent: var(--ok);
+  background-image: none;
+  animation: none;
+}
+.prod-job.is-done .prod-job__id {
+  color: var(--ok);
+  text-shadow: 0 0 10px rgba(52, 227, 160, 0.45); /* --ok glow */
+}
+
+.prod-queue__telemetry {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ================================================================
+   08 · ACTIVITY FEED — vertical timeline, newest on top
+   ================================================================ */
+
+.prod-activity { padding: var(--sp-5); }
+
+.prod-activity__header { margin-bottom: var(--sp-4); }
+
+.prod-activity__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* timeline spine */
+.prod-activity__list::before {
+  content: "";
+  position: absolute;
+  left: 2.5px;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  width: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+.prod-event {
+  --event-accent: var(--cyan);
+  position: relative;
+  display: grid;
+  gap: 0.15rem;
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-5);
+}
+
+/* timeline dot */
+.prod-event::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.85rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--event-accent);
+  box-shadow: 0 0 6px var(--event-accent);
+}
+
+.prod-event--cyan    { --event-accent: var(--cyan); }
+.prod-event--violet  { --event-accent: var(--violet); }
+.prod-event--magenta { --event-accent: var(--magenta); }
+.prod-event--ok      { --event-accent: var(--ok); }
+.prod-event--warn    { --event-accent: var(--warn); }
+
+.prod-event__time {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--track-data);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod-event__text {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text-mid);
+}
+
+.prod-event__text em {
+  font-style: italic;
+  color: var(--text-hi);
+}
+
+/* new entries: 250ms fade-slide, dot flashes brighter */
+.prod-event.is-entering {
+  animation: prod-event-enter 250ms var(--ease-out-soft) 1;
+}
+
+.prod-event.is-entering::before {
+  animation: prod-dot-flash 900ms var(--ease-out-soft) 1;
+}
+
+
+/* ================================================================
+   09 · KEYFRAMES (fragment-local; global ones live in theme.css)
+   ================================================================ */
+
+@keyframes prod-shimmer {
+  from { background-position: 150% 0; }
+  to   { background-position: -150% 0; }
+}
+
+@keyframes prod-job-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes prod-event-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes prod-dot-flash {
+  0%   { box-shadow: 0 0 14px var(--event-accent), 0 0 28px var(--event-accent); }
+  100% { box-shadow: 0 0 6px var(--event-accent); }
+}
+
+
+/* ================================================================
+   10 · RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 1100px) {
+  .prod__columns { grid-template-columns: minmax(0, 1fr); }
+
+  .prod__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .prod__side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .prod { padding: var(--sp-4); }
+
+  .prod__stats { grid-template-columns: minmax(0, 1fr); }
+
+  /* table → stacked cards (CSS only, data-label pseudo-headers) */
+  .prod-table,
+  .prod-table tbody,
+  .prod-table tr,
+  .prod-table td { display: block; width: 100%; }
+
+  .prod-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .prod-table tr {
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface-1);
+    padding: var(--sp-3) var(--sp-4);
+    margin-bottom: var(--sp-3);
+  }
+
+  .prod-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    border-bottom: 0;
+    padding: var(--sp-2) 0;
+    white-space: normal;
+  }
+
+  .prod-table td::before {
+    content: attr(data-label);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: var(--track-eyebrow);
+    text-transform: uppercase;
+    color: var(--text-faint);
+    flex: none;
+  }
+
+  .prod-progress { min-width: 0; flex: 1 1 auto; justify-content: flex-end; }
+  .prod-progress__track { max-width: 140px; }
+}
+
+
+/* ================================================================
+   11 · REDUCED-MOTION GUARD
+   theme.css already collapses all animation/transition durations;
+   these rules remove residual visual motion states entirely.
+   ================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .prod-progress__fill--generating {
+    background-image: none;
+    animation: none;
+  }
+
+  .prod-tile__bar-fill { animation: none; }
+
+  .prod-badge__dot,
+  .prod-row__updated--live { animation: none; opacity: 1; }
+
+  .prod-job.is-entering,
+  .prod-event.is-entering,
+  .prod-event.is-entering::before { animation: none; }
+}
+
+/* ================================================================
+   03 · AI GENERATION (frag-aigen.css)
+   ================================================================ */
+
+/* ================================================================
+   CINAMATE — DASHBOARD · AI GENERATION VIEW (fragment styles)
+   ----------------------------------------------------------------
+   Scoped under .aigen. Consumes tokens from css/theme.css and never
+   redefines them; every var() carries a fallback so the fragment
+   degrades gracefully when previewed in isolation.
+
+   Restraint contract honored:
+     · exactly one animated-gradient element per view (GENERATE btn
+       while rendering); glow reserved for interactive/primary
+     · all motion is transform/opacity/background-position only
+     · full prefers-reduced-motion guard at the end of this file
+   ================================================================ */
+
+.aigen {
+  --aigen-panel:    var(--glass-bg, rgba(15, 19, 29, 0.55));
+  --aigen-panel-hi: var(--surface-2, #161B29);
+  --aigen-line:     var(--glass-border, rgba(51, 64, 92, 0.5));
+  --aigen-mono:     var(--font-mono, "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace);
+  --aigen-display:  var(--font-display, "Avenir Next", Avenir, "Helvetica Neue", "Segoe UI", Futura, system-ui, sans-serif);
+
+  display: block;
+  padding: clamp(1.25rem, 2.5vw, 2.25rem);
+  color: var(--text-mid, #B7C0D4);
+  font-family: var(--aigen-display);
+}
+
+/* ----------------------------------------------------------------
+   VIEW HEADER
+   ---------------------------------------------------------------- */
+
+.aigen__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: clamp(1.25rem, 2.5vw, 2rem);
+}
+
+.aigen__title {
+  margin: 0;
+  font-family: var(--aigen-display);
+  font-size: clamp(1.6rem, 2.6vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-hi, #F4F6FB);
+  letter-spacing: -0.01em;
+}
+
+.aigen__sub {
+  margin: 0.45rem 0 0;
+  font-family: var(--aigen-mono);
+  font-size: 0.6875rem;
+  letter-spacing: var(--track-eyebrow, 0.32em);
+  text-transform: uppercase;
+  color: var(--text-dim, #8B93A7);
+}
+
+.aigen__engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.6875rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--ok, #34E3A0);
+  background: rgba(52, 227, 160, 0.08);
+  border: 1px solid rgba(52, 227, 160, 0.35);
+  border-radius: var(--r-pill, 999px);
+  white-space: nowrap;
+}
+
+.aigen__engine-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px rgba(52, 227, 160, 0.7);
+  animation: aigen-pulse 4s ease-in-out infinite alternate;
+}
+
+.aigen__engine.is-busy {
+  color: var(--cyan, #22D3EE);
+  background: var(--cyan-12, rgba(34, 211, 238, 0.12));
+  border-color: rgba(34, 211, 238, 0.4);
+}
+.aigen__engine.is-busy .aigen__engine-dot {
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
+}
+
+/* ----------------------------------------------------------------
+   COLUMNS · composer 2fr / theater 3fr, stack < 1100px
+   ---------------------------------------------------------------- */
+
+.aigen__columns {
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) 3fr;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .aigen__columns { grid-template-columns: 1fr; }
+}
+
+/* ----------------------------------------------------------------
+   SHARED PANEL CHROME
+   ---------------------------------------------------------------- */
+
+.aigen-theater,
+.aigen-masters {
+  background: var(--aigen-panel);
+  border: 1px solid var(--aigen-line);
+  border-radius: var(--r-lg, 14px);
+  box-shadow: inset 0 1px 0 var(--glass-highlight, rgba(244, 246, 251, 0.06));
+}
+@supports (backdrop-filter: blur(1px)) {
+  .aigen-theater,
+  .aigen-masters,
+  .aigen-composer__body {
+    backdrop-filter: blur(var(--blur-glass, 18px)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--blur-glass, 18px)) saturate(140%);
+  }
+}
+
+.aigen-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 0.85rem;
+  border-bottom: 1px solid var(--line, #232B3E);
+}
+
+.aigen-panel__title {
+  margin: 0;
+  font-family: var(--aigen-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: var(--track-eyebrow, 0.32em);
+  text-transform: uppercase;
+  color: var(--text-hi, #F4F6FB);
+}
+
+.aigen-panel__meta {
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  text-transform: uppercase;
+  color: var(--text-dim, #8B93A7);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.aigen-panel__meta.is-live { color: var(--cyan, #22D3EE); }
+
+/* ----------------------------------------------------------------
+   COMPOSER — glow-edge hero surface (1px holo gradient rim)
+   ---------------------------------------------------------------- */
+
+.aigen-composer {
+  position: relative;
+  padding: 1px;                             /* the rim itself */
+  border-radius: var(--r-lg, 14px);
+  background: var(--grad-holo-soft, linear-gradient(135deg,
+      rgba(34, 211, 238, 0.55), rgba(139, 124, 246, 0.55) 50%, rgba(232, 121, 249, 0.55)));
+  box-shadow: var(--glow-cyan, 0 0 24px rgba(34, 211, 238, 0.25), 0 0 64px rgba(139, 124, 246, 0.12));
+}
+
+.aigen-composer__body {
+  background:
+    linear-gradient(var(--aigen-panel), var(--aigen-panel)),
+    var(--surface-1, #0F131D);
+  background-color: var(--surface-1, #0F131D); /* solid fallback first */
+  border-radius: calc(var(--r-lg, 14px) - 1px);
+  padding: 0 1.25rem 1.25rem;
+}
+
+.aigen-composer .aigen-panel__head {
+  margin: 0 -1.25rem 1.1rem;
+}
+
+/* ----------------------------------------------------------------
+   FIELDS
+   ---------------------------------------------------------------- */
+
+.aigen-field {
+  margin-bottom: 1.1rem;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.aigen-field--half { display: block; }
+
+.aigen-field__label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow, 0.32em);
+  text-transform: uppercase;
+  color: var(--text-dim, #8B93A7);
+}
+
+.aigen-field__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.aigen-field__readout {
+  font-family: var(--aigen-mono);
+  font-size: 0.75rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--cyan, #22D3EE);
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- Prompt textarea: writing a film should feel literary -------- */
+
+.aigen-prompt { position: relative; }
+
+.aigen-prompt__input {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  padding: 0.85rem 1rem 1.7rem;
+  font-family: var(--aigen-display);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text-hi, #F4F6FB);
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  transition: border-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow  350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-prompt__input::placeholder { color: var(--text-faint, #5A6378); }
+
+.aigen-prompt__input:focus {
+  outline: none;
+  border-color: var(--cyan, #22D3EE);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.18);
+}
+
+.aigen-prompt__count {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.6rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-faint, #5A6378);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.aigen-prompt__count.is-armed { color: var(--text-dim, #8B93A7); }
+
+/* -- Select ------------------------------------------------------ */
+
+.aigen-select { position: relative; }
+
+.aigen-select__input {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.6rem 2.2rem 0.6rem 0.85rem;
+  font-family: var(--aigen-display);
+  font-size: 0.875rem;
+  color: var(--text-hi, #F4F6FB);
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+  transition: border-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-select__input:hover { border-color: var(--line-bright, #33405C); }
+.aigen-select__input:focus {
+  outline: none;
+  border-color: var(--cyan, #22D3EE);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+}
+
+.aigen-select__caret {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim, #8B93A7);
+  pointer-events: none;
+}
+
+/* -- Range: holo-filled track (JS drives --aigen-range-fill) ----- */
+
+.aigen-range {
+  --aigen-range-fill: 50.8%;
+  width: 100%;
+  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.aigen-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg,
+      var(--cyan, #22D3EE), var(--violet, #8B7CF6) 55%, var(--magenta, #E879F9))
+      0 0 / var(--aigen-range-fill) 100% no-repeat,
+    var(--line, #232B3E);
+}
+
+.aigen-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: var(--text-hi, #F4F6FB);
+  border: 2px solid var(--cyan, #22D3EE);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+
+.aigen-range::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line, #232B3E);
+}
+
+.aigen-range::-moz-range-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    var(--cyan, #22D3EE), var(--violet, #8B7CF6) 55%, var(--magenta, #E879F9));
+}
+
+.aigen-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-hi, #F4F6FB);
+  border: 2px solid var(--cyan, #22D3EE);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+
+.aigen-range:focus-visible {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* -- Segmented control (aspect ratio) ---------------------------- */
+
+.aigen-seg {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+}
+
+.aigen-seg__btn {
+  position: relative;
+  padding: 0.5rem 0.25rem 0.6rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.6875rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-dim, #8B93A7);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--r-md, 8px) - 3px);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-seg__btn:hover { color: var(--text-mid, #B7C0D4); }
+
+.aigen-seg__btn:focus-visible {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 1px;
+}
+
+.aigen-seg__btn[aria-checked="true"] {
+  color: var(--text-hi, #F4F6FB);
+  background: var(--surface-1, #0F131D);
+}
+
+/* holo underline on the selected segment */
+.aigen-seg__btn[aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--grad-holo, linear-gradient(135deg, #22D3EE, #8B7CF6 50%, #E879F9));
+}
+
+/* -- Style preset cards ------------------------------------------ */
+
+.aigen-presets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+
+.aigen-preset {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.65rem;
+  align-items: center;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+  transition: border-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow   350ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform    350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-preset:hover {
+  border-color: var(--line-bright, #33405C);
+  transform: translateY(-1px);
+}
+
+.aigen-preset:focus-visible {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 2px;
+}
+
+.aigen-preset[aria-checked="true"] {
+  background:
+    linear-gradient(var(--cyan-12, rgba(34, 211, 238, 0.12)), var(--cyan-12, rgba(34, 211, 238, 0.12))),
+    var(--surface-2, #161B29);
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.18);
+}
+
+.aigen-preset__swatch {
+  grid-row: 1 / span 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid rgba(244, 246, 251, 0.08);
+}
+
+.aigen-preset__swatch--noir   { background: linear-gradient(135deg, #061019 15%, #22D3EE 55%, #E879F9); }
+.aigen-preset__swatch--solar  { background: linear-gradient(135deg, #0A2E26 15%, #2FBFA3 55%, #F5C542); }
+.aigen-preset__swatch--analog { background: linear-gradient(135deg, #1B0F08 15%, #B0764B 55%, #EAD8A6); }
+.aigen-preset__swatch--chrome { background: linear-gradient(135deg, #0B0D12 15%, #7C8698 55%, #E6EAF2); }
+
+.aigen-preset__name {
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-hi, #F4F6FB);
+}
+
+.aigen-preset__desc {
+  font-family: var(--aigen-display);
+  font-size: 0.6875rem;
+  color: var(--text-dim, #8B93A7);
+  line-height: 1.35;
+}
+
+/* -- Seed --------------------------------------------------------- */
+
+.aigen-seed {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.aigen-seed__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.85rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.8125rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-hi, #F4F6FB);
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-seed__input::placeholder { color: var(--text-faint, #5A6378); letter-spacing: 0.18em; }
+
+.aigen-seed__input:focus {
+  outline: none;
+  border-color: var(--cyan, #22D3EE);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+}
+
+.aigen-seed__dice {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  color: var(--text-dim, #8B93A7);
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+  transition: color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-seed__dice:hover {
+  color: var(--cyan, #22D3EE);
+  border-color: var(--line-bright, #33405C);
+}
+
+.aigen-seed__dice:focus-visible {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 2px;
+}
+
+/* -- Quality tier radio cards ------------------------------------ */
+
+.aigen-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.aigen-tiers > .aigen-field__label { grid-column: 1 / -1; margin-bottom: 0; }
+
+.aigen-tier { position: relative; display: block; cursor: pointer; }
+
+.aigen-tier__input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.aigen-tier__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  height: 100%;
+  padding: 0.6rem 0.7rem;
+  background: var(--surface-2, #161B29);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  transition: border-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow   350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-tier:hover .aigen-tier__body { border-color: var(--line-bright, #33405C); }
+
+.aigen-tier__input:focus-visible + .aigen-tier__body {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 2px;
+}
+
+.aigen-tier__input:checked + .aigen-tier__body {
+  border-color: rgba(34, 211, 238, 0.55);
+  background:
+    linear-gradient(var(--cyan-12, rgba(34, 211, 238, 0.12)), var(--cyan-12, rgba(34, 211, 238, 0.12))),
+    var(--surface-2, #161B29);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.15);
+}
+
+.aigen-tier__name {
+  font-family: var(--aigen-mono);
+  font-size: 0.5875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-hi, #F4F6FB);
+  white-space: nowrap;
+}
+
+.aigen-tier__spec {
+  font-family: var(--aigen-mono);
+  font-size: 0.5625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-dim, #8B93A7);
+  white-space: nowrap;
+}
+
+.aigen-tier--locked .aigen-tier__body { border-style: dashed; }
+
+.aigen-tier__tag {
+  margin-top: 0.15rem;
+  align-self: flex-start;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
+  color: var(--magenta, #E879F9);
+  background: var(--magenta-12, rgba(232, 121, 249, 0.12));
+  border: 1px solid rgba(232, 121, 249, 0.45);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* -- GENERATE ------------------------------------------------------ */
+
+.aigen-generate {
+  display: block;
+  width: 100%;
+  height: 52px;
+  margin-top: 1.35rem;
+  font-family: var(--aigen-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-indent: 0.28em;              /* optical centering vs tracking */
+  color: #05060A;
+  background: var(--grad-holo, linear-gradient(135deg, #22D3EE 0%, #8B7CF6 50%, #E879F9 100%));
+  background-size: 200% 200%;
+  border: 0;
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+  transition: box-shadow 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform  350ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity    350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-generate:hover:not(:disabled) {
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.35), 0 0 72px rgba(139, 124, 246, 0.18);
+  transform: translateY(-2px);
+}
+
+.aigen-generate:focus-visible {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 3px;
+}
+
+.aigen-generate:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* indeterminate shimmer while a job runs — the single animated
+   gradient permitted in this view */
+.aigen-generate.is-busy {
+  opacity: 0.85;
+  cursor: wait;
+  animation: aigen-shimmer 6s linear infinite;
+}
+
+.aigen-generate__hint {
+  margin: 0.6rem 0 0;
+  text-align: center;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  text-transform: uppercase;
+  color: var(--text-dim, #8B93A7);
+  min-height: 1em;
+}
+
+.aigen-generate__hint.is-hidden { visibility: hidden; }
+
+/* ----------------------------------------------------------------
+   JOB THEATER
+   ---------------------------------------------------------------- */
+
+/* -- (a) Stage tracker -------------------------------------------- */
+
+.aigen-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.9rem 1.25rem 0.75rem;
+}
+
+.aigen-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-faint, #5A6378);
+  white-space: nowrap;
+  transition: color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-stage__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line, #232B3E);
+  transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow       350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-stage.is-active {
+  color: var(--cyan, #22D3EE);
+}
+.aigen-stage.is-active .aigen-stage__dot {
+  background: var(--cyan, #22D3EE);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+  animation: aigen-pulse 2s ease-in-out infinite alternate;
+}
+/* animated ellipsis on the active stage */
+.aigen-stage.is-active .aigen-stage__name::after {
+  content: "";
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: aigen-ellipsis 1.2s steps(4, end) infinite;
+}
+
+.aigen-stage.is-done { color: var(--ok, #34E3A0); }
+.aigen-stage.is-done .aigen-stage__dot { background: var(--ok, #34E3A0); }
+.aigen-stage.is-done .aigen-stage__name::before { content: "\2713\00a0"; }
+
+/* -- overall progress --------------------------------------------- */
+
+.aigen-progress {
+  height: 2px;
+  margin: 0 1.25rem 1rem;
+  background: var(--line, #232B3E);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.aigen-progress__fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 1px;
+  background: var(--grad-holo, linear-gradient(135deg, #22D3EE 0%, #8B7CF6 50%, #E879F9 100%));
+  transition: width 400ms linear;
+}
+
+/* -- (b) Preview viewport ------------------------------------------ */
+
+.aigen-viewport {
+  padding: 0 1.25rem;
+}
+
+.aigen-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2.39 / 1;
+  background: #030408;
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-sm, 4px);
+  overflow: hidden;
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-viewport[data-aspect="1.85:1"] .aigen-frame { aspect-ratio: 1.85 / 1; }
+.aigen-viewport[data-aspect="16:9"]   .aigen-frame { aspect-ratio: 16 / 9; }
+.aigen-viewport[data-aspect="4:3"]    .aigen-frame { aspect-ratio: 4 / 3; }
+
+.aigen-frame.is-flash {
+  box-shadow: 0 0 32px rgba(52, 227, 160, 0.45), 0 0 80px rgba(34, 211, 238, 0.25);
+}
+
+/* viewfinder corner ticks */
+.aigen-frame__tick {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 0 solid rgba(148, 163, 199, 0.55);
+  z-index: 3;
+  pointer-events: none;
+}
+.aigen-frame__tick--tl { top: 8px;    left: 8px;   border-top-width: 1px; border-left-width: 1px; }
+.aigen-frame__tick--tr { top: 8px;    right: 8px;  border-top-width: 1px; border-right-width: 1px; }
+.aigen-frame__tick--bl { bottom: 8px; left: 8px;   border-bottom-width: 1px; border-left-width: 1px; }
+.aigen-frame__tick--br { bottom: 8px; right: 8px;  border-bottom-width: 1px; border-right-width: 1px; }
+
+/* idle placeholder */
+.aigen-idle {
+  position: absolute;
+  inset: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  border: 1px dashed rgba(51, 64, 92, 0.7);
+  border-radius: var(--r-sm, 4px);
+  color: var(--text-faint, #5A6378);
+}
+
+.aigen-idle__mark { opacity: 0.7; }
+
+.aigen-idle__text {
+  margin: 0;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-eyebrow, 0.32em);
+  color: var(--text-dim, #8B93A7);
+  text-align: center;
+}
+
+.aigen-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* HUD overlays */
+.aigen-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: rgba(232, 236, 248, 0.75);
+  text-shadow: 0 0 6px rgba(3, 4, 8, 0.9);
+  font-variant-numeric: tabular-nums;
+}
+
+.aigen-hud__item { position: absolute; }
+.aigen-hud__item--tl { top: 12px;    left: 30px; }
+.aigen-hud__item--tr { top: 12px;    right: 30px; }
+.aigen-hud__item--br { bottom: 12px; right: 30px; }
+.aigen-hud__item--bl { bottom: 12px; left: 30px; }
+
+.aigen-hud__rec {
+  color: var(--error, #FF5C7A);
+  animation: aigen-pulse 2s ease-in-out infinite alternate;
+}
+
+/* -- (c) Console --------------------------------------------------- */
+
+.aigen-console {
+  position: relative;
+  height: 180px;
+  margin: 1rem 1.25rem 1.25rem;
+  padding: 0.7rem 0.9rem;
+  overflow-y: auto;
+  background: #04050A;
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-sm, 4px);
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.6);
+  font-family: var(--aigen-mono);
+  font-size: 0.6875rem;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line, #232B3E) transparent;
+}
+
+/* faint static scanlines */
+.aigen-console::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(148, 163, 199, 0.025) 2px 3px);
+  pointer-events: none;
+}
+
+.aigen-console__line {
+  margin: 0;
+  max-width: none;
+  color: var(--text-dim, #8B93A7);
+  word-break: break-word;
+}
+
+.aigen-console__line--metric  { color: var(--cyan, #22D3EE); }
+.aigen-console__line--success { color: var(--ok, #34E3A0); }
+.aigen-console__line--warn    { color: var(--warn, #F5C542); }
+
+.aigen-console__ts { color: var(--text-faint, #5A6378); }
+
+/* ----------------------------------------------------------------
+   RECENT MASTERS
+   ---------------------------------------------------------------- */
+
+.aigen-masters {
+  margin-top: clamp(1rem, 2vw, 1.5rem);
+}
+
+.aigen-masters__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 1.25rem;
+}
+
+.aigen-masters__list:empty { display: none; }
+
+.aigen-masters__empty {
+  margin: 0;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-eyebrow, 0.32em);
+  color: var(--text-faint, #5A6378);
+  max-width: none;
+}
+
+.aigen-master {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1, #0F131D);
+  border: 1px solid var(--line, #232B3E);
+  border-radius: var(--r-md, 8px);
+  overflow: hidden;
+  transition: border-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow   350ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform    350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-master:hover {
+  border-color: var(--line-bright, #33405C);
+  box-shadow: var(--glow-cyan, 0 0 24px rgba(34, 211, 238, 0.25), 0 0 64px rgba(139, 124, 246, 0.12));
+  transform: translateY(-2px);
+}
+
+.aigen-master.is-entering { animation: aigen-enter 600ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+.aigen-master__thumb {
+  position: relative;
+  aspect-ratio: 16 / 7;
+  background: #030408;
+  overflow: hidden;
+}
+
+.aigen-master__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.aigen-master__thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--aigen-mono);
+  font-size: 0.5625rem;
+  letter-spacing: var(--track-eyebrow, 0.32em);
+  color: var(--text-faint, #5A6378);
+}
+
+.aigen-master__badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0.15rem 0.45rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--ok, #34E3A0);
+  background: rgba(5, 6, 10, 0.75);
+  border: 1px solid rgba(52, 227, 160, 0.5);
+  border-radius: 3px;
+}
+
+.aigen-master__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.aigen-master__title {
+  margin: 0;
+  font-family: var(--aigen-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-hi, #F4F6FB);
+  line-height: 1.3;
+}
+
+.aigen-master__meta {
+  margin: 0;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-dim, #8B93A7);
+  font-variant-numeric: tabular-nums;
+  max-width: none;
+  word-break: break-word;
+}
+
+.aigen-master__dl {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: var(--track-btn, 0.18em);
+  text-transform: uppercase;
+  color: var(--cyan, #22D3EE);
+  background: transparent;
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  border-radius: var(--r-sm, 4px);
+  cursor: pointer;
+  transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow       350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aigen-master__dl:hover {
+  background: var(--cyan-12, rgba(34, 211, 238, 0.12));
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.2);
+}
+
+.aigen-master__dl:focus-visible {
+  outline: 1px solid var(--cyan, #22D3EE);
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------------
+   TOAST
+   ---------------------------------------------------------------- */
+
+.aigen-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%) translateY(0);
+  z-index: var(--z-status, 200);
+  padding: 0.7rem 1.2rem;
+  font-family: var(--aigen-mono);
+  font-size: 0.6875rem;
+  letter-spacing: var(--track-data, 0.08em);
+  color: var(--text-hi, #F4F6FB);
+  background: var(--surface-2, #161B29);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  border-radius: var(--r-pill, 999px);
+  box-shadow: var(--glow-cyan, 0 0 24px rgba(34, 211, 238, 0.25), 0 0 64px rgba(139, 124, 246, 0.12));
+  opacity: 0;
+  transition: opacity 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.aigen-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+/* ----------------------------------------------------------------
+   UTILITIES
+   ---------------------------------------------------------------- */
+
+.aigen-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ----------------------------------------------------------------
+   KEYFRAMES
+   ---------------------------------------------------------------- */
+
+@keyframes aigen-pulse {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+
+@keyframes aigen-shimmer {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+@keyframes aigen-ellipsis {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+  100% { content: ""; }
+}
+
+@keyframes aigen-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ----------------------------------------------------------------
+   NARROW LAYOUTS
+   ---------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .aigen-presets,
+  .aigen-tiers { grid-template-columns: 1fr 1fr; }
+  .aigen-tiers { grid-template-columns: 1fr; }
+  .aigen-seg { grid-template-columns: repeat(2, 1fr); }
+  .aigen-masters__list { grid-template-columns: 1fr; }
+}
+
+/* ----------------------------------------------------------------
+   REDUCED MOTION — everything stills; nothing hides
+   ---------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .aigen__engine-dot,
+  .aigen-hud__rec,
+  .aigen-generate.is-busy,
+  .aigen-master.is-entering,
+  .aigen-stage.is-active .aigen-stage__dot { animation: none; }
+
+  .aigen-stage.is-active .aigen-stage__name::after {
+    content: "\2026";
+    animation: none;
+  }
+
+  .aigen-progress__fill,
+  .aigen-toast,
+  .aigen-master,
+  .aigen-preset,
+  .aigen-tier__body,
+  .aigen-seg__btn,
+  .aigen-stage,
+  .aigen-stage__dot,
+  .aigen-prompt__input,
+  .aigen-select__input,
+  .aigen-seed__input,
+  .aigen-seed__dice,
+  .aigen-master__dl,
+  .aigen-frame,
+  .aigen-generate { transition-duration: 0.01ms; }
+}
+
+</style>
+</head>
+<body>
+<noscript>
+  <p class="dash-noscript">SYS&nbsp;//&nbsp;JAVASCRIPT&nbsp;REQUIRED — the Cinamate operator console needs scripting for authentication and telemetry.</p>
+</noscript>
+
+<!-- Background starfield (lower density than the marketing site) -->
+<canvas id="stars" class="dash-stars" aria-hidden="true"></canvas>
+
+<div class="shell">
+
+  <!-- ==========================================================
+       LEFT RAIL
+       ========================================================== -->
+  <nav class="rail" aria-label="Primary">
+    <a class="rail__logo" href="#suite" aria-label="Cinamate — Producer Suite">
+      <img src="assets/logo-mark.svg" alt="" width="36" height="36">
+    </a>
+
+    <button type="button" class="rail__item is-active" id="nav-suite" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2"/>
+        <path d="M3 9h18M3 15h18M8 4v16M16 4v16"/>
+      </svg>
+      <span>Suite</span>
+    </button>
+
+    <button type="button" class="rail__item" id="nav-generate">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>
+        <path d="M12 7.5 13.2 10.8 16.5 12 13.2 13.2 12 16.5 10.8 13.2 7.5 12 10.8 10.8Z"/>
+      </svg>
+      <span>Create</span>
+    </button>
+
+    <span class="rail__spacer" aria-hidden="true"></span>
+    <span class="rail__divider" aria-hidden="true"></span>
+
+    <button type="button" class="rail__item" id="nav-exit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v8"/>
+        <path d="M6.6 6.2a8 8 0 1 0 10.8 0"/>
+      </svg>
+      <span>Exit</span>
+    </button>
+  </nav>
+
+  <!-- ==========================================================
+       TOP STATUS BAR
+       ========================================================== -->
+  <header class="statusbar">
+    <span class="statusbar__seg statusbar__seg--session" id="sb-session">SES-········</span>
+    <span class="statusbar__sep" aria-hidden="true">//</span>
+    <span class="statusbar__seg statusbar__seg--operator">Operator&nbsp;<b id="sb-operator">——</b></span>
+    <span class="statusbar__sep" aria-hidden="true">//</span>
+    <span class="statusbar__seg statusbar__cluster">
+      <i class="statusbar__dot" aria-hidden="true"></i>
+      <span id="sb-cluster">HELIOS-9&nbsp;NOMINAL</span>
+    </span>
+    <span class="statusbar__seg statusbar__render" id="sb-render" hidden></span>
+    <time class="statusbar__clock" id="sb-clock">····-··-·· ··:··:·· UTC</time>
+  </header>
+
+  <!-- ==========================================================
+       MAIN — the two workspaces
+       ========================================================== -->
+  <main class="shell__main" id="main">
+
+<div id="view-producer" class="view prod" aria-labelledby="prod-title">
+
+  <!-- ============================================================
+       HEADER ROW
+       ============================================================ -->
+  <header class="prod__header" data-reveal>
+    <div class="prod__heading">
+      <p class="eyebrow">SYS&nbsp;//&nbsp;PRODUCER&nbsp;SUITE</p>
+      <h1 class="prod__title" id="prod-title">Producer Suite</h1>
+      <p class="prod__sub" id="prod-portfolio-line">PORTFOLIO&nbsp;//&nbsp;6&nbsp;ACTIVE&nbsp;PRODUCTIONS</p>
+    </div>
+    <div class="prod__header-meta">
+      <span class="chip chip--ok prod__live-chip">
+        <span class="chip__dot" aria-hidden="true"></span>LIVE
+      </span>
+      <span class="prod__feed-stamp" id="prod-feed-stamp" aria-hidden="true">TELEMETRY&nbsp;FEED&nbsp;·&nbsp;1.2s</span>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       STAT TILES — 4-up · collapses 2×2 · 1-col
+       ============================================================ -->
+  <section class="prod__stats" aria-label="Portfolio statistics">
+
+    <!-- ACTIVE PRODUCTIONS -->
+    <article class="panel prod-tile prod-tile--cyan" data-reveal>
+      <p class="prod-tile__label">Active Productions</p>
+      <p class="prod-tile__value" id="prod-stat-productions" data-numeric>6</p>
+      <p class="prod-tile__delta" id="prod-delta-productions">+1 this week</p>
+      <svg class="prod-tile__spark" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="prod-spark-cyan" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#22D3EE" stop-opacity="0.18"/>
+            <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon class="prod-tile__spark-fill" fill="url(#prod-spark-cyan)"
+                 points="0,40 0,30 12,31 24,27 36,28 48,24 60,25 72,20 84,21 96,16 108,14 120,12 120,40"/>
+        <polyline class="prod-tile__spark-line" fill="none" stroke="#22D3EE" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  points="0,30 12,31 24,27 36,28 48,24 60,25 72,20 84,21 96,16 108,14 120,12"/>
+      </svg>
+    </article>
+
+    <!-- RENDER HOURS -->
+    <article class="panel prod-tile prod-tile--violet" data-reveal style="--reveal-delay: 80ms">
+      <p class="prod-tile__label">Render Hours</p>
+      <p class="prod-tile__value" id="prod-stat-hours" data-numeric>12,847</p>
+      <p class="prod-tile__delta prod-tile__delta--up" id="prod-delta-hours">&#9650;&nbsp;6.2% vs last cycle</p>
+      <svg class="prod-tile__spark" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="prod-spark-violet" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#8B7CF6" stop-opacity="0.18"/>
+            <stop offset="1" stop-color="#8B7CF6" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon class="prod-tile__spark-fill" fill="url(#prod-spark-violet)"
+                 points="0,40 0,33 12,30 24,31 36,26 48,27 60,22 72,23 84,18 96,19 108,13 120,11 120,40"/>
+        <polyline class="prod-tile__spark-line" fill="none" stroke="#8B7CF6" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  points="0,33 12,30 24,31 36,26 48,27 60,22 72,23 84,18 96,19 108,13 120,11"/>
+      </svg>
+    </article>
+
+    <!-- FRAMES GENERATED — live ticking -->
+    <article class="panel prod-tile prod-tile--magenta" data-reveal style="--reveal-delay: 160ms">
+      <p class="prod-tile__label">Frames Generated</p>
+      <p class="prod-tile__value" id="prod-stat-frames" data-numeric>48.20M</p>
+      <p class="prod-tile__delta" id="prod-delta-frames">+214,388 today</p>
+      <svg class="prod-tile__spark" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="prod-spark-magenta" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#E879F9" stop-opacity="0.18"/>
+            <stop offset="1" stop-color="#E879F9" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon class="prod-tile__spark-fill" id="prod-spark-frames-fill" fill="url(#prod-spark-magenta)"
+                 points="0,40 0,32 12,29 24,30 36,25 48,26 60,21 72,22 84,17 96,15 108,12 120,10 120,40"/>
+        <polyline class="prod-tile__spark-line" id="prod-spark-frames-line" fill="none" stroke="#E879F9"
+                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                  points="0,32 12,29 24,30 36,25 48,26 60,21 72,22 84,17 96,15 108,12 120,10"/>
+      </svg>
+    </article>
+
+    <!-- BUDGET UTILIZATION — holo progress bar instead of sparkline -->
+    <article class="panel prod-tile prod-tile--holo" data-reveal style="--reveal-delay: 240ms">
+      <p class="prod-tile__label">Budget Utilization</p>
+      <p class="prod-tile__value" id="prod-stat-budget" data-numeric>63%</p>
+      <p class="prod-tile__delta" id="prod-delta-budget">Q3 allocation · founder tier</p>
+      <div class="prod-tile__bar" role="img" aria-label="Budget utilization 63 percent">
+        <div class="prod-tile__bar-fill" id="prod-budget-fill" style="width: 63%"></div>
+      </div>
+    </article>
+
+  </section>
+
+  <!-- ============================================================
+       MAIN COLUMNS — productions table (left) · queue + feed (right)
+       ============================================================ -->
+  <div class="prod__columns">
+
+    <!-- ──────────────────────────────────────────────
+         PRODUCTIONS TABLE
+         ────────────────────────────────────────────── -->
+    <section class="panel prod-projects fx-scanlines" data-reveal aria-labelledby="prod-projects-title">
+      <header class="panel__header prod-projects__header">
+        <h2 class="prod-panel-title" id="prod-projects-title">PRODUCTIONS</h2>
+        <span class="prod-panel-meta" id="prod-projects-meta">6&nbsp;TITLES&nbsp;·&nbsp;2&nbsp;GENERATING</span>
+      </header>
+
+      <div class="prod-projects__scroll">
+        <table class="prod-table" id="prod-table">
+          <thead>
+            <tr>
+              <th scope="col">Title</th>
+              <th scope="col">Stage</th>
+              <th scope="col">Progress</th>
+              <th scope="col">Runtime</th>
+              <th scope="col">Updated</th>
+            </tr>
+          </thead>
+          <tbody id="prod-table-body">
+
+            <tr class="prod-row" data-project="last-signal">
+              <td data-label="TITLE"><span class="prod-row__title">The Last Signal</span></td>
+              <td data-label="STAGE">
+                <span class="prod-badge prod-badge--grading" data-role="badge">GRADING</span>
+              </td>
+              <td data-label="PROGRESS">
+                <div class="prod-progress">
+                  <div class="prod-progress__track">
+                    <div class="prod-progress__fill" data-role="fill" style="width: 88%"></div>
+                  </div>
+                  <span class="prod-progress__pct" data-role="pct">88%</span>
+                </div>
+              </td>
+              <td data-label="RUNTIME" class="prod-row__runtime">96 MIN</td>
+              <td data-label="UPDATED"><span class="prod-row__updated" data-role="updated">2m ago</span></td>
+            </tr>
+
+            <tr class="prod-row" data-project="meridian-drift">
+              <td data-label="TITLE"><span class="prod-row__title">Meridian Drift</span></td>
+              <td data-label="STAGE">
+                <span class="prod-badge prod-badge--generating" data-role="badge">
+                  <i class="prod-badge__dot" aria-hidden="true"></i>GENERATING
+                </span>
+              </td>
+              <td data-label="PROGRESS">
+                <div class="prod-progress">
+                  <div class="prod-progress__track">
+                    <div class="prod-progress__fill" data-role="fill" style="width: 47%"></div>
+                  </div>
+                  <span class="prod-progress__pct" data-role="pct">47%</span>
+                </div>
+              </td>
+              <td data-label="RUNTIME" class="prod-row__runtime">121 MIN</td>
+              <td data-label="UPDATED"><span class="prod-row__updated prod-row__updated--live" data-role="updated">live</span></td>
+            </tr>
+
+            <tr class="prod-row" data-project="saltwater-empire">
+              <td data-label="TITLE"><span class="prod-row__title">Saltwater Empire</span></td>
+              <td data-label="STAGE">
+                <span class="prod-badge prod-badge--storyboard" data-role="badge">STORYBOARD</span>
+              </td>
+              <td data-label="PROGRESS">
+                <div class="prod-progress">
+                  <div class="prod-progress__track">
+                    <div class="prod-progress__fill" data-role="fill" style="width: 22%"></div>
+                  </div>
+                  <span class="prod-progress__pct" data-role="pct">22%</span>
+                </div>
+              </td>
+              <td data-label="RUNTIME" class="prod-row__runtime">104 MIN</td>
+              <td data-label="UPDATED"><span class="prod-row__updated" data-role="updated">1h ago</span></td>
+            </tr>
+
+            <tr class="prod-row" data-project="quiet-machine">
+              <td data-label="TITLE"><span class="prod-row__title">A Quiet Machine</span></td>
+              <td data-label="STAGE">
+                <span class="prod-badge prod-badge--generating" data-role="badge">
+                  <i class="prod-badge__dot" aria-hidden="true"></i>GENERATING
+                </span>
+              </td>
+              <td data-label="PROGRESS">
+                <div class="prod-progress">
+                  <div class="prod-progress__track">
+                    <div class="prod-progress__fill" data-role="fill" style="width: 71%"></div>
+                  </div>
+                  <span class="prod-progress__pct" data-role="pct">71%</span>
+                </div>
+              </td>
+              <td data-label="RUNTIME" class="prod-row__runtime">89 MIN</td>
+              <td data-label="UPDATED"><span class="prod-row__updated prod-row__updated--live" data-role="updated">live</span></td>
+            </tr>
+
+            <tr class="prod-row" data-project="vermillion-sky">
+              <td data-label="TITLE"><span class="prod-row__title">Vermillion Sky</span></td>
+              <td data-label="STAGE">
+                <span class="prod-badge prod-badge--mastered" data-role="badge">MASTERED</span>
+              </td>
+              <td data-label="PROGRESS">
+                <div class="prod-progress">
+                  <div class="prod-progress__track">
+                    <div class="prod-progress__fill" data-role="fill" style="width: 100%"></div>
+                  </div>
+                  <span class="prod-progress__pct" data-role="pct">100%</span>
+                </div>
+              </td>
+              <td data-label="RUNTIME" class="prod-row__runtime">112 MIN</td>
+              <td data-label="UPDATED"><span class="prod-row__updated" data-role="updated">3d ago</span></td>
+            </tr>
+
+            <tr class="prod-row" data-project="hollow-orbit">
+              <td data-label="TITLE"><span class="prod-row__title">Hollow Orbit</span></td>
+              <td data-label="STAGE">
+                <span class="prod-badge prod-badge--script" data-role="badge">SCRIPT</span>
+              </td>
+              <td data-label="PROGRESS">
+                <div class="prod-progress">
+                  <div class="prod-progress__track">
+                    <div class="prod-progress__fill" data-role="fill" style="width: 8%"></div>
+                  </div>
+                  <span class="prod-progress__pct" data-role="pct">8%</span>
+                </div>
+              </td>
+              <td data-label="RUNTIME" class="prod-row__runtime">&mdash;</td>
+              <td data-label="UPDATED"><span class="prod-row__updated" data-role="updated">5h ago</span></td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="prod-projects__footer" id="prod-projects-footer" aria-hidden="true">
+        PIPELINE&nbsp;THROUGHPUT&nbsp;·&nbsp;2,304&nbsp;FRAMES/S&nbsp;&middot;&nbsp;AVG&nbsp;SCENE&nbsp;SOLVE&nbsp;3.1s&nbsp;&middot;&nbsp;DAILIES&nbsp;AUTO-EXPORT&nbsp;ON
+      </footer>
+    </section>
+
+    <!-- ──────────────────────────────────────────────
+         RIGHT COLUMN — render queue + activity feed
+         ────────────────────────────────────────────── -->
+    <aside class="prod__side">
+
+      <!-- RENDER QUEUE -->
+      <section class="panel prod-queue" data-reveal style="--reveal-delay: 120ms" aria-labelledby="prod-queue-title">
+        <header class="panel__header prod-queue__header">
+          <h2 class="prod-panel-title" id="prod-queue-title">RENDER&nbsp;QUEUE&nbsp;//&nbsp;HELIOS-9</h2>
+          <span class="chip chip--cyan prod-queue__chip">
+            <span class="chip__dot" aria-hidden="true"></span>4096&nbsp;NODES
+          </span>
+        </header>
+
+        <ol class="prod-queue__list" id="prod-queue-list" aria-live="off">
+          <!-- Static seed rows; frag-producer.js re-renders from
+               persisted state the moment it initializes. -->
+          <li class="prod-job">
+            <div class="prod-job__head">
+              <span class="prod-job__id">JOB-7841</span>
+              <span class="prod-job__pct">64%</span>
+            </div>
+            <p class="prod-job__target">Meridian Drift &mdash; SC 12&ndash;18</p>
+            <div class="prod-progress__track prod-job__track">
+              <div class="prod-progress__fill prod-job__fill" style="width: 64%"></div>
+            </div>
+            <p class="prod-job__meta">ETA 00:03:41 &middot; 812 NODES &middot; 2.4 TFLOP-HRS</p>
+          </li>
+          <li class="prod-job">
+            <div class="prod-job__head">
+              <span class="prod-job__id">JOB-7842</span>
+              <span class="prod-job__pct">31%</span>
+            </div>
+            <p class="prod-job__target">A Quiet Machine &mdash; SC 44</p>
+            <div class="prod-progress__track prod-job__track">
+              <div class="prod-progress__fill prod-job__fill" style="width: 31%"></div>
+            </div>
+            <p class="prod-job__meta">ETA 00:07:12 &middot; 640 NODES &middot; 1.8 TFLOP-HRS</p>
+          </li>
+          <li class="prod-job">
+            <div class="prod-job__head">
+              <span class="prod-job__id">JOB-7844</span>
+              <span class="prod-job__pct">12%</span>
+            </div>
+            <p class="prod-job__target">The Last Signal &mdash; GRADE PASS 2</p>
+            <div class="prod-progress__track prod-job__track">
+              <div class="prod-progress__fill prod-job__fill" style="width: 12%"></div>
+            </div>
+            <p class="prod-job__meta">ETA 00:11:03 &middot; 448 NODES &middot; 0.9 TFLOP-HRS</p>
+          </li>
+          <li class="prod-job">
+            <div class="prod-job__head">
+              <span class="prod-job__id">JOB-7845</span>
+              <span class="prod-job__pct">2%</span>
+            </div>
+            <p class="prod-job__target">Saltwater Empire &mdash; PREVIZ BATCH</p>
+            <div class="prod-progress__track prod-job__track">
+              <div class="prod-progress__fill prod-job__fill" style="width: 2%"></div>
+            </div>
+            <p class="prod-job__meta">ETA 00:14:56 &middot; 256 NODES &middot; 0.4 TFLOP-HRS</p>
+          </li>
+        </ol>
+
+        <footer class="prod-queue__telemetry" id="prod-queue-telemetry">
+          GPU&nbsp;91%&nbsp;&middot;&nbsp;VRAM&nbsp;78%&nbsp;&middot;&nbsp;TEMP&nbsp;64&deg;C&nbsp;&middot;&nbsp;QUEUE&nbsp;4
+        </footer>
+      </section>
+
+      <!-- ACTIVITY FEED -->
+      <section class="panel prod-activity" data-reveal style="--reveal-delay: 200ms" aria-labelledby="prod-activity-title">
+        <header class="panel__header prod-activity__header">
+          <h2 class="prod-panel-title" id="prod-activity-title">ACTIVITY</h2>
+          <span class="prod-panel-meta" id="prod-activity-meta">LAST&nbsp;8&nbsp;EVENTS</span>
+        </header>
+
+        <ol class="prod-activity__list" id="prod-activity-list" role="log" aria-live="polite" aria-relevant="additions">
+          <li class="prod-event prod-event--ok">
+            <span class="prod-event__time">18:41 UTC</span>
+            <span class="prod-event__text">Scene 42 mastered &mdash; <em>The Last Signal</em></span>
+          </li>
+          <li class="prod-event prod-event--violet">
+            <span class="prod-event__time">18:27 UTC</span>
+            <span class="prod-event__text">Voice model trained &mdash; cast &ldquo;IRIS&rdquo;</span>
+          </li>
+          <li class="prod-event prod-event--magenta">
+            <span class="prod-event__time">17:58 UTC</span>
+            <span class="prod-event__text">Color pipeline locked &mdash; <em>Vermillion Sky</em></span>
+          </li>
+          <li class="prod-event prod-event--cyan">
+            <span class="prod-event__time">17:12 UTC</span>
+            <span class="prod-event__text">Storyboard pass 3 approved &mdash; <em>Saltwater Empire</em></span>
+          </li>
+        </ol>
+      </section>
+
+    </aside>
+  </div>
+</div>
+
+<div id="view-generate" class="view aigen" aria-labelledby="aigen-title" hidden>
+
+  <!-- ============================================================
+       VIEW HEADER
+       ============================================================ -->
+  <header class="aigen__header">
+    <div class="aigen__heading">
+      <h1 class="aigen__title" id="aigen-title">AI Generation</h1>
+      <p class="aigen__sub">NEURAL&nbsp;PIPELINE&nbsp;//&nbsp;ORION-VII&nbsp;ENGINE</p>
+    </div>
+    <p class="aigen__engine" id="aigen-engine-chip">
+      <span class="aigen__engine-dot" aria-hidden="true"></span>
+      <span id="aigen-engine-text">ENGINE&nbsp;READY</span>
+    </p>
+  </header>
+
+  <div class="aigen__columns">
+
+    <!-- ==========================================================
+         COMPOSER (left · glow-edge hero surface)
+         ========================================================== -->
+    <section class="aigen-composer" aria-labelledby="aigen-composer-title">
+      <div class="aigen-composer__body">
+
+        <header class="aigen-panel__head">
+          <h2 class="aigen-panel__title" id="aigen-composer-title">COMPOSER&nbsp;//&nbsp;SC-01</h2>
+          <span class="aigen-panel__meta">INPUT&nbsp;LOCKED&nbsp;TO&nbsp;OPERATOR</span>
+        </header>
+
+        <!-- Prompt -->
+        <div class="aigen-field">
+          <label class="aigen-field__label" for="aigen-prompt">SYNOPSIS</label>
+          <div class="aigen-prompt">
+            <textarea
+              id="aigen-prompt"
+              class="aigen-prompt__input"
+              rows="6"
+              maxlength="2000"
+              placeholder="Describe your film&hellip;"
+              spellcheck="false"
+              autocomplete="off"></textarea>
+            <span class="aigen-prompt__count" id="aigen-count" aria-hidden="true">0&nbsp;/&nbsp;2000</span>
+          </div>
+        </div>
+
+        <!-- Genre -->
+        <div class="aigen-field aigen-field--half">
+          <label class="aigen-field__label" for="aigen-genre">GENRE</label>
+          <div class="aigen-select">
+            <select id="aigen-genre" class="aigen-select__input">
+              <option value="DRAMA">Drama</option>
+              <option value="SCI-FI" selected>Sci-Fi</option>
+              <option value="NEO-NOIR THRILLER">Neo-Noir Thriller</option>
+              <option value="DOCUMENTARY">Documentary</option>
+              <option value="ROMANCE">Romance</option>
+              <option value="HORROR">Horror</option>
+              <option value="WESTERN">Western</option>
+            </select>
+            <svg class="aigen-select__caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true">
+              <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Duration -->
+        <div class="aigen-field aigen-field--half">
+          <div class="aigen-field__row">
+            <label class="aigen-field__label" for="aigen-duration">DURATION</label>
+            <output class="aigen-field__readout" id="aigen-duration-out" for="aigen-duration">94&nbsp;MIN</output>
+          </div>
+          <input
+            type="range"
+            id="aigen-duration"
+            class="aigen-range"
+            min="5" max="180" step="1" value="94"
+            aria-describedby="aigen-duration-out">
+        </div>
+
+        <!-- Aspect ratio -->
+        <div class="aigen-field">
+          <span class="aigen-field__label" id="aigen-aspect-label">ASPECT&nbsp;RATIO</span>
+          <div class="aigen-seg" role="radiogroup" aria-labelledby="aigen-aspect-label" id="aigen-aspect">
+            <button type="button" class="aigen-seg__btn" role="radio" aria-checked="true"  data-aspect="2.39:1" tabindex="0">2.39:1</button>
+            <button type="button" class="aigen-seg__btn" role="radio" aria-checked="false" data-aspect="1.85:1" tabindex="-1">1.85:1</button>
+            <button type="button" class="aigen-seg__btn" role="radio" aria-checked="false" data-aspect="16:9"   tabindex="-1">16:9</button>
+            <button type="button" class="aigen-seg__btn" role="radio" aria-checked="false" data-aspect="4:3"    tabindex="-1">4:3</button>
+          </div>
+        </div>
+
+        <!-- Style preset -->
+        <div class="aigen-field">
+          <span class="aigen-field__label" id="aigen-preset-label">STYLE&nbsp;PRESET</span>
+          <div class="aigen-presets" role="radiogroup" aria-labelledby="aigen-preset-label" id="aigen-presets">
+
+            <button type="button" class="aigen-preset" role="radio" aria-checked="true" data-preset="NEO-NOIR" tabindex="0">
+              <span class="aigen-preset__swatch aigen-preset__swatch--noir" aria-hidden="true"></span>
+              <span class="aigen-preset__name">NEO-NOIR</span>
+              <span class="aigen-preset__desc">Wet neon &middot; hard shadow</span>
+            </button>
+
+            <button type="button" class="aigen-preset" role="radio" aria-checked="false" data-preset="SOLARPUNK" tabindex="-1">
+              <span class="aigen-preset__swatch aigen-preset__swatch--solar" aria-hidden="true"></span>
+              <span class="aigen-preset__name">SOLARPUNK</span>
+              <span class="aigen-preset__desc">Teal canopy &middot; amber light</span>
+            </button>
+
+            <button type="button" class="aigen-preset" role="radio" aria-checked="false" data-preset="ANALOG 70MM" tabindex="-1">
+              <span class="aigen-preset__swatch aigen-preset__swatch--analog" aria-hidden="true"></span>
+              <span class="aigen-preset__name">ANALOG&nbsp;70MM</span>
+              <span class="aigen-preset__desc">Warm halation &middot; grain</span>
+            </button>
+
+            <button type="button" class="aigen-preset" role="radio" aria-checked="false" data-preset="CHROME BRUTALIST" tabindex="-1">
+              <span class="aigen-preset__swatch aigen-preset__swatch--chrome" aria-hidden="true"></span>
+              <span class="aigen-preset__name">CHROME&nbsp;BRUTALIST</span>
+              <span class="aigen-preset__desc">Monochrome &middot; specular</span>
+            </button>
+
+          </div>
+        </div>
+
+        <!-- Seed -->
+        <div class="aigen-field aigen-field--half">
+          <label class="aigen-field__label" for="aigen-seed">SEED</label>
+          <div class="aigen-seed">
+            <input
+              type="text"
+              id="aigen-seed"
+              class="aigen-seed__input"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="9"
+              placeholder="RANDOM"
+              autocomplete="off"
+              spellcheck="false">
+            <button type="button" class="aigen-seed__dice" id="aigen-dice" aria-label="Randomize seed">
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"
+                   fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+                <rect x="2.5" y="2.5" width="15" height="15" rx="3.5"/>
+                <circle cx="7"  cy="7"  r="1.1" fill="currentColor" stroke="none"/>
+                <circle cx="13" cy="7"  r="1.1" fill="currentColor" stroke="none"/>
+                <circle cx="10" cy="10" r="1.1" fill="currentColor" stroke="none"/>
+                <circle cx="7"  cy="13" r="1.1" fill="currentColor" stroke="none"/>
+                <circle cx="13" cy="13" r="1.1" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quality tier -->
+        <fieldset class="aigen-field aigen-tiers">
+          <legend class="aigen-field__label">QUALITY&nbsp;TIER</legend>
+
+          <label class="aigen-tier">
+            <input type="radio" name="aigen-tier" value="DAILIES" class="aigen-tier__input">
+            <span class="aigen-tier__body">
+              <span class="aigen-tier__name">DAILIES</span>
+              <span class="aigen-tier__spec">720p&nbsp;draft</span>
+            </span>
+          </label>
+
+          <label class="aigen-tier">
+            <input type="radio" name="aigen-tier" value="THEATRICAL" class="aigen-tier__input" checked>
+            <span class="aigen-tier__body">
+              <span class="aigen-tier__name">THEATRICAL</span>
+              <span class="aigen-tier__spec">4K&nbsp;master</span>
+            </span>
+          </label>
+
+          <label class="aigen-tier aigen-tier--locked">
+            <input type="radio" name="aigen-tier" value="IMAX MASTER" class="aigen-tier__input">
+            <span class="aigen-tier__body">
+              <span class="aigen-tier__name">IMAX&nbsp;MASTER</span>
+              <span class="aigen-tier__spec">8K&nbsp;&middot;&nbsp;reserved</span>
+              <span class="aigen-tier__tag">FOUNDER&nbsp;TIER</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <!-- Generate -->
+        <button type="button" class="aigen-generate" id="aigen-generate" disabled>
+          <span class="aigen-generate__label" id="aigen-generate-label">GENERATE</span>
+        </button>
+        <p class="aigen-generate__hint" id="aigen-hint">Enter a synopsis to begin</p>
+
+      </div>
+    </section>
+
+    <!-- ==========================================================
+         JOB THEATER (right)
+         ========================================================== -->
+    <section class="aigen-theater" aria-labelledby="aigen-theater-title">
+
+      <header class="aigen-panel__head">
+        <h2 class="aigen-panel__title" id="aigen-theater-title">JOB&nbsp;THEATER</h2>
+        <span class="aigen-panel__meta" id="aigen-job-id">NO&nbsp;ACTIVE&nbsp;JOB</span>
+      </header>
+
+      <!-- (a) Stage tracker -->
+      <ol class="aigen-stages" id="aigen-stages" aria-label="Pipeline stages">
+        <li class="aigen-stage" data-stage="0"><span class="aigen-stage__dot" aria-hidden="true"></span><span class="aigen-stage__name">PARSING&nbsp;SCRIPT</span></li>
+        <li class="aigen-stage" data-stage="1"><span class="aigen-stage__dot" aria-hidden="true"></span><span class="aigen-stage__name">CASTING&nbsp;NEURAL&nbsp;ACTORS</span></li>
+        <li class="aigen-stage" data-stage="2"><span class="aigen-stage__dot" aria-hidden="true"></span><span class="aigen-stage__name">BLOCKING&nbsp;SCENES</span></li>
+        <li class="aigen-stage" data-stage="3"><span class="aigen-stage__dot" aria-hidden="true"></span><span class="aigen-stage__name">RENDERING&nbsp;FRAMES</span></li>
+        <li class="aigen-stage" data-stage="4"><span class="aigen-stage__dot" aria-hidden="true"></span><span class="aigen-stage__name">GRADING</span></li>
+        <li class="aigen-stage" data-stage="5"><span class="aigen-stage__dot" aria-hidden="true"></span><span class="aigen-stage__name">MASTERING&nbsp;AUDIO</span></li>
+      </ol>
+
+      <div class="aigen-progress" aria-hidden="true">
+        <div class="aigen-progress__fill" id="aigen-progress"></div>
+      </div>
+
+      <!-- (b) Preview -->
+      <div class="aigen-viewport" id="aigen-viewport" data-aspect="2.39:1">
+        <div class="aigen-frame" id="aigen-frame">
+          <i class="aigen-frame__tick aigen-frame__tick--tl" aria-hidden="true"></i>
+          <i class="aigen-frame__tick aigen-frame__tick--tr" aria-hidden="true"></i>
+          <i class="aigen-frame__tick aigen-frame__tick--bl" aria-hidden="true"></i>
+          <i class="aigen-frame__tick aigen-frame__tick--br" aria-hidden="true"></i>
+
+          <!-- Idle placeholder -->
+          <div class="aigen-idle" id="aigen-idle">
+            <svg class="aigen-idle__mark" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true"
+                 fill="none" stroke="currentColor">
+              <circle cx="50" cy="50" r="42" stroke-width="1.5" opacity="0.5"/>
+              <g stroke-width="2" stroke-linecap="round">
+                <path d="M50 14 L74 33"/><path d="M81 32 L74 62"/><path d="M81 68 L50 78"/>
+                <path d="M50 86 L26 67"/><path d="M19 68 L26 38"/><path d="M19 32 L50 22"/>
+              </g>
+              <circle cx="50" cy="50" r="4.5" fill="currentColor" stroke="none"/>
+            </svg>
+            <p class="aigen-idle__text">NO&nbsp;ACTIVE&nbsp;JOB&nbsp;//&nbsp;AWAITING&nbsp;DIRECTION</p>
+          </div>
+
+          <!-- Live preview -->
+          <canvas class="aigen-canvas" id="aigen-canvas" aria-hidden="true" hidden></canvas>
+          <div class="aigen-hud" id="aigen-hud" aria-hidden="true" hidden>
+            <span class="aigen-hud__item aigen-hud__item--tl" id="aigen-hud-id">GEN-000000</span>
+            <span class="aigen-hud__item aigen-hud__item--tr" id="aigen-hud-seed">SEED&nbsp;0</span>
+            <span class="aigen-hud__item aigen-hud__item--br" id="aigen-hud-tc">00:00:00:00</span>
+            <span class="aigen-hud__item aigen-hud__item--bl aigen-hud__rec" id="aigen-hud-rec">&#9679;&nbsp;REC</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- (c) Console log -->
+      <div class="aigen-console" id="aigen-console" role="log" aria-live="off" aria-label="Render console">
+        <p class="aigen-console__line aigen-console__line--info" data-boot>
+          <span class="aigen-console__ts">[--:--:--]</span>&nbsp;orion-vii: pipeline idle &middot; awaiting direction
+        </p>
+      </div>
+
+      <!-- Offscreen stage announcer -->
+      <p class="aigen-visually-hidden" id="aigen-live" aria-live="polite"></p>
+
+    </section>
+  </div>
+
+  <!-- ============================================================
+       RECENT MASTERS
+       ============================================================ -->
+  <section class="aigen-masters" aria-labelledby="aigen-masters-title">
+    <header class="aigen-panel__head">
+      <h2 class="aigen-panel__title" id="aigen-masters-title">RECENT&nbsp;MASTERS</h2>
+      <span class="aigen-panel__meta" id="aigen-masters-count">0&nbsp;ARCHIVED</span>
+    </header>
+    <ul class="aigen-masters__list" id="aigen-masters-list" role="list"></ul>
+    <p class="aigen-masters__empty" id="aigen-masters-empty">
+      NO&nbsp;MASTERS&nbsp;YET&nbsp;&middot;&nbsp;YOUR&nbsp;FIRST&nbsp;CUT&nbsp;WILL&nbsp;APPEAR&nbsp;HERE
+    </p>
+  </section>
+
+  <!-- Toast -->
+  <div class="aigen-toast" id="aigen-toast" role="status" hidden>
+    Master export is queued for secure delivery.
+  </div>
+
+</div>
+
+  </main>
+</div>
+
+<!-- Auth FIRST; the guard runs before any content script executes. -->
+<script src="js/auth.js"></script>
+<script>
+  /* Session gate — unauthorized visitors are redirected to index.html
+     by requireSession() before any dashboard logic runs. The flag halts
+     the merged content script below during the redirect. */
+  window.__CIN_SESSION = (window.CinamateAuth && typeof window.CinamateAuth.requireSession === 'function')
+    ? window.CinamateAuth.requireSession()
+    : null;
+  if (!window.__CIN_SESSION) { document.documentElement.style.visibility = 'hidden'; }
+</script>
+<script src="js/effects.js"></script>
+<script>
+/* ================================================================
+   CINAMATE — dashboard.html · merged content script
+   00 · App shell wiring (views, clock, cluster, sign-out, fx)
+   01 · Producer Suite simulation        — frag-producer.js
+   02 · AI Generation pipeline           — frag-aigen.js
+   ================================================================ */
+
+/* --------------------------------------------------------------
+   00 · APP SHELL WIRING
+   -------------------------------------------------------------- */
+
+(function () {
+  'use strict';
+
+  if (!window.__CIN_SESSION) { throw new Error('redirecting'); }
+
+  function byId(id) { return document.getElementById(id); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  /* ---- Operator readout ---- */
+  var opEl = byId('sb-operator');
+  var op = null;
+  try {
+    if (window.CinamateAuth && typeof window.CinamateAuth.operator === 'function') {
+      op = window.CinamateAuth.operator();
+    }
+  } catch (err) { /* no-op */ }
+  if (opEl) { opEl.textContent = op || '——'; }
+
+  /* ---- Session id — SES- + 8 hex, once per session ---- */
+  var sesEl = byId('sb-session');
+  var sid = null;
+  try { sid = window.sessionStorage.getItem('cin_session_id'); } catch (err) { /* no-op */ }
+  if (!sid) {
+    sid = 'SES-';
+    for (var i = 0; i < 8; i++) { sid += '0123456789ABCDEF'[Math.floor(Math.random() * 16)]; }
+    try { window.sessionStorage.setItem('cin_session_id', sid); } catch (err) { /* no-op */ }
+  }
+  if (sesEl) { sesEl.textContent = sid; }
+
+  /* ---- UTC clock, 1000ms, tabular-nums (no layout shift) ---- */
+  var clockEl = byId('sb-clock');
+  function tickClock() {
+    if (!clockEl) { return; }
+    var d = new Date();
+    clockEl.textContent =
+      d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()) +
+      ' ' + pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds()) +
+      ' UTC';
+  }
+  tickClock();
+  window.setInterval(tickClock, 1000);
+
+  /* ---- GPU cluster status — NOMINAL-weighted, 20–45s cadence ---- */
+  var clusterEl = byId('sb-cluster');
+  var CLUSTER_STATES = [
+    'HELIOS-9 NOMINAL',
+    'HELIOS-9 NOMINAL',
+    'HELIOS-9 NOMINAL',
+    'HELIOS-9 SCALING +64 NODES',
+    'HELIOS-9 THERMAL HEADROOM 82%'
+  ];
+  (function cycleCluster() {
+    window.setTimeout(function () {
+      if (clusterEl && !document.hidden) {
+        clusterEl.textContent = CLUSTER_STATES[Math.floor(Math.random() * CLUSTER_STATES.length)];
+      }
+      cycleCluster();
+    }, 20000 + Math.random() * 25000);
+  })();
+
+  /* ---- View switching (#suite / #generate, keys 1 / 2) ---- */
+  var views = { suite: byId('view-producer'), generate: byId('view-generate') };
+  var navs = { suite: byId('nav-suite'), generate: byId('nav-generate') };
+  var main = byId('main');
+
+  function show(name) {
+    if (!views[name]) { return; }
+    var k;
+    for (k in views) {
+      if (!Object.prototype.hasOwnProperty.call(views, k)) { continue; }
+      var active = k === name;
+      if (views[k]) { views[k].hidden = !active; }
+      if (navs[k]) {
+        navs[k].classList.toggle('is-active', active);
+        if (active) { navs[k].setAttribute('aria-current', 'page'); }
+        else { navs[k].removeAttribute('aria-current'); }
+      }
+    }
+    if (main) { main.scrollTop = 0; }
+    var want = '#' + name;
+    if (window.location.hash !== want) {
+      try { window.history.replaceState(null, '', want); }
+      catch (err) { window.location.hash = name; }
+    }
+    /* let canvases in the newly shown view size themselves */
+    try { window.dispatchEvent(new Event('resize')); } catch (err) { /* no-op */ }
+  }
+
+  if (navs.suite) { navs.suite.addEventListener('click', function () { show('suite'); }); }
+  if (navs.generate) { navs.generate.addEventListener('click', function () { show('generate'); }); }
+
+  window.addEventListener('hashchange', function () {
+    if (window.location.hash === '#generate') { show('generate'); }
+    else if (window.location.hash === '#suite') { show('suite'); }
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) { return; }
+    var t = ev.target;
+    var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)) { return; }
+    if (ev.key === '1') { show('suite'); }
+    if (ev.key === '2') { show('generate'); }
+  });
+
+  show(window.location.hash === '#generate' ? 'generate' : 'suite');
+
+  /* ---- Sign out ---- */
+  var exitBtn = byId('nav-exit');
+  if (exitBtn) {
+    exitBtn.addEventListener('click', function () {
+      try { window.CinamateAuth.signOut(); }
+      catch (err) { window.location.replace('index.html'); }
+    });
+  }
+
+  /* ---- Background fx: starfield (low density) + reveals ---- */
+  if (window.CinamateFX) {
+    if (typeof window.CinamateFX.starfield === 'function') {
+      window.CinamateFX.starfield(byId('stars'), { count: 90, speed: 0.5 });
+    }
+    if (typeof window.CinamateFX.reveal === 'function') {
+      window.CinamateFX.reveal();
+    }
+  }
+
+  /* ---- Cross-view hints from the AI Generation pipeline ---- */
+  var renderChip = byId('sb-render');
+  document.addEventListener('cinamate:job-start', function (ev) {
+    if (!renderChip) { return; }
+    var id = ev && ev.detail && ev.detail.id ? ev.detail.id : 'JOB';
+    renderChip.textContent = 'RENDERING ' + id;
+    renderChip.hidden = false;
+  });
+  document.addEventListener('cinamate:generation-complete', function () {
+    if (renderChip) { renderChip.hidden = true; }
+    if (navs.suite) {
+      navs.suite.classList.add('is-pinged');
+      window.setTimeout(function () { navs.suite.classList.remove('is-pinged'); }, 4000);
+    }
+  });
+})();
+
+/* ================================================================
+   CINAMATE — DASHBOARD · PRODUCER SUITE (fragment behavior)
+   ----------------------------------------------------------------
+   Simulation engine for the Producer Suite view:
+
+     · Stat tiles — FRAMES GENERATED ticks +40–600 every 2–5s,
+       RENDER HOURS +1 every ~30s, budget creeps; values flash
+       150ms on change; frames sparkline redraws from history.
+     · Productions table — GENERATING rows advance +0.1–0.4%
+       every 4–8s; at 100% the badge flips to GRADING with a glow
+       flash and an activity event fires.
+     · Render queue — job percentages tick upward on a 1.2s
+       setInterval; completed jobs flash DONE, linger 5s, collapse
+       out, and a fresh job enters at the bottom. Cluster telemetry
+       footer re-randomizes every 5s.
+     · Activity feed — prepends a plausible new event every
+       25–60s; capped at 8 entries.
+
+   All state persists to sessionStorage (keys prefixed cin_) so a
+   refresh resumes rather than resets. Jittered setTimeout chains
+   are used for organic cadences; deltas are clamped by real
+   elapsed time so a backgrounded tab never burst-catches-up.
+
+   Zero dependencies. Defensive throughout: any missing element or
+   API is a silent no-op — this file must never throw, whether the
+   fragment is embedded in dashboard.html or previewed standalone.
+   ================================================================ */
+
+(function () {
+  'use strict';
+
+  var root = document.getElementById('view-producer');
+  if (!root) { return; }
+
+  /* --------------------------------------------------------------
+     0 · UTILITIES
+     -------------------------------------------------------------- */
+
+  var KEYS = {
+    stats: 'cin_stats',
+    projects: 'cin_projects',
+    queue: 'cin_queue',
+    activity: 'cin_activity'
+  };
+
+  var reducedMotion = false;
+  try {
+    reducedMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  } catch (err) { /* no-op */ }
+
+  function $(sel) {
+    try { return root.querySelector(sel); } catch (err) { return null; }
+  }
+
+  function readStore(key, fallback) {
+    try {
+      var raw = window.sessionStorage.getItem(key);
+      if (!raw) { return fallback; }
+      var parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : fallback;
+    } catch (err) {
+      return fallback;
+    }
+  }
+
+  function writeStore(key, value) {
+    try {
+      window.sessionStorage.setItem(key, JSON.stringify(value));
+    } catch (err) { /* quota or privacy mode — telemetry is expendable */ }
+  }
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+  function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+
+  function formatGrouped(n) {
+    var s = String(Math.floor(Math.abs(n)));
+    var out = '';
+    var i;
+    for (i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 === 0) { out += ','; }
+      out += s.charAt(i);
+    }
+    return (n < 0 ? '-' : '') + out;
+  }
+
+  function formatMillions(n) {
+    return (n / 1e6).toFixed(2) + 'M';
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function utcStamp() {
+    var d = new Date();
+    return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ' UTC';
+  }
+
+  function formatEta(seconds) {
+    var s = Math.max(0, Math.round(seconds));
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    return pad2(h) + ':' + pad2(m) + ':' + pad2(sec);
+  }
+
+  /* Timer registry — everything is cleaned on pagehide. */
+  var timeouts = [];
+  var intervals = [];
+
+  function later(fn, ms) {
+    var id = window.setTimeout(fn, ms);
+    timeouts.push(id);
+    return id;
+  }
+
+  function every(fn, ms) {
+    var id = window.setInterval(fn, ms);
+    intervals.push(id);
+    return id;
+  }
+
+  /* Brief brightness flash on a live value change. */
+  function flash(el) {
+    if (!el || reducedMotion) { return; }
+    el.classList.remove('is-flash');
+    /* force restart of the transition */
+    void el.offsetWidth; /* eslint-disable-line no-void */
+    el.classList.add('is-flash');
+    later(function () { el.classList.remove('is-flash'); }, 220);
+  }
+
+  /* --------------------------------------------------------------
+     1 · ACTIVITY FEED
+     Declared first so the projects/queue simulations can push
+     events into it. Entries: { time, cls, text, title|null }.
+     -------------------------------------------------------------- */
+
+  var feedList = $('#prod-activity-list');
+  var MAX_EVENTS = 8;
+
+  var seedActivity = [
+    { time: '18:41 UTC', cls: 'ok',      text: 'Scene 42 mastered — ',        title: 'The Last Signal' },
+    { time: '18:27 UTC', cls: 'violet',  text: 'Voice model trained — cast “IRIS”', title: null },
+    { time: '17:58 UTC', cls: 'magenta', text: 'Color pipeline locked — ',    title: 'Vermillion Sky' },
+    { time: '17:12 UTC', cls: 'cyan',    text: 'Storyboard pass 3 approved — ', title: 'Saltwater Empire' }
+  ];
+
+  var activityState = readStore(KEYS.activity, null);
+  if (!activityState || !activityState.entries || !activityState.entries.length) {
+    activityState = { entries: seedActivity.slice() };
+  }
+
+  function buildEventNode(entry, entering) {
+    var li = document.createElement('li');
+    li.className = 'prod-event prod-event--' + (entry.cls || 'cyan') +
+      (entering ? ' is-entering' : '');
+
+    var time = document.createElement('span');
+    time.className = 'prod-event__time';
+    time.textContent = entry.time || utcStamp();
+
+    var text = document.createElement('span');
+    text.className = 'prod-event__text';
+    text.appendChild(document.createTextNode(entry.text || ''));
+    if (entry.title) {
+      var em = document.createElement('em');
+      em.textContent = entry.title;
+      text.appendChild(em);
+    }
+
+    li.appendChild(time);
+    li.appendChild(text);
+    return li;
+  }
+
+  function renderActivity() {
+    if (!feedList) { return; }
+    while (feedList.firstChild) { feedList.removeChild(feedList.firstChild); }
+    var i;
+    for (i = 0; i < activityState.entries.length; i++) {
+      feedList.appendChild(buildEventNode(activityState.entries[i], false));
+    }
+  }
+
+  function pushEvent(cls, text, title) {
+    var entry = { time: utcStamp(), cls: cls, text: text, title: title || null };
+    activityState.entries.unshift(entry);
+    if (activityState.entries.length > MAX_EVENTS) {
+      activityState.entries.length = MAX_EVENTS;
+    }
+    writeStore(KEYS.activity, activityState);
+
+    if (!feedList) { return; }
+    var node = buildEventNode(entry, !reducedMotion);
+    feedList.insertBefore(node, feedList.firstChild || null);
+    while (feedList.children.length > MAX_EVENTS) {
+      feedList.removeChild(feedList.lastChild);
+    }
+    later(function () { node.classList.remove('is-entering'); }, 400);
+  }
+
+  /* Ambient event generator — every 25–60s. */
+  var CAST_NAMES = ['IRIS', 'MARA', 'KOVACS', 'ELDRIN', 'SABLE', 'JUNO', 'VANCE'];
+  var FILM_TITLES = [
+    'The Last Signal', 'Meridian Drift', 'Saltwater Empire',
+    'A Quiet Machine', 'Vermillion Sky', 'Hollow Orbit'
+  ];
+
+  var EVENT_TEMPLATES = [
+    function () { return { cls: 'ok',      text: 'Scene ' + randInt(3, 96) + ' mastered — ', title: pick(FILM_TITLES) }; },
+    function () { return { cls: 'violet',  text: 'Voice model trained — cast “' + pick(CAST_NAMES) + '”', title: null }; },
+    function () { return { cls: 'cyan',    text: 'Neural actor calibrated — identity lock ' + rand(94, 99.6).toFixed(1) + '% — ', title: pick(FILM_TITLES) }; },
+    function () { return { cls: 'magenta', text: 'Grade node updated — LUT ΔE ' + rand(0.4, 1.9).toFixed(1) + ' — ', title: pick(FILM_TITLES) }; },
+    function () { return { cls: 'cyan',    text: 'Dailies exported — ' + randInt(8, 40) + ' shots — ', title: pick(FILM_TITLES) }; },
+    function () { return { cls: 'violet',  text: 'Storyboard pass ' + randInt(2, 6) + ' approved — ', title: pick(FILM_TITLES) }; },
+    function () { return { cls: 'ok',      text: 'Camera solve locked — dolly, ' + pick([24, 35, 50, 85]) + 'mm — ', title: pick(FILM_TITLES) }; }
+  ];
+
+  function scheduleAmbientEvent() {
+    later(function () {
+      if (!document.hidden) {
+        var e = pick(EVENT_TEMPLATES)();
+        pushEvent(e.cls, e.text, e.title);
+      }
+      scheduleAmbientEvent();
+    }, randInt(25000, 60000));
+  }
+
+  /* --------------------------------------------------------------
+     2 · STAT TILES
+     -------------------------------------------------------------- */
+
+  var els = {
+    frames: $('#prod-stat-frames'),
+    framesDelta: $('#prod-delta-frames'),
+    hours: $('#prod-stat-hours'),
+    budget: $('#prod-stat-budget'),
+    budgetFill: $('#prod-budget-fill'),
+    sparkLine: $('#prod-spark-frames-line'),
+    sparkFill: $('#prod-spark-frames-fill'),
+    productions: $('#prod-stat-productions')
+  };
+
+  var statsState = readStore(KEYS.stats, null);
+  if (!statsState || typeof statsState.frames !== 'number') {
+    statsState = {
+      frames: 48200000,
+      framesToday: 214388,
+      hours: 12847,
+      budget: 63,
+      productions: 6,
+      spark: [30, 31, 27, 28, 24, 25, 20, 21, 16, 15, 12, 10], /* y-coords, lower = higher */
+      lastTick: Date.now()
+    };
+  }
+
+  function renderStats(changed) {
+    if (els.frames) { els.frames.textContent = formatMillions(statsState.frames); }
+    if (els.framesDelta) { els.framesDelta.textContent = '+' + formatGrouped(statsState.framesToday) + ' today'; }
+    if (els.hours) { els.hours.textContent = formatGrouped(statsState.hours); }
+    if (els.budget) { els.budget.textContent = Math.round(statsState.budget) + '%'; }
+    if (els.budgetFill) { els.budgetFill.style.width = Math.round(statsState.budget) + '%'; }
+    if (els.productions) { els.productions.textContent = String(statsState.productions); }
+    if (changed) { flash(changed); }
+  }
+
+  function redrawSpark() {
+    if (!els.sparkLine || !statsState.spark || statsState.spark.length < 2) { return; }
+    var vals = statsState.spark;
+    var n = vals.length;
+    var pts = [];
+    var i;
+    for (i = 0; i < n; i++) {
+      var x = (120 / (n - 1)) * i;
+      pts.push(x.toFixed(1) + ',' + vals[i].toFixed(1));
+    }
+    var line = pts.join(' ');
+    try {
+      els.sparkLine.setAttribute('points', line);
+      if (els.sparkFill) {
+        els.sparkFill.setAttribute('points', '0,40 ' + line + ' 120,40');
+      }
+    } catch (err) { /* no-op */ }
+  }
+
+  /* FRAMES GENERATED — +40–600 every 2–5s (delta clamped by wall clock). */
+  function scheduleFramesTick() {
+    later(function () {
+      var now = Date.now();
+      var elapsed = Math.min(now - (statsState.lastTick || now), 8000);
+      statsState.lastTick = now;
+      if (!document.hidden && elapsed > 0) {
+        var add = randInt(40, 600);
+        statsState.frames += add;
+        statsState.framesToday += add;
+        writeStore(KEYS.stats, statsState);
+        renderStats(els.frames);
+        if (els.framesDelta) { flash(els.framesDelta); }
+      }
+      scheduleFramesTick();
+    }, randInt(2000, 5000));
+  }
+
+  /* RENDER HOURS — ~+1 every 30s. */
+  function scheduleHoursTick() {
+    later(function () {
+      if (!document.hidden) {
+        statsState.hours += 1;
+        writeStore(KEYS.stats, statsState);
+        renderStats(els.hours);
+      }
+      scheduleHoursTick();
+    }, randInt(26000, 36000));
+  }
+
+  /* BUDGET — glacial creep, capped well below alarm territory. */
+  function scheduleBudgetTick() {
+    later(function () {
+      if (!document.hidden && statsState.budget < 78 && Math.random() < 0.5) {
+        statsState.budget += 1;
+        writeStore(KEYS.stats, statsState);
+        renderStats(els.budget);
+      }
+      scheduleBudgetTick();
+    }, randInt(75000, 120000));
+  }
+
+  /* Frames sparkline — shift in a new point every ~18s. */
+  function scheduleSparkTick() {
+    later(function () {
+      if (!document.hidden && statsState.spark && statsState.spark.length) {
+        var last = statsState.spark[statsState.spark.length - 1];
+        var next = Math.max(4, Math.min(36, last + rand(-4, 2.4))); /* biased upward (lower y) */
+        statsState.spark.shift();
+        statsState.spark.push(next);
+        writeStore(KEYS.stats, statsState);
+        redrawSpark();
+      }
+      scheduleSparkTick();
+    }, randInt(14000, 22000));
+  }
+
+  /* --------------------------------------------------------------
+     3 · PRODUCTIONS TABLE
+     -------------------------------------------------------------- */
+
+  var STAGES = {
+    SCRIPT:     { label: 'SCRIPT',     mod: 'script',     dot: false },
+    STORYBOARD: { label: 'STORYBOARD', mod: 'storyboard', dot: false },
+    GENERATING: { label: 'GENERATING', mod: 'generating', dot: true  },
+    GRADING:    { label: 'GRADING',    mod: 'grading',    dot: false },
+    MASTERED:   { label: 'MASTERED',   mod: 'mastered',   dot: false }
+  };
+
+  var seedProjects = [
+    { key: 'last-signal',      title: 'The Last Signal',  stage: 'GRADING',    pct: 88,  updated: '2m ago' },
+    { key: 'meridian-drift',   title: 'Meridian Drift',   stage: 'GENERATING', pct: 47,  updated: 'live' },
+    { key: 'saltwater-empire', title: 'Saltwater Empire', stage: 'STORYBOARD', pct: 22,  updated: '1h ago' },
+    { key: 'quiet-machine',    title: 'A Quiet Machine',  stage: 'GENERATING', pct: 71,  updated: 'live' },
+    { key: 'vermillion-sky',   title: 'Vermillion Sky',   stage: 'MASTERED',   pct: 100, updated: '3d ago' },
+    { key: 'hollow-orbit',     title: 'Hollow Orbit',     stage: 'SCRIPT',     pct: 8,   updated: '5h ago' }
+  ];
+
+  var projectsState = readStore(KEYS.projects, null);
+  if (!projectsState || !projectsState.list || !projectsState.list.length) {
+    projectsState = { list: seedProjects.slice() };
+  }
+
+  function projectRow(key) {
+    return $('[data-project="' + key + '"]');
+  }
+
+  function renderProject(p, flipped) {
+    var row = projectRow(p.key);
+    if (!row) { return; }
+
+    var stage = STAGES[p.stage] || STAGES.SCRIPT;
+
+    /* badge */
+    var badge = row.querySelector('[data-role="badge"]');
+    if (badge) {
+      badge.className = 'prod-badge prod-badge--' + stage.mod;
+      while (badge.firstChild) { badge.removeChild(badge.firstChild); }
+      if (stage.dot) {
+        var dot = document.createElement('i');
+        dot.className = 'prod-badge__dot';
+        dot.setAttribute('aria-hidden', 'true');
+        badge.appendChild(dot);
+      }
+      badge.appendChild(document.createTextNode(stage.label));
+      if (flipped) { flash(badge); }
+    }
+
+    /* progress fill + percentage */
+    var fill = row.querySelector('[data-role="fill"]');
+    if (fill) {
+      fill.className = 'prod-progress__fill prod-progress__fill--' + stage.mod;
+      fill.style.width = Math.min(100, p.pct).toFixed(1) + '%';
+    }
+    var pctEl = row.querySelector('[data-role="pct"]');
+    if (pctEl) { pctEl.textContent = Math.floor(Math.min(100, p.pct)) + '%'; }
+
+    /* updated cell */
+    var upd = row.querySelector('[data-role="updated"]');
+    if (upd) {
+      upd.textContent = p.updated;
+      upd.className = 'prod-row__updated' +
+        (p.updated === 'live' ? ' prod-row__updated--live' : '');
+    }
+  }
+
+  function renderAllProjects() {
+    var i;
+    for (i = 0; i < projectsState.list.length; i++) {
+      renderProject(projectsState.list[i], false);
+    }
+    updatePortfolioMeta();
+  }
+
+  function updatePortfolioMeta() {
+    var generating = 0;
+    var i;
+    for (i = 0; i < projectsState.list.length; i++) {
+      if (projectsState.list[i].stage === 'GENERATING') { generating++; }
+    }
+    var meta = $('#prod-projects-meta');
+    if (meta) {
+      meta.textContent = projectsState.list.length + ' TITLES · ' + generating + ' GENERATING';
+    }
+    var line = $('#prod-portfolio-line');
+    if (line) {
+      line.textContent = 'PORTFOLIO // ' + projectsState.list.length + ' ACTIVE PRODUCTIONS';
+    }
+  }
+
+  /* GENERATING rows advance +0.1–0.4% every 4–8s (per-project chains). */
+  function scheduleProjectTick(p) {
+    later(function () {
+      if (p.stage === 'GENERATING' && !document.hidden) {
+        p.pct = Math.min(100, p.pct + rand(0.1, 0.4));
+
+        if (p.pct >= 100) {
+          /* hold the full bar for a beat, then flip to GRADING */
+          renderProject(p, false);
+          later(function () {
+            p.stage = 'GRADING';
+            p.pct = rand(3, 8);
+            p.updated = 'just now';
+            writeStore(KEYS.projects, projectsState);
+            renderProject(p, true);
+            updatePortfolioMeta();
+            pushEvent('magenta', 'Generation complete — grading begins — ', p.title);
+          }, 1800);
+        } else {
+          writeStore(KEYS.projects, projectsState);
+          renderProject(p, false);
+        }
+      }
+      scheduleProjectTick(p);
+    }, randInt(4000, 8000));
+  }
+
+  /* Pipeline footer — quiet plausible churn every ~9s. */
+  function schedulePipelineFooter() {
+    later(function () {
+      var footer = $('#prod-projects-footer');
+      if (footer && !document.hidden) {
+        footer.textContent =
+          'PIPELINE THROUGHPUT · ' + formatGrouped(randInt(1900, 2600)) + ' FRAMES/S · ' +
+          'AVG SCENE SOLVE ' + rand(2.4, 4.2).toFixed(1) + 's · ' +
+          'DAILIES AUTO-EXPORT ON';
+      }
+      schedulePipelineFooter();
+    }, randInt(8000, 12000));
+  }
+
+  /* --------------------------------------------------------------
+     4 · RENDER QUEUE — the assignment's core live loop
+     Percentages tick upward on a 1.2s setInterval; state persists
+     to sessionStorage so refresh resumes mid-render.
+     -------------------------------------------------------------- */
+
+  var queueList = $('#prod-queue-list');
+  var telemetryEl = $('#prod-queue-telemetry');
+
+  var JOB_SUFFIXES = [
+    function () { var a = randInt(1, 80); return 'SC ' + a + '–' + (a + randInt(2, 9)); },
+    function () { return 'SC ' + randInt(1, 96); },
+    function () { return 'GRADE PASS ' + randInt(1, 4); },
+    function () { return 'PREVIZ BATCH'; },
+    function () { return 'CROWD SIM PASS'; },
+    function () { return 'AUDIO STEM MIX'; },
+    function () { return 'DAILIES EXPORT'; }
+  ];
+  var NODE_COUNTS = [256, 448, 640, 812, 1024, 2048];
+
+  var queueState = readStore(KEYS.queue, null);
+  if (!queueState || !queueState.jobs || !queueState.jobs.length) {
+    queueState = {
+      nextNum: 7846,
+      jobs: [
+        { id: 'JOB-7841', target: 'Meridian Drift — SC 12–18',       pct: 64, rate: 0.55, nodes: 812,  tflops: '2.4', done: false, doneAt: 0 },
+        { id: 'JOB-7842', target: 'A Quiet Machine — SC 44',             pct: 31, rate: 0.38, nodes: 640,  tflops: '1.8', done: false, doneAt: 0 },
+        { id: 'JOB-7844', target: 'The Last Signal — GRADE PASS 2',      pct: 12, rate: 0.27, nodes: 448,  tflops: '0.9', done: false, doneAt: 0 },
+        { id: 'JOB-7845', target: 'Saltwater Empire — PREVIZ BATCH',     pct: 2,  rate: 0.20, nodes: 256,  tflops: '0.4', done: false, doneAt: 0 }
+      ],
+      lastTick: Date.now()
+    };
+  }
+
+  function makeJob() {
+    var id = 'JOB-' + queueState.nextNum;
+    queueState.nextNum += 1;
+    return {
+      id: id,
+      target: pick(FILM_TITLES) + ' — ' + pick(JOB_SUFFIXES)(),
+      pct: 0,
+      rate: rand(0.18, 0.85),           /* percent per second */
+      nodes: pick(NODE_COUNTS),
+      tflops: rand(0.4, 4.8).toFixed(1),
+      done: false,
+      doneAt: 0
+    };
+  }
+
+  function jobMetaText(job) {
+    if (job.done) {
+      return 'MASTER SEALED · ' + job.nodes + ' NODES · ' + job.tflops + ' TFLOP-HRS';
+    }
+    var etaSec = (100 - job.pct) / Math.max(job.rate, 0.01);
+    return 'ETA ' + formatEta(etaSec) + ' · ' + job.nodes + ' NODES · ' + job.tflops + ' TFLOP-HRS';
+  }
+
+  function buildJobNode(job, entering) {
+    var li = document.createElement('li');
+    li.className = 'prod-job' +
+      (job.done ? ' is-done' : '') +
+      (entering && !reducedMotion ? ' is-entering' : '');
+    li.setAttribute('data-job-id', job.id);
+
+    var head = document.createElement('div');
+    head.className = 'prod-job__head';
+
+    var id = document.createElement('span');
+    id.className = 'prod-job__id';
+    id.textContent = job.id;
+
+    var pct = document.createElement('span');
+    pct.className = 'prod-job__pct';
+    pct.setAttribute('data-role', 'job-pct');
+    pct.textContent = job.done ? 'DONE' : Math.floor(job.pct) + '%';
+
+    head.appendChild(id);
+    head.appendChild(pct);
+
+    var target = document.createElement('p');
+    target.className = 'prod-job__target';
+    target.textContent = job.target;
+
+    var track = document.createElement('div');
+    track.className = 'prod-progress__track prod-job__track';
+
+    var fill = document.createElement('div');
+    fill.className = 'prod-progress__fill prod-job__fill' +
+      (job.done ? '' : ' prod-progress__fill--generating');
+    fill.setAttribute('data-role', 'job-fill');
+    fill.style.width = Math.min(100, job.pct).toFixed(1) + '%';
+    track.appendChild(fill);
+
+    var meta = document.createElement('p');
+    meta.className = 'prod-job__meta';
+    meta.setAttribute('data-role', 'job-meta');
+    meta.textContent = jobMetaText(job);
+
+    li.appendChild(head);
+    li.appendChild(target);
+    li.appendChild(track);
+    li.appendChild(meta);
+    return li;
+  }
+
+  function renderQueue() {
+    if (!queueList) { return; }
+    while (queueList.firstChild) { queueList.removeChild(queueList.firstChild); }
+    var i;
+    for (i = 0; i < queueState.jobs.length; i++) {
+      queueList.appendChild(buildJobNode(queueState.jobs[i], false));
+    }
+  }
+
+  function updateJobNode(job) {
+    if (!queueList) { return; }
+    var li = queueList.querySelector('[data-job-id="' + job.id + '"]');
+    if (!li) { return; }
+    var pct = li.querySelector('[data-role="job-pct"]');
+    var fill = li.querySelector('[data-role="job-fill"]');
+    var meta = li.querySelector('[data-role="job-meta"]');
+    if (pct) { pct.textContent = job.done ? 'DONE' : Math.floor(job.pct) + '%'; }
+    if (fill) {
+      fill.style.width = Math.min(100, job.pct).toFixed(1) + '%';
+      if (job.done) {
+        fill.classList.remove('prod-progress__fill--generating');
+      }
+    }
+    if (meta) { meta.textContent = jobMetaText(job); }
+    if (job.done) { li.classList.add('is-done'); }
+  }
+
+  function retireJob(job) {
+    /* collapse the row, remove from state, append a fresh job */
+    var idx = queueState.jobs.indexOf(job);
+    if (idx !== -1) { queueState.jobs.splice(idx, 1); }
+    var fresh = makeJob();
+    queueState.jobs.push(fresh);
+    writeStore(KEYS.queue, queueState);
+
+    if (!queueList) { return; }
+    var li = queueList.querySelector('[data-job-id="' + job.id + '"]');
+    var append = function () {
+      if (queueList) { queueList.appendChild(buildJobNode(fresh, true)); }
+    };
+    if (li && !reducedMotion) {
+      li.classList.add('is-leaving');
+      later(function () {
+        if (li.parentNode) { li.parentNode.removeChild(li); }
+        append();
+      }, 220);
+    } else {
+      if (li && li.parentNode) { li.parentNode.removeChild(li); }
+      append();
+    }
+  }
+
+  /* Core 1.2s interval — the queue's heartbeat. */
+  var QUEUE_TICK_MS = 1200;
+
+  every(function () {
+    if (document.hidden) { queueState.lastTick = Date.now(); return; }
+
+    var now = Date.now();
+    /* clamp elapsed so a slept tab advances at most one generous beat */
+    var elapsedSec = Math.min((now - (queueState.lastTick || now)) / 1000, 4);
+    queueState.lastTick = now;
+    if (elapsedSec <= 0) { return; }
+
+    var i;
+    for (i = 0; i < queueState.jobs.length; i++) {
+      var job = queueState.jobs[i];
+      if (job.done) {
+        if (now - job.doneAt >= 5000 && !job.retiring) {
+          job.retiring = true;
+          retireJob(job);
+        }
+        continue;
+      }
+      job.pct += job.rate * elapsedSec * rand(0.5, 1.5);
+      if (job.pct >= 100) {
+        job.pct = 100;
+        job.done = true;
+        job.doneAt = now;
+        pushEvent('ok', 'Render complete — ' + job.id + ' — ', job.target.split(' — ')[0]);
+      }
+      updateJobNode(job);
+    }
+    writeStore(KEYS.queue, queueState);
+  }, QUEUE_TICK_MS);
+
+  /* Cluster telemetry footer — re-randomized every 5s. */
+  every(function () {
+    if (!telemetryEl || document.hidden) { return; }
+    var active = 0;
+    var i;
+    for (i = 0; i < queueState.jobs.length; i++) {
+      if (!queueState.jobs[i].done) { active++; }
+    }
+    telemetryEl.textContent =
+      'GPU ' + randInt(84, 97) + '% · ' +
+      'VRAM ' + randInt(62, 88) + '% · ' +
+      'TEMP ' + randInt(58, 71) + '°C · ' +
+      'QUEUE ' + active;
+  }, 5000);
+
+  /* --------------------------------------------------------------
+     5 · BOOT
+     -------------------------------------------------------------- */
+
+  renderActivity();
+  renderStats(null);
+  redrawSpark();
+  renderAllProjects();
+  renderQueue();
+
+  /* persist the (possibly seeded) baseline immediately so a refresh
+     resumes from identical state even before the first tick */
+  writeStore(KEYS.stats, statsState);
+  writeStore(KEYS.projects, projectsState);
+  writeStore(KEYS.queue, queueState);
+  writeStore(KEYS.activity, activityState);
+
+  scheduleFramesTick();
+  scheduleHoursTick();
+  scheduleBudgetTick();
+  scheduleSparkTick();
+  schedulePipelineFooter();
+  scheduleAmbientEvent();
+
+  (function () {
+    var i;
+    for (i = 0; i < projectsState.list.length; i++) {
+      scheduleProjectTick(projectsState.list[i]);
+    }
+  })();
+
+  /* Reveal fallback — if the host page never calls
+     CinamateFX.reveal(), make sure nothing stays hidden. */
+  later(function () {
+    if (window.CinamateFX && typeof window.CinamateFX.reveal === 'function') { return; }
+    var els2;
+    try { els2 = root.querySelectorAll('[data-reveal]'); } catch (err) { return; }
+    var i;
+    for (i = 0; i < els2.length; i++) { els2[i].classList.add('is-visible'); }
+  }, 600);
+
+  /* --------------------------------------------------------------
+     6 · CLEANUP — all timers die on pagehide
+     -------------------------------------------------------------- */
+
+  window.addEventListener('pagehide', function () {
+    var i;
+    for (i = 0; i < timeouts.length; i++) { window.clearTimeout(timeouts[i]); }
+    for (i = 0; i < intervals.length; i++) { window.clearInterval(intervals[i]); }
+    timeouts.length = 0;
+    intervals.length = 0;
+  });
+
+}());
+
+/* ================================================================
+   CINAMATE — DASHBOARD · AI GENERATION VIEW (fragment behavior)
+   ----------------------------------------------------------------
+   Owns everything inside #view-generate:
+
+     · composer wiring — prompt counter, genre, duration slider fill
+       + readout, aspect-ratio radiogroup, style-preset radiogroup,
+       seed input + dice, quality-tier cards, GENERATE arming
+     · the simulated six-stage pipeline (~20–25 s, jittered stage
+       durations, ×1.4 for IMAX tier), stage tracker + overall bar
+     · seeded generative canvas preview (mulberry32 PRNG — identical
+       seeds reproduce identical previews) that evolves per stage
+     · streaming monospace console log of plausible telemetry
+     · master-card completion → "Recent Masters" shelf, persisted in
+       sessionStorage("cin_generations"), capped at 8, thumbnails
+       dropped on QuotaExceededError
+
+   Zero dependencies. Every entry point is defensive: any missing
+   element or API results in a silent no-op, never a throw. All
+   timers are tracked and cleared on pagehide.
+   ================================================================ */
+
+(function () {
+  'use strict';
+
+  /* --------------------------------------------------------------
+     0 · Bootstrap & element registry
+     -------------------------------------------------------------- */
+
+  var root = document.getElementById('view-generate');
+  if (!root) return;
+
+  function byId(id) { return document.getElementById(id); }
+
+  var els = {
+    prompt:       byId('aigen-prompt'),
+    count:        byId('aigen-count'),
+    genre:        byId('aigen-genre'),
+    duration:     byId('aigen-duration'),
+    durationOut:  byId('aigen-duration-out'),
+    aspect:       byId('aigen-aspect'),
+    presets:      byId('aigen-presets'),
+    seed:         byId('aigen-seed'),
+    dice:         byId('aigen-dice'),
+    generate:     byId('aigen-generate'),
+    generateLbl:  byId('aigen-generate-label'),
+    hint:         byId('aigen-hint'),
+    stages:       byId('aigen-stages'),
+    progress:     byId('aigen-progress'),
+    viewport:     byId('aigen-viewport'),
+    frame:        byId('aigen-frame'),
+    idle:         byId('aigen-idle'),
+    canvas:       byId('aigen-canvas'),
+    hud:          byId('aigen-hud'),
+    hudId:        byId('aigen-hud-id'),
+    hudSeed:      byId('aigen-hud-seed'),
+    hudTc:        byId('aigen-hud-tc'),
+    console:      byId('aigen-console'),
+    live:         byId('aigen-live'),
+    jobId:        byId('aigen-job-id'),
+    mastersList:  byId('aigen-masters-list'),
+    mastersEmpty: byId('aigen-masters-empty'),
+    mastersCount: byId('aigen-masters-count'),
+    toast:        byId('aigen-toast'),
+    engineChip:   byId('aigen-engine-chip'),
+    engineText:   byId('aigen-engine-text')
+  };
+
+  var reducedMotion = false;
+  try {
+    reducedMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  } catch (err) { /* no-op */ }
+
+  /* All pending timers + rAF, cleaned on pagehide */
+  var timers = [];
+  var rafHandle = null;
+
+  function later(fn, ms) {
+    var id = window.setTimeout(function () {
+      var i = timers.indexOf(id);
+      if (i >= 0) timers.splice(i, 1);
+      fn();
+    }, ms);
+    timers.push(id);
+    return id;
+  }
+
+  function clearAllTimers() {
+    for (var i = 0; i < timers.length; i++) window.clearTimeout(timers[i]);
+    timers.length = 0;
+    if (rafHandle !== null && window.cancelAnimationFrame) {
+      window.cancelAnimationFrame(rafHandle);
+    }
+    rafHandle = null;
+  }
+
+  window.addEventListener('pagehide', clearAllTimers);
+
+  /* --------------------------------------------------------------
+     1 · Utilities — PRNG, formatting, storage
+     -------------------------------------------------------------- */
+
+  function mulberry32(a) {
+    a = a >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* Math.random only for non-reproducible things (jitter, log noise) */
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function utcTs() {
+    var d = new Date();
+    return '[' + pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) +
+           ':' + pad2(d.getUTCSeconds()) + ']';
+  }
+
+  function hex(len) {
+    var out = '';
+    for (var i = 0; i < len; i++) {
+      out += '0123456789ABCDEF'[Math.floor(Math.random() * 16)];
+    }
+    return out;
+  }
+
+  function groupThousands(n) {
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function titleCase(words) {
+    var minor = { a:1, an:1, the:1, of:1, in:1, on:1, at:1, to:1, and:1, or:1, for:1, with:1 };
+    return words.map(function (w, i) {
+      var lw = w.toLowerCase();
+      if (i > 0 && minor[lw]) return lw;
+      return lw.charAt(0).toUpperCase() + lw.slice(1);
+    }).join(' ');
+  }
+
+  function titleFromPrompt(prompt) {
+    var words = String(prompt || '').trim()
+      .replace(/[^\w\s'’-]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, randInt(6, 8));
+    if (!words.length) return 'Untitled Master';
+    return titleCase(words);
+  }
+
+  var STORE_KEY = 'cin_generations';
+
+  function loadMasters() {
+    try {
+      var raw = window.sessionStorage.getItem(STORE_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (err) { return null; }
+  }
+
+  function saveMasters(list) {
+    var trimmed = list.slice(0, 8);
+    try {
+      window.sessionStorage.setItem(STORE_KEY, JSON.stringify(trimmed));
+    } catch (err) {
+      /* Quota — drop thumbnails, keep metadata */
+      try {
+        var lean = trimmed.map(function (m) {
+          return { id: m.id, title: m.title, meta: m.meta, seed: m.seed, t: m.t };
+        });
+        window.sessionStorage.setItem(STORE_KEY, JSON.stringify(lean));
+      } catch (err2) { /* storage unavailable — session-only */ }
+    }
+    return trimmed;
+  }
+
+  /* --------------------------------------------------------------
+     2 · Style-preset palettes (feed the generative canvas)
+     -------------------------------------------------------------- */
+
+  var PALETTES = {
+    'NEO-NOIR': {
+      bg: [5, 8, 16],
+      blobs: [[34, 211, 238], [232, 121, 249], [139, 124, 246]],
+      streaks: [[34, 211, 238], [232, 121, 249]],
+      grain: 0.045
+    },
+    'SOLARPUNK': {
+      bg: [6, 18, 14],
+      blobs: [[47, 191, 163], [245, 197, 66], [123, 224, 195]],
+      streaks: [[47, 191, 163], [245, 197, 66]],
+      grain: 0.035
+    },
+    'ANALOG 70MM': {
+      bg: [18, 11, 6],
+      blobs: [[176, 118, 75], [234, 216, 166], [122, 78, 46]],
+      streaks: [[234, 216, 166], [176, 118, 75]],
+      grain: 0.11
+    },
+    'CHROME BRUTALIST': {
+      bg: [10, 12, 16],
+      blobs: [[124, 134, 152], [230, 234, 242], [58, 65, 80]],
+      streaks: [[230, 234, 242], [124, 134, 152]],
+      grain: 0.05
+    }
+  };
+
+  function paletteFor(name) {
+    return PALETTES[name] || PALETTES['NEO-NOIR'];
+  }
+
+  /* --------------------------------------------------------------
+     3 · Pipeline stage definitions
+     -------------------------------------------------------------- */
+
+  var STAGES = [
+    { key: 'parse',  label: 'Parsing script',        base: 2500 },
+    { key: 'cast',   label: 'Casting neural actors', base: 3500 },
+    { key: 'block',  label: 'Blocking scenes',       base: 3000 },
+    { key: 'render', label: 'Rendering frames',      base: 9000 },
+    { key: 'grade',  label: 'Grading',               base: 4000 },
+    { key: 'master', label: 'Mastering audio',       base: 3000 }
+  ];
+
+  var ACTOR_NAMES = ['MARA', 'IRIS', 'KOVACS', 'HALE', 'JUNO', 'ASHE', 'VER', 'ODEN', 'SELWYN', 'CALLA'];
+  var CAMERA_MOVES = ['dolly', 'crane', 'steadicam', 'locked-off', 'handheld sim', 'techno-crane'];
+  var LENSES = ['24mm', '35mm', '50mm', '85mm', '100mm macro'];
+
+  /* Per-stage console line factories. Each returns {text, cls}. */
+  function stageLines(job) {
+    var rng = job.rngLog;
+    var totalFrames = job.params.duration * 24 * 60;
+    var lut = job.params.preset.toLowerCase().replace(/\s+/g, '-');
+    return {
+      parse: [
+        function () {
+          return { cls: 'info', text: 'parse: ' + randInt(3, 5) + ' acts · ' +
+            randInt(24, 60) + ' scenes · ' + randInt(3, 8) + ' principal roles detected' };
+        },
+        function () {
+          return { cls: 'info', text: 'parse: ' + randInt(80, 240) +
+            ' narrative beats extracted · continuity graph ' + randInt(300, 900) + ' edges' };
+        },
+        function () {
+          return { cls: 'metric', text: 'parse: tonal register locked — "' +
+            job.params.genre.toLowerCase() + '" · confidence ' + (92 + rng() * 7).toFixed(1) + '%' };
+        }
+      ],
+      cast: [
+        function () {
+          return { cls: 'info', text: 'cast: synthesizing actor "' + pick(rng, ACTOR_NAMES) +
+            '" — identity lock ' + (94 + rng() * 5.6).toFixed(1) + '%' };
+        },
+        function () {
+          return { cls: 'info', text: 'cast: voice model bound · timbre variance ' +
+            (rng() * 0.09 + 0.01).toFixed(3) };
+        },
+        function () {
+          return { cls: 'metric', text: 'cast: wardrobe + period continuity resolved · ' +
+            randInt(40, 300) + ' assets staged' };
+        }
+      ],
+      block: [
+        function () {
+          return { cls: 'info', text: 'block: scene ' + randInt(1, 44) + ' camera solve OK (' +
+            pick(rng, CAMERA_MOVES) + ', ' + pick(rng, LENSES) + ')' };
+        },
+        function () {
+          return { cls: 'info', text: 'block: lighting rig auto-placed · ' +
+            randInt(6, 28) + ' virtual fixtures · key ratio ' + randInt(2, 8) + ':1' };
+        },
+        function () {
+          return { cls: 'metric', text: 'block: coverage plan — ' + randInt(2, 6) +
+            ' setups/scene avg · ' + job.params.aspect + ' safe-area verified' };
+        }
+      ],
+      render: [
+        function () {
+          var done = Math.round(totalFrames * Math.min(0.97, job.stageProgress * (0.7 + rng() * 0.3)));
+          return { cls: 'metric', text: 'render: frames ' + groupThousands(done) + ' / ' +
+            groupThousands(totalFrames) + ' · ' + groupThousands(2048 + Math.floor(rng() * 4096)) +
+            ' nodes · ' + (rng() * 30 + 8).toFixed(1) + ' TFLOP-hrs' };
+        },
+        function () {
+          return { cls: 'info', text: 'render: denoise pass ' + randInt(1, 4) +
+            ' · σ ' + (rng() * 0.6 + 0.2).toFixed(2) + ' · temporal stability OK' };
+        },
+        function () {
+          return { cls: 'info', text: 'render: cluster HELIOS-9 · gpu ' + randInt(82, 97) +
+            '% · vram ' + randInt(64, 88) + '% · thermal nominal' };
+        }
+      ],
+      grade: [
+        function () {
+          return { cls: 'info', text: 'grade: applying LUT ' + lut + '.cube · ΔE ' +
+            (rng() * 1.4 + 0.3).toFixed(1) };
+        },
+        function () {
+          return { cls: 'metric', text: 'grade: highlight rolloff matched · ' +
+            'shadow floor lifted ' + (rng() * 0.8 + 0.1).toFixed(2) + ' stops' };
+        },
+        function () {
+          return { cls: 'info', text: 'grade: shot-match sweep ' + randInt(88, 99) +
+            '% conform · ' + randInt(400, 1400) + ' nodes touched' };
+        }
+      ],
+      master: [
+        function () {
+          return { cls: 'info', text: 'master: loudness ' + (-(rng() * 1.6 + 13.2)).toFixed(1) +
+            ' LUFS · atmos bed locked' };
+        },
+        function () {
+          return { cls: 'info', text: 'master: dialogue stems aligned · drift ' +
+            (rng() * 3).toFixed(1) + ' ms · M&E pass clean' };
+        },
+        function () {
+          return { cls: 'metric', text: 'master: wrapping DCP · ' +
+            (job.params.tier === 'DAILIES' ? '720p draft' : job.params.tier === 'IMAX MASTER' ? '8K IMAX' : '4K theatrical') +
+            ' · checksum verified' };
+        }
+      ]
+    };
+  }
+
+  /* --------------------------------------------------------------
+     4 · Console log
+     -------------------------------------------------------------- */
+
+  var MAX_LOG_LINES = 60;
+
+  function logLine(text, cls) {
+    if (!els.console) return;
+    var p = document.createElement('p');
+    p.className = 'aigen-console__line' +
+      (cls && cls !== 'info' ? ' aigen-console__line--' + cls : '');
+    var ts = document.createElement('span');
+    ts.className = 'aigen-console__ts';
+    ts.textContent = utcTs();
+    p.appendChild(ts);
+    p.appendChild(document.createTextNode(' ' + text));
+    els.console.appendChild(p);
+    while (els.console.children.length > MAX_LOG_LINES) {
+      els.console.removeChild(els.console.firstChild);
+    }
+    els.console.scrollTop = els.console.scrollHeight;
+  }
+
+  function clearConsole() {
+    if (!els.console) return;
+    while (els.console.firstChild) els.console.removeChild(els.console.firstChild);
+  }
+
+  /* --------------------------------------------------------------
+     5 · Seeded generative preview (canvas)
+     --------------------------------------------------------------
+     A Scene is fully derived from (seed, preset): blob orbits,
+     particle field and grain are all drawn from one mulberry32
+     stream, so the same seed reproduces the same preview.
+     Evolution: particles ramp up + trails crispen through
+     RENDERING FRAMES; a color sweep crosses during GRADING.
+     -------------------------------------------------------------- */
+
+  function makeGrainTile(rng, size, mono) {
+    var c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    var ctx = c.getContext('2d');
+    if (!ctx) return null;
+    var img = ctx.createImageData(size, size);
+    for (var i = 0; i < img.data.length; i += 4) {
+      var v = Math.floor(rng() * 255);
+      img.data[i] = v;
+      img.data[i + 1] = mono ? v : Math.floor(rng() * 255);
+      img.data[i + 2] = mono ? v : Math.floor(rng() * 255);
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  function makeScene(seed, presetName) {
+    var rng = mulberry32(seed);
+    var pal = paletteFor(presetName);
+
+    var blobs = [];
+    var blobCount = 5 + Math.floor(rng() * 3);
+    for (var i = 0; i < blobCount; i++) {
+      blobs.push({
+        color: pal.blobs[i % pal.blobs.length],
+        cx: 0.15 + rng() * 0.7,
+        cy: 0.15 + rng() * 0.7,
+        ax: 0.08 + rng() * 0.22,      /* orbital amplitude, fraction of w */
+        ay: 0.06 + rng() * 0.18,
+        sx: 0.05 + rng() * 0.12,      /* angular speeds (rad/s) */
+        sy: 0.04 + rng() * 0.1,
+        p1: rng() * Math.PI * 2,
+        p2: rng() * Math.PI * 2,
+        r:  0.18 + rng() * 0.3,       /* radius, fraction of min(w,h) */
+        breath: 0.1 + rng() * 0.2
+      });
+    }
+
+    var MAX_PARTICLES = 220;
+    var particles = [];
+    for (var j = 0; j < MAX_PARTICLES; j++) {
+      particles.push({
+        x: rng(), y: rng(),
+        v: 0.35 + rng() * 0.9,
+        c: pal.streaks[j % pal.streaks.length],
+        life: rng()
+      });
+    }
+
+    var fieldA = 2 + rng() * 3;       /* flow-field frequencies */
+    var fieldB = 2 + rng() * 3;
+    var fieldP = rng() * Math.PI * 2;
+    var grain = makeGrainTile(mulberry32(seed ^ 0x9E3779B9), 96,
+      presetName === 'CHROME BRUTALIST' || presetName === 'ANALOG 70MM');
+
+    /* phase: { stage: 0..5, progress: 0..1 within stage } */
+    function draw(ctx, w, h, t, phase, dt) {
+      var stage = phase.stage;
+      var prog = phase.progress;
+
+      /* Trail persistence: heavier early (dreamy), crisper while
+         rendering. Draw translucent bg instead of clearing. */
+      var fade = 0.16;
+      if (stage === 3) fade = 0.16 + prog * 0.24;
+      if (stage >= 4) fade = 0.34;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(' + pal.bg[0] + ',' + pal.bg[1] + ',' + pal.bg[2] + ',' + fade + ')';
+      ctx.fillRect(0, 0, w, h);
+
+      /* Blobs — additive drifting light masses */
+      ctx.globalCompositeOperation = 'lighter';
+      var minWH = Math.min(w, h);
+      for (var i = 0; i < blobs.length; i++) {
+        var b = blobs[i];
+        var bx = (b.cx + Math.sin(t * b.sx + b.p1) * b.ax) * w;
+        var by = (b.cy + Math.cos(t * b.sy + b.p2) * b.ay) * h;
+        var br = (b.r + Math.sin(t * 0.3 + b.p1) * b.breath * 0.5) * minWH;
+        if (br < 4) br = 4;
+        var alpha = 0.10 + (stage >= 1 ? 0.05 : 0) + (stage === 3 ? prog * 0.06 : stage > 3 ? 0.06 : 0);
+        var g = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+        g.addColorStop(0, 'rgba(' + b.color[0] + ',' + b.color[1] + ',' + b.color[2] + ',' + alpha + ')');
+        g.addColorStop(1, 'rgba(' + b.color[0] + ',' + b.color[1] + ',' + b.color[2] + ',0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      /* Flow-field streaks — count ramps hard during RENDERING */
+      var frac = 0.2;                       /* fraction of MAX_PARTICLES */
+      if (stage === 2) frac = 0.35;
+      if (stage === 3) frac = 0.35 + prog * 0.65;
+      if (stage >= 4) frac = 1;
+      var count = Math.floor(MAX_PARTICLES * frac);
+      var step = (dt || 0.016) * 0.06;
+      ctx.lineWidth = Math.max(1, minWH / 480);
+      ctx.lineCap = 'round';
+      for (var p = 0; p < count; p++) {
+        var pt = particles[p];
+        var ang = Math.sin(pt.x * fieldA + t * 0.22 + fieldP) * Math.PI +
+                  Math.cos(pt.y * fieldB - t * 0.17) * Math.PI * 0.5;
+        var nx = pt.x + Math.cos(ang) * step * pt.v;
+        var ny = pt.y + Math.sin(ang) * step * pt.v * (h > 0 ? (w / h) : 1) * 0.6;
+        var sa = 0.05 + 0.1 * pt.life;
+        ctx.strokeStyle = 'rgba(' + pt.c[0] + ',' + pt.c[1] + ',' + pt.c[2] + ',' + sa + ')';
+        ctx.beginPath();
+        ctx.moveTo(pt.x * w, pt.y * h);
+        ctx.lineTo(nx * w, ny * h);
+        ctx.stroke();
+        pt.x = nx; pt.y = ny;
+        pt.life -= (dt || 0.016) * 0.12;
+        if (pt.x < -0.05 || pt.x > 1.05 || pt.y < -0.05 || pt.y > 1.05 || pt.life <= 0) {
+          /* deterministic-ish respawn from the same stream */
+          pt.x = rng(); pt.y = rng(); pt.life = 0.4 + rng() * 0.6;
+        }
+      }
+
+      /* GRADING — a color-matrix sweep crossing left → right */
+      if (stage === 4) {
+        var sweepX = (prog * 1.4 - 0.2) * w;
+        var band = w * 0.22;
+        var sg = ctx.createLinearGradient(sweepX - band, 0, sweepX + band, 0);
+        var hot = pal.blobs[1];
+        sg.addColorStop(0, 'rgba(' + hot[0] + ',' + hot[1] + ',' + hot[2] + ',0)');
+        sg.addColorStop(0.5, 'rgba(' + hot[0] + ',' + hot[1] + ',' + hot[2] + ',0.10)');
+        sg.addColorStop(1, 'rgba(' + hot[0] + ',' + hot[1] + ',' + hot[2] + ',0)');
+        ctx.fillStyle = sg;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      /* Anamorphic hairline through the optical center */
+      ctx.globalCompositeOperation = 'lighter';
+      var fl = ctx.createLinearGradient(0, 0, w, 0);
+      var fc = pal.streaks[0];
+      fl.addColorStop(0, 'rgba(' + fc[0] + ',' + fc[1] + ',' + fc[2] + ',0)');
+      fl.addColorStop(0.5, 'rgba(' + fc[0] + ',' + fc[1] + ',' + fc[2] + ',0.08)');
+      fl.addColorStop(1, 'rgba(' + fc[0] + ',' + fc[1] + ',' + fc[2] + ',0)');
+      ctx.fillStyle = fl;
+      ctx.fillRect(0, h * 0.5 - 0.5, w, 1);
+
+      /* Film grain — shifting tile at low alpha */
+      if (grain) {
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalAlpha = pal.grain;
+        var gx = -Math.floor(rng() * 96);
+        var gy = -Math.floor(rng() * 96);
+        for (var yy = gy; yy < h; yy += 96) {
+          for (var xx = gx; xx < w; xx += 96) {
+            ctx.drawImage(grain, xx, yy);
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.globalCompositeOperation = 'source-over';
+
+      /* Letterbox vignette */
+      var vg = ctx.createRadialGradient(w / 2, h / 2, minWH * 0.35, w / 2, h / 2, Math.max(w, h) * 0.72);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    /* One-shot render for static contexts (reduced motion, thumbs):
+       run a short warm-up so trails/streaks have substance. */
+    function drawStatic(ctx, w, h, phase) {
+      ctx.fillStyle = 'rgb(' + pal.bg[0] + ',' + pal.bg[1] + ',' + pal.bg[2] + ')';
+      ctx.fillRect(0, 0, w, h);
+      for (var k = 0; k < 26; k++) {
+        draw(ctx, w, h, 4 + k * 0.14, phase, 0.14);
+      }
+    }
+
+    return { draw: draw, drawStatic: drawStatic };
+  }
+
+  /* --------------------------------------------------------------
+     6 · Composer wiring
+     -------------------------------------------------------------- */
+
+  var MIN_PROMPT = 12;
+
+  function promptText() {
+    return els.prompt ? String(els.prompt.value || '').trim() : '';
+  }
+
+  function refreshComposer() {
+    /* counter */
+    if (els.count && els.prompt) {
+      var len = els.prompt.value.length;
+      els.count.textContent = len + ' / 2000';
+      els.count.classList.toggle('is-armed', len > 0);
+    }
+    /* generate arming */
+    var armed = promptText().length >= MIN_PROMPT && !activeJob;
+    if (els.generate) els.generate.disabled = !armed;
+    if (els.hint) {
+      if (activeJob) {
+        els.hint.textContent = 'Pipeline occupied — one job at a time';
+        els.hint.classList.remove('is-hidden');
+      } else if (promptText().length < MIN_PROMPT) {
+        els.hint.textContent = 'Enter a synopsis to begin';
+        els.hint.classList.remove('is-hidden');
+      } else {
+        els.hint.classList.add('is-hidden');
+      }
+    }
+  }
+
+  if (els.prompt) els.prompt.addEventListener('input', refreshComposer);
+
+  /* Duration slider — readout + gradient fill percentage */
+  function refreshDuration() {
+    if (!els.duration) return;
+    var v = parseInt(els.duration.value, 10) || 5;
+    if (els.durationOut) els.durationOut.textContent = v + ' MIN';
+    var pct = ((v - 5) / (180 - 5)) * 100;
+    els.duration.style.setProperty('--aigen-range-fill', pct.toFixed(1) + '%');
+  }
+  if (els.duration) {
+    els.duration.addEventListener('input', refreshDuration);
+    refreshDuration();
+  }
+
+  /* Generic radiogroup: roving tabindex + arrow keys + click */
+  function radiogroup(container, onChange) {
+    if (!container) return;
+    var items = Array.prototype.slice.call(container.querySelectorAll('[role="radio"]'));
+    if (!items.length) return;
+
+    function select(idx) {
+      for (var i = 0; i < items.length; i++) {
+        var on = i === idx;
+        items[i].setAttribute('aria-checked', on ? 'true' : 'false');
+        items[i].tabIndex = on ? 0 : -1;
+      }
+      if (typeof onChange === 'function') onChange(items[idx]);
+    }
+
+    items.forEach(function (item, idx) {
+      item.addEventListener('click', function () { select(idx); });
+      item.addEventListener('keydown', function (ev) {
+        var next = -1;
+        if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') next = (idx + 1) % items.length;
+        if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') next = (idx - 1 + items.length) % items.length;
+        if (ev.key === ' ' || ev.key === 'Enter') next = idx;
+        if (next >= 0) {
+          ev.preventDefault();
+          select(next);
+          items[next].focus();
+        }
+      });
+    });
+  }
+
+  radiogroup(els.aspect, function (btn) {
+    if (els.viewport && btn) {
+      els.viewport.setAttribute('data-aspect', btn.getAttribute('data-aspect') || '2.39:1');
+      sizeCanvas();
+    }
+  });
+  radiogroup(els.presets, null);
+
+  function checkedIn(container, attr) {
+    if (!container) return null;
+    var el = container.querySelector('[role="radio"][aria-checked="true"]');
+    return el ? el.getAttribute(attr) : null;
+  }
+
+  /* Seed input: digits only; dice randomizes */
+  if (els.seed) {
+    els.seed.addEventListener('input', function () {
+      var clean = els.seed.value.replace(/\D+/g, '').slice(0, 9);
+      if (clean !== els.seed.value) els.seed.value = clean;
+    });
+  }
+  if (els.dice) {
+    els.dice.addEventListener('click', function () {
+      if (els.seed) els.seed.value = String(Math.floor(Math.random() * 1000000000));
+    });
+  }
+
+  function currentTier() {
+    var el = root.querySelector('input[name="aigen-tier"]:checked');
+    return el ? el.value : 'THEATRICAL';
+  }
+
+  function gatherParams() {
+    return {
+      genre: els.genre ? els.genre.value : 'SCI-FI',
+      duration: els.duration ? (parseInt(els.duration.value, 10) || 94) : 94,
+      aspect: checkedIn(els.aspect, 'data-aspect') || '2.39:1',
+      preset: checkedIn(els.presets, 'data-preset') || 'NEO-NOIR',
+      tier: currentTier()
+    };
+  }
+
+  /* --------------------------------------------------------------
+     7 · Canvas plumbing
+     -------------------------------------------------------------- */
+
+  var ctx2d = null;
+
+  function sizeCanvas() {
+    if (!els.canvas || !els.frame) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = els.frame.clientWidth;
+    var h = els.frame.clientHeight;
+    if (w < 2 || h < 2) return;
+    els.canvas.width = Math.round(w * dpr);
+    els.canvas.height = Math.round(h * dpr);
+    if (!ctx2d && els.canvas.getContext) ctx2d = els.canvas.getContext('2d');
+    if (ctx2d) ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  window.addEventListener('resize', function () {
+    sizeCanvas();
+    if (activeJob && reducedMotion) renderStaticFrame(activeJob);
+  });
+
+  function renderStaticFrame(job) {
+    if (!ctx2d || !els.frame) return;
+    job.scene.drawStatic(ctx2d, els.frame.clientWidth, els.frame.clientHeight,
+      { stage: job.stageIndex, progress: job.stageProgress });
+  }
+
+  /* --------------------------------------------------------------
+     8 · The job engine
+     -------------------------------------------------------------- */
+
+  var activeJob = null;
+
+  function setStageUI(index) {
+    if (!els.stages) return;
+    var items = els.stages.querySelectorAll('.aigen-stage');
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('is-done', i < index);
+      items[i].classList.toggle('is-active', i === index);
+    }
+  }
+
+  function resetStagesUI() {
+    if (!els.stages) return;
+    var items = els.stages.querySelectorAll('.aigen-stage');
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.remove('is-done', 'is-active');
+    }
+  }
+
+  function announce(text) {
+    if (els.live) els.live.textContent = text;
+  }
+
+  function setBusy(busy, jobLabel) {
+    if (els.generate) {
+      els.generate.classList.toggle('is-busy', busy);
+      if (els.generateLbl) {
+        els.generateLbl.textContent = busy ? 'RENDERING…' : 'GENERATE';
+      }
+    }
+    if (els.engineChip) {
+      els.engineChip.classList.toggle('is-busy', busy);
+      if (els.engineText) {
+        els.engineText.textContent = busy ? ('RENDERING ' + jobLabel) : 'ENGINE READY';
+      }
+    }
+    refreshComposer();
+  }
+
+  function startJob() {
+    if (activeJob) return;
+    var prompt = promptText();
+    if (prompt.length < MIN_PROMPT) return;
+
+    var params = gatherParams();
+    var seedStr = els.seed ? els.seed.value.trim() : '';
+    var seed = seedStr ? (parseInt(seedStr, 10) >>> 0)
+                       : Math.floor(Math.random() * 1000000000);
+    if (els.seed) els.seed.value = String(seed);
+
+    var tierMult = params.tier === 'IMAX MASTER' ? 1.4 : 1;
+    var stages = STAGES.map(function (s) {
+      return {
+        key: s.key,
+        label: s.label,
+        dur: Math.round(s.base * tierMult * rand(0.7, 1.3))
+      };
+    });
+    var totalDur = stages.reduce(function (a, s) { return a + s.dur; }, 0);
+
+    var job = {
+      id: 'GEN-' + hex(6),
+      prompt: prompt,
+      params: params,
+      seed: seed,
+      startedAt: Date.now(),
+      stages: stages,
+      totalDur: totalDur,
+      stageIndex: 0,
+      stageProgress: 0,
+      stageStartedAt: Date.now(),
+      scene: makeScene(seed, params.preset),
+      rngLog: mulberry32(seed ^ 0x1F3D5B79),
+      lineFns: null,
+      done: false
+    };
+    job.lineFns = stageLines(job);
+    activeJob = job;
+
+    /* Theater activation */
+    if (els.idle) els.idle.hidden = true;
+    if (els.canvas) els.canvas.hidden = false;
+    if (els.hud) els.hud.hidden = false;
+    if (els.hudId) els.hudId.textContent = job.id;
+    if (els.hudSeed) els.hudSeed.textContent = 'SEED ' + job.seed;
+    if (els.hudTc) els.hudTc.textContent = '00:00:00:00';
+    if (els.jobId) {
+      els.jobId.textContent = job.id + ' · RENDERING';
+      els.jobId.classList.add('is-live');
+    }
+    if (els.progress) els.progress.style.width = '0%';
+
+    resetStagesUI();
+    setStageUI(0);
+    setBusy(true, job.id);
+    sizeCanvas();
+
+    clearConsole();
+    logLine('orion-vii: job ' + job.id + ' accepted · seed ' + job.seed +
+      ' · ' + params.preset + ' · ' + params.duration + ' min · ' +
+      params.aspect + ' · ' + params.tier, 'info');
+    announce('Job started. Parsing script.');
+
+    /* Cross-view hint for the dashboard shell, if it listens */
+    try {
+      document.dispatchEvent(new CustomEvent('cinamate:job-start', { detail: { id: job.id } }));
+    } catch (err) { /* no-op */ }
+
+    scheduleStage(job, 0);
+    scheduleLogs(job);
+
+    if (reducedMotion) {
+      renderStaticFrame(job);
+    } else {
+      startPreviewLoop(job);
+    }
+  }
+
+  function scheduleStage(job, index) {
+    job.stageIndex = index;
+    job.stageProgress = 0;
+    job.stageStartedAt = Date.now();
+    setStageUI(index);
+
+    var s = job.stages[index];
+    announce(s.label + (index === 3 ? ', this is the long pass' : '') + '.');
+
+    later(function () {
+      if (activeJob !== job) return;
+      if (index + 1 < job.stages.length) {
+        logStageWrap(job, index);
+        scheduleStage(job, index + 1);
+        if (reducedMotion) renderStaticFrame(job);
+      } else {
+        logStageWrap(job, index);
+        completeJob(job);
+      }
+    }, s.dur);
+
+    /* progress ticker (also drives stageProgress for the renderer) */
+    tickProgress(job);
+  }
+
+  function tickProgress(job) {
+    later(function () {
+      if (activeJob !== job || job.done) return;
+      var elapsedStage = Date.now() - job.stageStartedAt;
+      var s = job.stages[job.stageIndex];
+      job.stageProgress = Math.min(1, elapsedStage / s.dur);
+
+      var elapsedTotal = 0;
+      for (var i = 0; i < job.stageIndex; i++) elapsedTotal += job.stages[i].dur;
+      elapsedTotal += Math.min(elapsedStage, s.dur);
+      var pct = Math.min(99, (elapsedTotal / job.totalDur) * 100);
+      if (els.progress) els.progress.style.width = pct.toFixed(1) + '%';
+
+      if (job.stageIndex === 3 && Math.random() < 0.35) {
+        announce('Rendering frames, ' + Math.round(job.stageProgress * 100) + ' percent.');
+      }
+      tickProgress(job);
+    }, 400);
+  }
+
+  function logStageWrap(job, index) {
+    var s = job.stages[index];
+    logLine(s.key + ': stage complete · ' + (s.dur / 1000).toFixed(1) + 's', 'success');
+  }
+
+  function scheduleLogs(job) {
+    later(function () {
+      if (activeJob !== job || job.done) return;
+      var key = job.stages[job.stageIndex].key;
+      var fns = job.lineFns[key];
+      if (fns && fns.length) {
+        var line = fns[Math.floor(Math.random() * fns.length)]();
+        logLine(line.text, line.cls);
+      }
+      scheduleLogs(job);
+    }, randInt(400, 950));
+  }
+
+  /* -- preview rAF loop ------------------------------------------- */
+
+  function startPreviewLoop(job) {
+    if (!els.canvas || !els.canvas.getContext) return;
+    sizeCanvas();
+    if (!ctx2d) return;
+
+    var last = null;
+    function frame(now) {
+      if (activeJob !== job && !job.holdFrame) return;
+      if (job.done && job.holdFrame) return;    /* completed: hold last frame */
+      var dt = last === null ? 0.016 : Math.min(0.1, (now - last) / 1000);
+      last = now;
+      var t = (Date.now() - job.startedAt) / 1000;
+
+      if (document.hidden !== true && els.frame) {
+        var w = els.frame.clientWidth;
+        var h = els.frame.clientHeight;
+        job.scene.draw(ctx2d, w, h,
+          t, { stage: job.stageIndex, progress: job.stageProgress }, dt);
+
+        /* HUD timecode at 24 fps */
+        if (els.hudTc) {
+          var totalFrames = Math.floor(t * 24);
+          var ff = totalFrames % 24;
+          var ss = Math.floor(totalFrames / 24) % 60;
+          var mm = Math.floor(totalFrames / (24 * 60)) % 60;
+          var hh = Math.floor(totalFrames / (24 * 3600));
+          els.hudTc.textContent =
+            pad2(hh) + ':' + pad2(mm) + ':' + pad2(ss) + ':' + pad2(ff);
+        }
+      }
+      rafHandle = window.requestAnimationFrame(frame);
+    }
+    rafHandle = window.requestAnimationFrame(frame);
+  }
+
+  /* -- completion -------------------------------------------------- */
+
+  function completeJob(job) {
+    job.done = true;
+    job.holdFrame = true;
+    setStageUI(job.stages.length);         /* all done */
+    if (els.progress) els.progress.style.width = '100%';
+
+    logLine('✓ MASTER COMPLETE — ' + job.id, 'success');
+    announce('Master complete.');
+
+    /* brief full-theater glow flash */
+    if (els.frame) {
+      els.frame.classList.add('is-flash');
+      later(function () { els.frame.classList.remove('is-flash'); }, 320);
+    }
+
+    /* thumbnail from the held canvas frame */
+    var thumb = null;
+    try {
+      if (els.canvas && els.canvas.width > 0) {
+        var tw = 320;
+        var th = Math.max(2, Math.round(tw * (els.canvas.height / els.canvas.width)));
+        var tc = document.createElement('canvas');
+        tc.width = tw; tc.height = th;
+        var tctx = tc.getContext('2d');
+        if (tctx) {
+          tctx.drawImage(els.canvas, 0, 0, tw, th);
+          thumb = tc.toDataURL('image/jpeg', 0.7);
+        }
+      }
+    } catch (err) { thumb = null; }
+
+    var master = {
+      id: job.id,
+      title: titleFromPrompt(job.prompt),
+      meta: job.id + ' · ' + job.params.preset + ' · ' +
+            job.params.duration + ' MIN · ' + job.params.aspect +
+            ' · SEED ' + job.seed,
+      seed: job.seed,
+      thumb: thumb,
+      t: Date.now()
+    };
+
+    masters.unshift(master);
+    masters = saveMasters(masters);
+    renderMasters(true);
+
+    /* cross-view: frames jump + activity entry, if the shell listens */
+    try {
+      document.dispatchEvent(new CustomEvent('cinamate:generation-complete', {
+        detail: {
+          id: job.id,
+          title: master.title,
+          frames: job.params.duration * 24 * 60
+        }
+      }));
+    } catch (err) { /* no-op */ }
+
+    if (els.jobId) {
+      els.jobId.textContent = job.id + ' · MASTERED';
+      els.jobId.classList.remove('is-live');
+    }
+
+    activeJob = null;
+    setBusy(false, '');
+  }
+
+  if (els.generate) els.generate.addEventListener('click', startJob);
+
+  /* --------------------------------------------------------------
+     9 · Recent Masters — persistence, seeding, rendering
+     -------------------------------------------------------------- */
+
+  var masters = loadMasters();
+
+  function seedThumb(seed, preset, aspectRatio) {
+    try {
+      var w = 320;
+      var h = Math.round(w / aspectRatio);
+      var c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      var ctx = c.getContext('2d');
+      if (!ctx) return null;
+      makeScene(seed, preset).drawStatic(ctx, w, h, { stage: 4, progress: 0.6 });
+      return c.toDataURL('image/jpeg', 0.7);
+    } catch (err) { return null; }
+  }
+
+  if (!masters) {
+    /* first visit — two pre-made founders' cuts, fixed seeds */
+    masters = [
+      {
+        id: 'GEN-2E97C4',
+        title: 'Static Between Stars',
+        meta: 'GEN-2E97C4 · NEO-NOIR · 84 MIN · 2.39:1 · SEED 402318',
+        seed: 402318,
+        thumb: seedThumb(402318, 'NEO-NOIR', 2.39),
+        t: Date.now() - 86400000
+      },
+      {
+        id: 'GEN-B10A77',
+        title: "The Cartographer's Widow",
+        meta: 'GEN-B10A77 · ANALOG 70MM · 118 MIN · 1.85:1 · SEED 771402',
+        seed: 771402,
+        thumb: seedThumb(771402, 'ANALOG 70MM', 1.85),
+        t: Date.now() - 172800000
+      }
+    ];
+    masters = saveMasters(masters);
+  }
+
+  function masterCard(m, entering) {
+    var li = document.createElement('li');
+    li.className = 'aigen-master' + (entering ? ' is-entering' : '');
+
+    var thumbWrap = document.createElement('div');
+    thumbWrap.className = 'aigen-master__thumb';
+    if (m.thumb) {
+      var img = document.createElement('img');
+      img.src = m.thumb;
+      img.alt = 'Generated still frame from ' + m.title;
+      thumbWrap.appendChild(img);
+    } else {
+      thumbWrap.classList.add('aigen-master__thumb--empty');
+      thumbWrap.appendChild(document.createTextNode('MASTER ARCHIVED'));
+    }
+    var badge = document.createElement('span');
+    badge.className = 'aigen-master__badge';
+    badge.textContent = 'MASTERED';
+    thumbWrap.appendChild(badge);
+    li.appendChild(thumbWrap);
+
+    var body = document.createElement('div');
+    body.className = 'aigen-master__body';
+
+    var h3 = document.createElement('h3');
+    h3.className = 'aigen-master__title';
+    h3.textContent = m.title;                     /* user text → textContent only */
+    body.appendChild(h3);
+
+    var meta = document.createElement('p');
+    meta.className = 'aigen-master__meta';
+    meta.textContent = m.meta;
+    body.appendChild(meta);
+
+    var dl = document.createElement('button');
+    dl.type = 'button';
+    dl.className = 'aigen-master__dl';
+    dl.textContent = 'DOWNLOAD MASTER';
+    body.appendChild(dl);
+
+    li.appendChild(body);
+    return li;
+  }
+
+  function renderMasters(newestEntering) {
+    if (!els.mastersList) return;
+    while (els.mastersList.firstChild) {
+      els.mastersList.removeChild(els.mastersList.firstChild);
+    }
+    for (var i = 0; i < masters.length; i++) {
+      els.mastersList.appendChild(masterCard(masters[i], newestEntering && i === 0));
+    }
+    if (els.mastersEmpty) els.mastersEmpty.hidden = masters.length > 0;
+    if (els.mastersCount) {
+      els.mastersCount.textContent = masters.length + ' ARCHIVED';
+    }
+  }
+
+  /* fake download → toast (delegated) */
+  var toastTimer = null;
+  if (els.mastersList) {
+    els.mastersList.addEventListener('click', function (ev) {
+      var t = ev.target;
+      while (t && t !== els.mastersList && !(t.classList && t.classList.contains('aigen-master__dl'))) {
+        t = t.parentNode;
+      }
+      if (!t || t === els.mastersList) return;
+      if (!els.toast) return;
+      els.toast.hidden = false;
+      /* force restyle before adding class so transition replays */
+      void els.toast.offsetWidth;
+      els.toast.classList.add('is-visible');
+      if (toastTimer) window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(function () {
+        els.toast.classList.remove('is-visible');
+        window.setTimeout(function () { els.toast.hidden = true; }, 400);
+      }, 2600);
+    });
+  }
+
+  /* --------------------------------------------------------------
+     10 · Initial paint
+     -------------------------------------------------------------- */
+
+  renderMasters(false);
+  refreshComposer();
+  sizeCanvas();
+
+})();
+</script>
+</body>
+</html>
