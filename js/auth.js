@@ -141,53 +141,75 @@
     }
   }
 
-  // grant(code): store the session record. Caller verifies first;
-  // grant does not re-verify.
-  function grant(code) {
-    sessionStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({ operator: normalize(code), t: Date.now() })
-    );
+  /* -----------------------------------------------------------------------
+   * Session storage
+   * ---------------------------------------------------------------------
+   * Written to BOTH localStorage and sessionStorage, read from either.
+   *
+   * sessionStorage alone is per-tab: opening a Studio module in a new tab
+   * lost the session and bounced the operator back to the gate. localStorage
+   * is shared across tabs and survives a browser restart, so work can be put
+   * down and picked back up. sessionStorage is still written so a browser
+   * with localStorage blocked keeps working within the tab.
+   * --------------------------------------------------------------------- */
+
+  function writeSession(record) {
+    const raw = JSON.stringify(record);
+    try { localStorage.setItem(SESSION_KEY, raw); } catch (err) { /* blocked */ }
+    try { sessionStorage.setItem(SESSION_KEY, raw); } catch (err) { /* blocked */ }
   }
 
-  // requireSession(): parsed session object, or redirect to index.html
-  // and return null when absent/malformed.
-  function requireSession() {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      if (!raw) throw new Error('no session');
-      const session = JSON.parse(raw);
-      if (!session || typeof session.operator !== 'string' || session.operator === '') {
-        throw new Error('malformed session');
-      }
-      return session;
-    } catch (err) {
-      window.location.replace('index.html');
-      return null;
+  function readSession() {
+    let raw = null;
+    try { raw = localStorage.getItem(SESSION_KEY); } catch (err) { /* blocked */ }
+    if (!raw) {
+      try { raw = sessionStorage.getItem(SESSION_KEY); } catch (err) { /* blocked */ }
     }
-  }
-
-  // operator(): session's operator string or null. Pure read, never redirects.
-  function operator() {
+    if (!raw) return null;
     try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
       const session = JSON.parse(raw);
       if (!session || typeof session.operator !== 'string' || session.operator === '') {
         return null;
       }
-      return session.operator;
+      return session;
     } catch (err) {
       return null;
     }
   }
 
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (err) { /* blocked */ }
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (err) { /* blocked */ }
+  }
+
+  // Absolute so it resolves the same from /timeline/, /producer/ or root.
+  const GATE_URL = '/index.html';
+
+  // grant(code): store the session record. Caller verifies first;
+  // grant does not re-verify.
+  function grant(code) {
+    writeSession({ operator: normalize(code), t: Date.now() });
+  }
+
+  // requireSession(): parsed session object, or redirect to the gate and
+  // return null when absent/malformed.
+  function requireSession() {
+    const session = readSession();
+    if (session) return session;
+    window.location.replace(GATE_URL);
+    return null;
+  }
+
+  // operator(): session's operator string or null. Pure read, never redirects.
+  function operator() {
+    const session = readSession();
+    return session ? session.operator : null;
+  }
+
   // signOut(): clear session, return to the gate.
   function signOut() {
-    try {
-      sessionStorage.removeItem(SESSION_KEY);
-    } catch (err) { /* storage unavailable — still redirect */ }
-    window.location.replace('index.html');
+    clearSession();
+    window.location.replace(GATE_URL);
   }
 
   window.CinamateAuth = {

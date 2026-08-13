@@ -36,11 +36,16 @@
   var OE_KEY = 'SB_OWNER_EXPIRES';
   var TTL_MS = 12 * 60 * 60 * 1000;
 
-  /* The Cinamate gate's session record, or null. */
+  /* The Cinamate gate's session record, or null. Reads localStorage first
+     (shared across tabs, survives a restart) then sessionStorage. */
   function gateSession() {
+    var raw = null;
+    try { raw = window.localStorage.getItem(SESSION_KEY); } catch (err) { /* blocked */ }
+    if (!raw) {
+      try { raw = window.sessionStorage.getItem(SESSION_KEY); } catch (err) { /* blocked */ }
+    }
+    if (!raw) { return null; }
     try {
-      var raw = window.sessionStorage.getItem(SESSION_KEY);
-      if (!raw) { return null; }
       var s = JSON.parse(raw);
       if (!s || typeof s.operator !== 'string' || s.operator === '') { return null; }
       return s;
@@ -49,18 +54,29 @@
     }
   }
 
-  /* Path back to the gate, from a page at any depth. */
-  function gateUrl() {
-    var depth = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').length - 1;
-    return (depth > 0 ? new Array(depth + 1).join('../') : '') + 'index.html';
-  }
+  /* Absolute. A relative "index.html" resolves to /timeline/index.html on a
+     directory-style URL like /timeline/ — i.e. the page redirects to itself
+     and loops. The site is served from the domain root, so anchor there. */
+  var GATE_URL = '/index.html';
 
   var session = gateSession();
 
   if (!session) {
     /* No gate session — send them to the front door rather than showing a
-       second, unrelated login they cannot satisfy. */
-    try { window.location.replace(gateUrl()); } catch (err) { /* no-op */ }
+       second, unrelated login they cannot satisfy.
+
+       Deferred to DOMContentLoaded on purpose: calling location.replace()
+       while the <head> is still parsing aborts the in-flight document, and
+       Chrome can leave the tab on a half-built page instead of navigating.
+       Waiting for a complete document makes the navigation clean. */
+    var leave = function () {
+      try { window.location.replace(GATE_URL); } catch (err) { /* no-op */ }
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', leave);
+    } else {
+      leave();
+    }
     return;
   }
 
