@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlas Analysis — Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080f;color:#e8eaf0;font-family:'Inter',system-ui,sans-serif;display:flex;min-height:100vh}
+a{color:inherit;text-decoration:none}
+#sidebar{width:220px;min-height:100vh;background:#0a0d1a;border-right:1px solid #1a2045;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;overflow-y:auto}
+.logo{padding:20px 18px;border-bottom:1px solid #1a2045;display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#c9a227,#f0c040);border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#06080f;font-size:17px;flex-shrink:0}
+.logo-text{font-weight:800;font-size:15px;background:linear-gradient(135deg,#c9a227,#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-section{padding:14px 0 6px}
+.nav-label{font-size:10px;font-weight:700;color:#3a4a6a;letter-spacing:1.2px;padding:0 18px 8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;color:#6070a0;font-size:13px;font-weight:500;transition:all .15s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{background:#0d1020;color:#c0cce8}
+.nav-item.active{background:#0d1020;color:#f0c040;border-left-color:#f0c040}
+.nav-icon{width:18px;text-align:center;font-size:14px;flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding:14px 18px;border-top:1px solid #1a2045}
+.status-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:11px}
+.status-label{color:#4a5a7a}
+.status-val{color:#00e088;font-weight:600;display:flex;align-items:center;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:#00e088;display:inline-block}
+.dot.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#topbar{position:fixed;top:0;left:220px;right:0;height:50px;background:#0a0d1aee;backdrop-filter:blur(10px);border-bottom:1px solid #1a2045;display:flex;align-items:center;justify-content:space-between;padding:0 22px;z-index:200}
+.ticker-wrap{display:flex;gap:18px;overflow:hidden;flex:1;min-width:0}
+.tick{white-space:nowrap;font-size:12px;color:#6070a0}
+.tick b{color:#e8eaf0;font-weight:600}
+.tick .up{color:#00e088}
+.tick .dn{color:#ff4d4d}
+.topbar-right{display:flex;align-items:center;gap:14px;flex-shrink:0;margin-left:16px}
+.grok-pill{display:flex;align-items:center;gap:6px;background:#0d1020;border:1px solid #1a2045;border-radius:20px;padding:5px 12px;font-size:11px;color:#6070a0}
+.signout{background:none;border:1px solid #1a2045;color:#6070a0;padding:5px 13px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+.signout:hover{border-color:#f0c040;color:#f0c040}
+#main{margin-left:220px;margin-top:50px;flex:1;padding:26px;min-height:calc(100vh - 50px);background:#06080f}
+.page-header{margin-bottom:24px}
+.page-title{font-size:22px;font-weight:800;color:#e8eaf0;margin-bottom:3px}
+.page-sub{font-size:13px;color:#4a5a7a}
+.card{background:#0d1020;border:1px solid #1a2045;border-radius:12px;padding:20px}
+.sec-title{font-size:14px;font-weight:700;color:#c0cce8;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.sec-title::before{content:'';width:3px;height:16px;background:linear-gradient(#c9a227,#f0c040);border-radius:2px;flex-shrink:0}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.mkt-card{background:#0d1020;border:1px solid #1a2045;border-radius:10px;padding:16px}
+.mkt-label{font-size:10px;color:#4a5a7a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.mkt-val{font-size:22px;font-weight:800;color:#e8eaf0}
+.mkt-chg{font-size:12px;margin-top:4px}
+.pos{color:#00e088}
+.neg{color:#ff4d4d}
+.neu{color:#ffb020}
+.stock-card{background:#0d1020;border:1px solid #1a2045;border-radius:11px;padding:16px;cursor:pointer;transition:all .18s}
+.stock-card:hover{border-color:#c9a227;transform:translateY(-2px);box-shadow:0 6px 24px #c9a22718}
+.s-ticker{font-size:19px;font-weight:900;color:#f0c040;margin-bottom:2px}
+.s-name{font-size:11px;color:#4a5a7a;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-price{font-size:20px;font-weight:700;color:#e8eaf0}
+.s-chg{font-size:12px;margin-top:3px}
+.score-pill{display:inline-flex;align-items:center;gap:5px;background:#131828;border:1px solid #1a2045;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;margin-top:10px}
+.etf-card{background:#0d1020;border:1px solid #1a2045;border-radius:11px;padding:16px;cursor:pointer;transition:all .18s}
+.etf-card:hover{border-color:#c9a227;transform:translateY(-2px)}
+.etf-ticker{font-size:17px;font-weight:900;color:#f0c040;margin-bottom:2px}
+.etf-name{font-size:11px;color:#4a5a7a;margin-bottom:8px}
+.etf-ytd{font-size:18px;font-weight:700}
+.etf-meta{font-size:11px;color:#4a5a7a;margin-top:8px}
+.tag{display:inline-block;background:#131828;border-radius:4px;padding:2px 8px;font-size:10px;color:#6070a0;font-weight:600}
+.score-box{background:#0d1020;border:1px solid #1a2045;border-radius:11px;padding:22px;text-align:center}
+.score-type{font-size:12px;font-weight:700;color:#6070a0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.score-num{font-size:46px;font-weight:900;line-height:1}
+.score-lbl{font-size:12px;margin-top:6px;font-weight:600}
+.pos-table{width:100%;border-collapse:collapse;font-size:13px}
+.pos-table th{text-align:left;padding:10px 12px;color:#4a5a7a;font-weight:700;border-bottom:1px solid #1a2045;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.pos-table td{padding:12px;border-bottom:1px solid #0a0d18;vertical-align:middle}
+.pos-table tr:last-child td{border-bottom:none}
+.pos-table tr:hover td{background:#0a0d18}
+.btn{background:linear-gradient(135deg,#c9a227,#f0c040);color:#06080f;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-weight:800;font-size:13px;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-sm{padding:5px 13px;font-size:12px;border-radius:6px}
+.btn-ghost{background:none;border:1px solid #1a2045;color:#6070a0;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+.btn-ghost:hover{border-color:#ff4d4d;color:#ff4d4d}
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.fbtn{background:#0d1020;border:1px solid #1a2045;color:#6070a0;padding:6px 16px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;transition:all .15s}
+.fbtn:hover,.fbtn.active{background:linear-gradient(135deg,#c9a227,#f0c040);color:#06080f;border-color:transparent}
+.modal-bg{position:fixed;inset:0;background:#000000cc;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#0e1225;border:1px solid #1a2045;border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto}
+.modal h2{font-size:20px;font-weight:800;margin-bottom:3px}
+.modal-sub{font-size:13px;color:#4a5a7a;margin-bottom:20px}
+.modal-close{float:right;background:none;border:none;color:#4a5a7a;font-size:22px;cursor:pointer;line-height:1;margin-top:-2px}
+.modal-close:hover{color:#e8eaf0}
+.drow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #131828;font-size:13px}
+.drow:last-child{border-bottom:none}
+.dlabel{color:#4a5a7a}
+.dval{font-weight:700;color:#e8eaf0}
+.msec{margin-top:18px}
+.msec h4{font-size:11px;font-weight:800;color:#f0c040;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.msec p{font-size:13px;color:#6070a0;line-height:1.65}
+.sent-bar{height:5px;border-radius:3px;background:#131828;margin-top:5px;overflow:hidden}
+.sent-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#c9a227,#f0c040)}
+.lp{transition:color .25s}
+.lp-up{color:#00e088!important}
+.lp-dn{color:#ff4d4d!important}
+.alert-row{display:flex;align-items:flex-start;gap:14px;padding:16px;background:#0d1020;border:1px solid #1a2045;border-radius:11px;margin-bottom:10px}
+.alert-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.news-card{background:#0d1020;border:1px solid #1a2045;border-radius:11px;padding:18px;margin-bottom:12px}
+.news-tag{display:inline-block;padding:2px 9px;border-radius:4px;font-size:10px;font-weight:800;margin-bottom:9px;letter-spacing:.3px}
+.news-card h3{font-size:14px;font-weight:700;margin-bottom:7px;line-height:1.45;color:#e8eaf0}
+.news-card p{font-size:12px;color:#4a5a7a;line-height:1.6}
+.form-input{width:100%;background:#06080f;border:1px solid #1a2045;color:#e8eaf0;padding:11px 14px;border-radius:9px;font-size:13px;outline:none;margin-bottom:10px;transition:border .15s}
+.form-input:focus{border-color:#c9a227}
+.ac-list{background:#0e1225;border:1px solid #1a2045;border-radius:9px;margin-top:-8px;margin-bottom:10px;max-height:170px;overflow-y:auto}
+.ac-item{padding:9px 14px;cursor:pointer;font-size:13px;transition:background .1s}
+.ac-item:hover{background:#131828}
+#auth-overlay{position:fixed;inset:0;background:#06080f;z-index:3000;display:flex;align-items:center;justify-content:center}
+.auth-box{background:#0e1225;border:1px solid #1a2045;border-radius:20px;padding:38px;width:100%;max-width:400px}
+.auth-box h1{font-size:26px;font-weight:900;background:linear-gradient(135deg,#c9a227,#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.auth-box .auth-sub{font-size:13px;color:#4a5a7a;margin-bottom:26px}
+.auth-tabs{display:flex;background:#06080f;border-radius:10px;padding:4px;margin-bottom:22px}
+.auth-tab{flex:1;padding:9px;text-align:center;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;color:#4a5a7a;transition:all .15s}
+.auth-tab.active{background:#0d1020;color:#f0c040}
+.auth-input{width:100%;background:#06080f;border:1px solid #1a2045;color:#e8eaf0;padding:13px 15px;border-radius:10px;font-size:14px;margin-bottom:12px;outline:none;transition:border .15s}
+.auth-input:focus{border-color:#c9a227}
+.auth-btn{width:100%;background:linear-gradient(135deg,#c9a227,#f0c040);color:#06080f;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;margin-top:4px;transition:opacity .15s}
+.auth-btn:hover{opacity:.85}
+.auth-err{color:#ff4d4d;font-size:12px;margin-top:8px;display:none;font-weight:600}
+</style>
+
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/legacy-theme.css">
+</head>
+<body>
+<div class="cin-backbar"><span class="cin-backbar__brand">CINAMATE</span><span class="cin-backbar__sep">//</span><a href="dashboard.html">&larr; Console</a><span class="cin-backbar__sep">·</span><a href="index.html">Home</a></div>
+
+<nav id="sidebar">
+  <div class="logo">
+    <div class="logo-icon">A</div>
+    <div class="logo-text">Atlas Analysis</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')"><span class="nav-icon">⊞</span>Dashboard</div>
+    <div class="nav-item" id="nav-portfolio" onclick="showPage('portfolio')"><span class="nav-icon">◎</span>Portfolio</div>
+    <div class="nav-item" id="nav-watchlist" onclick="showPage('watchlist')"><span class="nav-icon">◉</span>Watchlist</div>
+    <div class="nav-item" id="nav-alerts" onclick="showPage('alerts')"><span class="nav-icon">🔔</span>Alerts</div>
+    <div class="nav-item" id="nav-news" onclick="showPage('news')"><span class="nav-icon">📰</span>News</div>
+    <div class="nav-item" id="nav-etfs" onclick="showPage('etfs')"><span class="nav-icon">⟁</span>ETFs</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Sectors</div>
+    <div class="nav-item" id="nav-ai" onclick="showPage('sector','ai')"><span class="nav-icon" style="color:#4f8fff">AI</span>Artificial Intel</div>
+    <div class="nav-item" id="nav-tech" onclick="showPage('sector','tech')"><span class="nav-icon" style="color:#00e088">T</span>Technology</div>
+    <div class="nav-item" id="nav-defense" onclick="showPage('sector','defense')"><span class="nav-icon" style="color:#ff4d4d">D</span>Defense</div>
+    <div class="nav-item" id="nav-mining" onclick="showPage('sector','mining')"><span class="nav-icon" style="color:#f0c040">M</span>Mining</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="status-row"><span class="status-label">GROK-3</span><span class="status-val">Connected</span></div>
+    <div class="status-row"><span class="status-label">Polygon.io</span><span class="status-val"><span class="dot pulse"></span>Live</span></div>
+  </div>
+</nav>
+
+<div id="topbar">
+  <div class="ticker-wrap" id="ticker-wrap"></div>
+  <div class="topbar-right">
+    <div class="grok-pill"><span class="dot pulse"></span>GROK-3 Active</div>
+    <button class="signout" onclick="logout()">Sign Out</button>
+  </div>
+</div>
+
+<div id="main"></div>
+
+<div id="auth-overlay" style="display:none">
+  <div class="auth-box">
+    <h1>Atlas Analysis</h1>
+    <div class="auth-sub">AI-powered institutional research</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</div>
+      <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
+    </div>
+    <input class="auth-input" id="auth-name" type="text" placeholder="Full name" style="display:none">
+    <input class="auth-input" id="auth-email" type="email" placeholder="Email address">
+    <input class="auth-input" id="auth-password" type="password" placeholder="Password">
+    <button class="auth-btn" id="auth-submit" onclick="submitAuth()">Sign In</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
+
+<script>
+// ── STOCK DATA ────────────────────────────────────────────────────────────────
+var STOCKS = {
+  NVDA:{name:'NVIDIA Corp',price:875.40,change:3.8,score:94,sector:'ai',sentiment:92,target:1050,pe:65,
+    thesis:'Dominant AI chip supplier with CUDA moat. Data center revenue growing 400%+ YoY. H100/H200 demand exceeds supply through 2025.',
+    risks:'Valuation stretched. China export restrictions. AMD/Intel competition accelerating.',
+    catalysts:'Blackwell GPU launch. Sovereign AI spending. Automotive design wins.'},
+  MSFT:{name:'Microsoft Corp',price:422.18,change:1.2,score:88,sector:'tech',sentiment:85,target:500,pe:35,
+    thesis:'Azure cloud + Copilot AI integration across Office 365. GitHub Copilot monetization accelerating. OpenAI partnership creates durable AI moat.',
+    risks:'Antitrust scrutiny. Activision integration costs. Slowing PC market.',
+    catalysts:'Copilot+ PC cycle. Azure AI services expansion. Teams Premium adoption.'},
+  PLTR:{name:'Palantir Technologies',price:42.11,change:4.1,score:82,sector:'ai',sentiment:78,target:55,pe:120,
+    thesis:'AIP platform driving commercial acceleration. Government contracts provide stable base. Rule of 40 improving rapidly.',
+    risks:'High valuation. Customer concentration. Long sales cycles.',
+    catalysts:'AIP bootcamp conversions. NATO/allied government expansion. S&P 500 inclusion.'},
+  GOOGL:{name:'Alphabet Inc',price:178.34,change:0.9,score:85,sector:'tech',sentiment:80,target:210,pe:24,
+    thesis:'Search monopoly + YouTube + Cloud. Gemini AI integration across products. Waymo autonomous vehicle optionality.',
+    risks:'AI search disruption. Antitrust breakup risk. Cloud market share vs AWS/Azure.',
+    catalysts:'Gemini Ultra adoption. Google Cloud profitability. YouTube Shorts monetization.'},
+  META:{name:'Meta Platforms',price:594.22,change:2.1,score:89,sector:'tech',sentiment:88,target:700,pe:28,
+    thesis:'Advertising duopoly with Google. Llama AI open-source strategy. Reality Labs long-term optionality. Efficiency gains driving margin expansion.',
+    risks:'Regulatory risk in EU. Teen usage decline. Reality Labs losses.',
+    catalysts:'Threads monetization. AI ad targeting improvements. Ray-Ban Meta glasses.'},
+  AMD:{name:'Advanced Micro Devices',price:162.55,change:2.7,score:80,sector:'ai',sentiment:75,target:200,pe:45,
+    thesis:'MI300X GPU gaining AI training share. EPYC server CPU taking Intel data center share. Xilinx FPGA integration complete.',
+    risks:'NVIDIA dominance in AI. Intel competitive response. Inventory cycles.',
+    catalysts:'MI300X ramp. ROCm software ecosystem. Gaming GPU refresh.'},
+  LMT:{name:'Lockheed Martin',price:468.90,change:0.6,score:76,sector:'defense',sentiment:72,target:520,pe:17,
+    thesis:'F-35 program provides 20+ year revenue visibility. Hypersonic weapons development. NATO spending increases drive international orders.',
+    risks:'F-35 production delays. Budget sequestration risk. Supply chain constraints.',
+    catalysts:'NGAD next-gen fighter. Hypersonic missile contracts. International F-35 orders.'},
+  RTX:{name:'RTX Corporation',price:128.50,change:1.1,score:74,sector:'defense',sentiment:70,target:145,pe:20,
+    thesis:'Pratt & Whitney engines + Raytheon missiles. GTF engine aftermarket growing. Patriot missile demand surging post-Ukraine.',
+    risks:'GTF powder metal recall costs. Defense budget uncertainty. Supply chain.',
+    catalysts:'Patriot system orders. GTF recall resolution. Commercial aerospace recovery.'},
+  ABX:{name:'Barrick Gold Corp',price:21.85,change:2.4,score:71,sector:'mining',sentiment:68,target:26,pe:18,
+    thesis:'Tier-1 gold assets in stable jurisdictions. Gold price tailwind from rate cuts + geopolitical risk. Strong free cash flow generation.',
+    risks:'Gold price volatility. Geopolitical risk in Africa. Rising mining costs.',
+    catalysts:'Gold price above $2000. Copper production growth. Dividend increases.'},
+  FCX:{name:'Freeport-McMoRan',price:42.18,change:4.2,score:78,sector:'mining',sentiment:74,target:52,pe:22,
+    thesis:'Largest publicly traded copper producer. Copper demand from EV/grid electrification secular trend. Grasberg mine world-class asset.',
+    risks:'Copper price cyclicality. Indonesia political risk. Energy costs.',
+    catalysts:'EV adoption acceleration. Grid infrastructure spending. Copper supply deficit.'}
+};
+
+// ── ETF DATA ──────────────────────────────────────────────────────────────────
+var ETFS = [
+  {ticker:'AIQ',name:'Global X AI & Technology ETF',ytd:28.4,score:91,tag:'AI',expense:0.68,aum:'$3.2B',holdings:85,
+    thesis:'Broad AI exposure across hardware, software, and services. Top holdings: NVDA, MSFT, GOOGL.',
+    risks:'Concentration in mega-cap tech. High valuations.',
+    catalysts:'AI capex supercycle. Enterprise AI adoption.'},
+  {ticker:'XLK',name:'Technology Select Sector SPDR',ytd:22.1,score:87,tag:'Tech',expense:0.10,aum:'$62B',holdings:67,
+    thesis:'Low-cost S&P 500 tech exposure. MSFT + AAPL = 45% of fund. Dividend growth.',
+    risks:'Mega-cap concentration. Rate sensitivity.',
+    catalysts:'AI integration across tech. Cloud growth.'},
+  {ticker:'QQQ',name:'Invesco QQQ Trust',ytd:19.8,score:85,tag:'Tech',expense:0.20,aum:'$245B',holdings:101,
+    thesis:'NASDAQ-100 benchmark. Most liquid tech ETF. Core AI/tech holding.',
+    risks:'High P/E. Rate sensitivity. Mega-cap concentration.',
+    catalysts:'Earnings growth. AI monetization.'},
+  {ticker:'VTV',name:'Vanguard Value ETF',ytd:8.2,score:72,tag:'Value',expense:0.04,aum:'$118B',holdings:342,
+    thesis:'Cheap diversified value exposure. Financials + healthcare + energy. Defensive in downturns.',
+    risks:'Value trap risk. Underperforms in growth rallies.',
+    catalysts:'Rate cuts. Sector rotation from growth.'},
+  {ticker:'IWD',name:'iShares Russell 1000 Value',ytd:7.9,score:70,tag:'Value',expense:0.19,aum:'$55B',holdings:857,
+    thesis:'Broad large-cap value. More diversified than VTV. Financials heavy.',
+    risks:'Slow growth sectors. Rate sensitivity.',
+    catalysts:'Economic normalization. Dividend income.'},
+  {ticker:'PICK',name:'iShares MSCI Global Metals & Mining',ytd:14.6,score:75,tag:'Mining',expense:0.39,aum:'$1.8B',holdings:210,
+    thesis:'Global copper, iron, gold exposure. EV/electrification demand driver. Commodity supercycle.',
+    risks:'China demand slowdown. Commodity price volatility.',
+    catalysts:'Copper deficit. Green energy buildout.'},
+  {ticker:'GDX',name:'VanEck Gold Miners ETF',ytd:31.2,score:79,tag:'Mining',expense:0.51,aum:'$14B',holdings:56,
+    thesis:'Leveraged gold price exposure via miners. Barrick + Newmont = 25%. Operational leverage.',
+    risks:'Mining cost inflation. Geopolitical risk. Gold price reversal.',
+    catalysts:'Gold above $2200. Rate cuts. Safe haven demand.'},
+  {ticker:'ARKK',name:'ARK Innovation ETF',ytd:-8.4,score:48,tag:'Tech',expense:0.75,aum:'$6.8B',holdings:35,
+    thesis:'Disruptive innovation: genomics, robotics, fintech, AI. High-conviction concentrated bets.',
+    risks:'Speculative holdings. High volatility. Outflows pressure.',
+    catalysts:'Risk-on sentiment. Biotech breakthroughs. TSLA rally.'},
+  {ticker:'BOTZ',name:'Global X Robotics & AI ETF',ytd:16.3,score:80,tag:'AI',expense:0.68,aum:'$2.1B',holdings:45,
+    thesis:'Pure-play robotics and AI automation. Industrial + service robots. Japan exposure.',
+    risks:'Valuation. Slow adoption cycles. Currency risk.',
+    catalysts:'Factory automation. Humanoid robots. AI inference chips.'},
+  {ticker:'XLE',name:'Energy Select Sector SPDR',ytd:5.1,score:65,tag:'Value',expense:0.10,aum:'$38B',holdings:23,
+    thesis:'S&P 500 energy sector. XOM + CVX = 45%. High dividend yield. Oil price leverage.',
+    risks:'Energy transition. Oil price volatility. ESG outflows.',
+    catalysts:'Oil supply constraints. LNG exports. Dividend growth.'},
+  {ticker:'COPX',name:'Global X Copper Miners ETF',ytd:18.7,score:77,tag:'Mining',expense:0.65,aum:'$1.4B',holdings:40,
+    thesis:'Pure copper miner exposure. FCX + SCCO top holdings. EV/grid electrification demand.',
+    risks:'China slowdown. Mining cost inflation. Commodity cycles.',
+    catalysts:'Copper supply deficit. EV adoption. Grid investment.'},
+  {ticker:'SMH',name:'VanEck Semiconductor ETF',ytd:24.9,score:90,tag:'AI',expense:0.35,aum:'$22B',holdings:26,
+    thesis:'Semiconductor leaders: NVDA, TSM, ASML. AI chip demand driving supercycle. Best-in-class holdings.',
+    risks:'Inventory cycles. China restrictions. Valuation.',
+    catalysts:'AI training demand. Advanced packaging. HBM memory.'}
+];
+
+// ── PORTFOLIO STATE ───────────────────────────────────────────────────────────
+var portfolio = [
+  {ticker:'NVDA',shares:10,avgCost:118.50},
+  {ticker:'MSFT',shares:5,avgCost:398.20},
+  {ticker:'PLTR',shares:25,avgCost:35.80}
+];
+
+var SP500_TICKERS = ['AAPL','MSFT','NVDA','GOOGL','GOOG','AMZN','META','TSLA','BRK.B','UNH','LLY','JPM','V','XOM','MA','AVGO','PG','HD','COST','MRK','ABBV','CVX','KO','PEP','ADBE','WMT','BAC','MCD','CRM','TMO','CSCO','ACN','ABT','LIN','DHR','TXN','NEE','PM','RTX','HON','AMGN','QCOM','IBM','INTU','SPGI','GE','CAT','ISRG','BKNG','GS','BLK','MDLZ','AXP','SYK','GILD','ADI','VRTX','REGN','MMC','PLD','CI','CB','SCHW','ZTS','MO','SO','DUK','ITW','EOG','SLB','BSX','CME','AON','EQIX','PGR','NOC','LMT','GD','FCX','NEM','ABX','PLTR','SNOW','DDOG','NET','CRWD','ZS','PANW','OKTA','MDB','COIN','HOOD','RBLX','LYFT','UBER','ABNB','DASH','RIVN','AMD','INTC','MU','AMAT','LRCX','KLAC','ASML','TSM','SMCI','ARM','MRVL','ORCL','SAP','NOW','WDAY','ZM','DOCU','TWLO','SHOP','SQ','PYPL','AFRM','SOFI','CVS','WBA','TDOC','HIMS','KEY','RF','FITB','HBAN','CFG','MTB','USB','PNC','TFC','WFC','C','MS','BK','STT','NTRS','TROW'];
+
+// ── SCORING ───────────────────────────────────────────────────────────────────
+var SECTOR_MOM = {ai:0.92,tech:0.78,defense:0.65,mining:0.71};
+
+function calcScore(ticker) {
+  var s = STOCKS[ticker];
+  if (!s) return 50;
+  var chg = Math.min(100, Math.max(0, 50 + s.change * 8));
+  var sec = (SECTOR_MOM[s.sector] || 0.5) * 100;
+  var pe  = s.pe < 20 ? 85 : s.pe < 35 ? 70 : s.pe < 60 ? 55 : 40;
+  var raw = chg*0.30 + s.score*0.20 + s.sentiment*0.15 + sec*0.20 + pe*0.15;
+  var bonus = s.sentiment > 80 ? 3 : s.sentiment < 40 ? -3 : 0;
+  return Math.round(Math.min(99, Math.max(22, raw + bonus)));
+}
+
+function calcPortQuality(port) {
+  if (!port.length) return 0;
+  var total=0, wt=0;
+  port.forEach(function(p) {
+    var s = STOCKS[p.ticker];
+    if (s) { var v = s.price*p.shares; total += calcScore(p.ticker)*v; wt += v; }
+  });
+  var base = wt ? total/wt : 50;
+  var sectors = {};
+  port.forEach(function(p){ var s=STOCKS[p.ticker]; if(s) sectors[s.sector]=1; });
+  var divBonus = Object.keys(sectors).length >= 3 ? 4 : Object.keys(sectors).length === 2 ? 2 : 0;
+  var topW = 0;
+  port.forEach(function(p){ var s=STOCKS[p.ticker]; if(s && wt) topW = Math.max(topW, s.price*p.shares/wt); });
+  var concPen = topW > 0.5 ? 5 : topW > 0.35 ? 2 : 0;
+  return Math.round(Math.min(99, Math.max(10, base + divBonus - concPen)));
+}
+
+function calcPortMomentum(port) {
+  if (!port.length) return 0;
+  var total=0, wt=0;
+  port.forEach(function(p) {
+    var s = STOCKS[p.ticker];
+    if (s) {
+      var v = s.price*p.shares;
+      var sc = (50+s.change*8)*0.40 + s.sentiment*0.35 + (SECTOR_MOM[s.sector]||0.5)*100*0.25;
+      total += sc*v; wt += v;
+    }
+  });
+  return Math.round(Math.min(99, Math.max(10, wt ? total/wt : 50)));
+}
+
+function calcPortRisk(port) {
+  if (!port.length) return 0;
+  var total=0, wt=0;
+  port.forEach(function(p) {
+    var s = STOCKS[p.ticker];
+    if (s) {
+      var v = s.price*p.shares;
+      var peR = s.pe<20?20:s.pe<35?35:s.pe<60?55:75;
+      var sc = 100 - (peR*0.40 + (100-s.sentiment)*0.35);
+      total += sc*v; wt += v;
+    }
+  });
+  var base = wt ? total/wt : 50;
+  var sectors = {};
+  port.forEach(function(p){ var s=STOCKS[p.ticker]; if(s) sectors[s.sector]=1; });
+  var divCredit = Object.keys(sectors).length >= 3 ? 5 : 0;
+  return Math.round(Math.min(99, Math.max(10, base + divCredit)));
+}
+
+function scoreLabel(score, type) {
+  if (type === 'risk') {
+    if (score >= 80) return {label:'Low Risk',color:'#00e088'};
+    if (score >= 60) return {label:'Moderate',color:'#f0c040'};
+    if (score >= 40) return {label:'Elevated',color:'#ffb020'};
+    return {label:'High Risk',color:'#ff4d4d'};
+  }
+  if (score >= 85) return {label:'Excellent',color:'#00e088'};
+  if (score >= 70) return {label:'Strong',color:'#4f8fff'};
+  if (score >= 55) return {label:'Moderate',color:'#f0c040'};
+  if (score >= 40) return {label:'Weak',color:'#ffb020'};
+  return {label:'Poor',color:'#ff4d4d'};
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+var authMode = 'login';
+
+function switchTab(tab) {
+  authMode = tab;
+  document.getElementById('tab-login').className = 'auth-tab' + (tab==='login'?' active':'');
+  document.getElementById('tab-signup').className = 'auth-tab' + (tab==='signup'?' active':'');
+  document.getElementById('auth-name').style.display = tab==='signup' ? 'block' : 'none';
+  document.getElementById('auth-submit').textContent = tab==='login' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-err').style.display = 'none';
+}
+
+function submitAuth() {
+  var email = document.getElementById('auth-email').value.trim();
+  var password = document.getElementById('auth-password').value;
+  var name = document.getElementById('auth-name').value.trim();
+  var errEl = document.getElementById('auth-err');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent='Please fill in all fields'; errEl.style.display='block'; return; }
+  var btn = document.getElementById('auth-submit');
+  btn.textContent = 'Loading...'; btn.disabled = true;
+  var body = authMode==='login'
+    ? {action:'login',email:email,password:password}
+    : {action:'signup',name:name,email:email,password:password};
+  fetch('/.netlify/functions/auth', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (data.token) {
+      localStorage.setItem('atlas_token', data.token);
+      localStorage.setItem('atlas_user', JSON.stringify(data.user || {email:email}));
+      document.getElementById('auth-overlay').style.display = 'none';
+    } else {
+      errEl.textContent = data.error || 'Authentication failed';
+      errEl.style.display = 'block';
+    }
+    btn.textContent = authMode==='login' ? 'Sign In' : 'Create Account';
+    btn.disabled = false;
+  }).catch(function() {
+    errEl.textContent = 'Connection error. Please try again.';
+    errEl.style.display = 'block';
+    btn.textContent = authMode==='login' ? 'Sign In' : 'Create Account';
+    btn.disabled = false;
+  });
+}
+
+function logout() {
+  var token = localStorage.getItem('atlas_token');
+  if (token) {
+    fetch('/.netlify/functions/auth', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'logout',token:token})
+    }).catch(function(){});
+  }
+  localStorage.removeItem('atlas_token');
+  localStorage.removeItem('atlas_user');
+  document.getElementById('auth-overlay').style.display = 'flex';
+}
+
+function checkAuthAsync() {
+  var token = localStorage.getItem('atlas_token');
+  if (!token) {
+    document.getElementById('auth-overlay').style.display = 'flex';
+    return;
+  }
+  fetch('/.netlify/functions/auth', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'verify',token:token})
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (!data.user) {
+      localStorage.removeItem('atlas_token');
+      localStorage.removeItem('atlas_user');
+      document.getElementById('auth-overlay').style.display = 'flex';
+    }
+  }).catch(function() {
+    // Network error: keep user logged in, don't block dashboard
+  });
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('auth-overlay').style.display !== 'none') {
+    submitAuth();
+  }
+});
+
+// ── TICKER TAPE ───────────────────────────────────────────────────────────────
+function buildTicker() {
+  var wrap = document.getElementById('ticker-wrap');
+  if (!wrap) return;
+  var html = '';
+  Object.keys(STOCKS).forEach(function(t) {
+    var s = STOCKS[t];
+    var cls = s.change >= 0 ? 'up' : 'dn';
+    var sign = s.change >= 0 ? '+' : '';
+    html += '<span class="tick"><b>' + t + '</b> $' + s.price.toFixed(2) + ' <span class="' + cls + '">' + sign + s.change + '%</span></span>';
+  });
+  wrap.innerHTML = html;
+}
+
+// ── LIVE PRICE SIMULATION ─────────────────────────────────────────────────────
+var priceTimer = null;
+
+function startLivePrices() {
+  if (priceTimer) clearInterval(priceTimer);
+  priceTimer = setInterval(function() {
+    Object.keys(STOCKS).forEach(function(t) {
+      var s = STOCKS[t];
+      var delta = (Math.random() - 0.48) * 0.55;
+      s.price = Math.max(1, s.price + delta);
+      var el = document.getElementById('lp-' + t);
+      if (el) {
+        el.textContent = '$' + s.price.toFixed(2);
+        el.classList.add(delta >= 0 ? 'lp-up' : 'lp-dn');
+        setTimeout(function(){ el.classList.remove('lp-up','lp-dn'); }, 500);
+      }
+    });
+  }, 3500);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function closeModal() {
+  var m = document.getElementById('modal-bg');
+  if (m) m.remove();
+}
+
+function openStock(ticker) {
+  var s = STOCKS[ticker];
+  if (!s) return;
+  var sc = calcScore(ticker);
+  var sl = scoreLabel(sc, 'quality');
+  var div = document.createElement('div');
+  div.id = 'modal-bg';
+  div.className = 'modal-bg';
+  div.onclick = function(e) { if (e.target === div) closeModal(); };
+  div.innerHTML =
+    '<div class="modal">' +
+    '<button class="modal-close" onclick="closeModal()">&#x2715;</button>' +
+    '<h2 style="color:#f0c040">' + ticker + '</h2>' +
+    '<div class="modal-sub">' + s.name + '</div>' +
+    '<div class="drow"><span class="dlabel">Price</span><span class="dval">$' + s.price.toFixed(2) + '</span></div>' +
+    '<div class="drow"><span class="dlabel">24h Change</span><span class="dval ' + (s.change>=0?'pos':'neg') + '">' + (s.change>=0?'+':'') + s.change + '%</span></div>' +
+    '<div class="drow"><span class="dlabel">Price Target</span><span class="dval">$' + s.target + '</span></div>' +
+    '<div class="drow"><span class="dlabel">P/E Ratio</span><span class="dval">' + s.pe + 'x</span></div>' +
+    '<div class="drow"><span class="dlabel">Sentiment</span><span class="dval">' + s.sentiment + '/100</span></div>' +
+    '<div class="drow"><span class="dlabel">Atlas Score</span><span class="dval" style="color:' + sl.color + '">' + sc + ' &mdash; ' + sl.label + '</span></div>' +
+    '<div class="msec"><h4>Bull Thesis</h4><p>' + s.thesis + '</p></div>' +
+    '<div class="msec"><h4>Key Risks</h4><p>' + s.risks + '</p></div>' +
+    '<div class="msec"><h4>Catalysts</h4><p>' + s.catalysts + '</p></div>' +
+    '</div>';
+  document.body.appendChild(div);
+}
+
+function openETF(ticker) {
+  var e = null;
+  ETFS.forEach(function(x){ if(x.ticker===ticker) e=x; });
+  if (!e) return;
+  var sl = scoreLabel(e.score, 'quality');
+  var div = document.createElement('div');
+  div.id = 'modal-bg';
+  div.className = 'modal-bg';
+  div.onclick = function(ev) { if (ev.target === div) closeModal(); };
+  div.innerHTML =
+    '<div class="modal">' +
+    '<button class="modal-close" onclick="closeModal()">&#x2715;</button>' +
+    '<h2 style="color:#f0c040">' + e.ticker + '</h2>' +
+    '<div class="modal-sub">' + e.name + '</div>' +
+    '<div class="drow"><span class="dlabel">YTD Return</span><span class="dval ' + (e.ytd>=0?'pos':'neg') + '">' + (e.ytd>=0?'+':'') + e.ytd + '%</span></div>' +
+    '<div class="drow"><span class="dlabel">Expense Ratio</span><span class="dval">' + e.expense + '%</span></div>' +
+    '<div class="drow"><span class="dlabel">AUM</span><span class="dval">' + e.aum + '</span></div>' +
+    '<div class="drow"><span class="dlabel">Holdings</span><span class="dval">' + e.holdings + '</span></div>' +
+    '<div class="drow"><span class="dlabel">Atlas Score</span><span class="dval" style="color:' + sl.color + '">' + e.score + ' &mdash; ' + sl.label + '</span></div>' +
+    '<div class="msec"><h4>Investment Thesis</h4><p>' + e.thesis + '</p></div>' +
+    '<div class="msec"><h4>Key Risks</h4><p>' + e.risks + '</p></div>' +
+    '<div class="msec"><h4>Catalysts</h4><p>' + e.catalysts + '</p></div>' +
+    '</div>';
+  document.body.appendChild(div);
+}
+
+// ── ADD POSITION MODAL ────────────────────────────────────────────────────────
+function showAddModal() {
+  var div = document.createElement('div');
+  div.id = 'modal-bg';
+  div.className = 'modal-bg';
+  div.onclick = function(e) { if (e.target === div) closeModal(); };
+  div.innerHTML =
+    '<div class="modal">' +
+    '<button class="modal-close" onclick="closeModal()">&#x2715;</button>' +
+    '<h2>Add Position</h2>' +
+    '<div class="modal-sub">Search any S&amp;P 500 stock</div>' +
+    '<input class="form-input" id="add-ticker" type="text" placeholder="Ticker (e.g. AAPL)" oninput="tickerSearch(this.value)" autocomplete="off" style="text-transform:uppercase">' +
+    '<div id="ac-list" class="ac-list" style="display:none"></div>' +
+    '<div id="ticker-preview"></div>' +
+    '<input class="form-input" id="add-shares" type="number" placeholder="Number of shares" min="1" step="1">' +
+    '<input class="form-input" id="add-cost" type="number" placeholder="Avg cost per share ($)" min="0.01" step="0.01">' +
+    '<div id="add-err" style="color:#ff4d4d;font-size:12px;font-weight:600;margin-bottom:8px;display:none"></div>' +
+    '<button class="btn" onclick="submitAdd()">Add to Portfolio</button>' +
+    '</div>';
+  document.body.appendChild(div);
+}
+
+function tickerSearch(val) {
+  var v = val.toUpperCase().trim();
+  var list = document.getElementById('ac-list');
+  var preview = document.getElementById('ticker-preview');
+  if (!v) { list.style.display='none'; preview.innerHTML=''; return; }
+  var matches = [];
+  if (STOCKS[v]) matches.push(v);
+  Object.keys(STOCKS).forEach(function(t){ if(t!==v && t.indexOf(v)===0) matches.push(t); });
+  SP500_TICKERS.forEach(function(t){ if(!STOCKS[t] && t.indexOf(v)===0 && matches.length<8) matches.push(t); });
+  if (matches.length) {
+    list.style.display = 'block';
+    list.innerHTML = matches.slice(0,8).map(function(t){
+      return '<div class="ac-item" onclick="selectTicker(\'' + t + '\')">' + t + (STOCKS[t] ? ' &mdash; ' + STOCKS[t].name : '') + '</div>';
+    }).join('');
+  } else { list.style.display='none'; }
+  if (STOCKS[v]) {
+    var s = STOCKS[v];
+    var sc = calcScore(v);
+    var sl = scoreLabel(sc,'quality');
+    preview.innerHTML =
+      '<div style="background:#06080f;border:1px solid #1a2045;border-radius:9px;padding:13px;margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div><span style="color:#f0c040;font-weight:900;font-size:17px">' + v + '</span> <span style="color:#4a5a7a;font-size:12px">' + s.name + '</span></div>' +
+      '<div style="text-align:right"><div style="font-size:18px;font-weight:700">$' + s.price.toFixed(2) + '</div>' +
+      '<div class="' + (s.change>=0?'pos':'neg') + '" style="font-size:12px">' + (s.change>=0?'+':'') + s.change + '%</div></div>' +
+      '</div>' +
+      '<div style="margin-top:9px;display:flex;gap:8px">' +
+      '<span style="background:#131828;border-radius:4px;padding:3px 9px;font-size:11px;color:' + sl.color + ';font-weight:700">Score: ' + sc + '</span>' +
+      '<span style="background:#131828;border-radius:4px;padding:3px 9px;font-size:11px;color:#6070a0">P/E: ' + s.pe + 'x</span>' +
+      '<span style="background:#131828;border-radius:4px;padding:3px 9px;font-size:11px;color:#6070a0">Target: $' + s.target + '</span>' +
+      '</div></div>';
+  } else { preview.innerHTML = ''; }
+}
+
+function selectTicker(t) {
+  document.getElementById('add-ticker').value = t;
+  document.getElementById('ac-list').style.display = 'none';
+  tickerSearch(t);
+}
+
+function submitAdd() {
+  var ticker = document.getElementById('add-ticker').value.toUpperCase().trim();
+  var shares = parseFloat(document.getElementById('add-shares').value);
+  var cost = parseFloat(document.getElementById('add-cost').value);
+  var errEl = document.getElementById('add-err');
+  var validTicker = STOCKS[ticker] || SP500_TICKERS.indexOf(ticker) >= 0;
+  if (!ticker || !validTicker) { errEl.textContent='Enter a valid ticker'; errEl.style.display='block'; return; }
+  if (!shares || shares <= 0) { errEl.textContent='Enter valid number of shares'; errEl.style.display='block'; return; }
+  if (!cost || cost <= 0) { errEl.textContent='Enter valid average cost'; errEl.style.display='block'; return; }
+  var idx = -1;
+  portfolio.forEach(function(p,i){ if(p.ticker===ticker) idx=i; });
+  if (idx >= 0) { portfolio[idx].shares += shares; } else { portfolio.push({ticker:ticker,shares:shares,avgCost:cost}); }
+  closeModal();
+  showPage('portfolio');
+}
+
+function removePosition(ticker) {
+  portfolio = portfolio.filter(function(p){ return p.ticker !== ticker; });
+  showPage('portfolio');
+}
+
+// ── ETF FILTER ────────────────────────────────────────────────────────────────
+var activeTag = 'All';
+
+function filterETFs(tag, btn) {
+  activeTag = tag;
+  document.querySelectorAll('.fbtn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.querySelectorAll('.etf-card').forEach(function(c){
+    c.style.display = (tag==='All' || c.dataset.tag===tag) ? '' : 'none';
+  });
+}
+
+// ── PAGE ROUTER ───────────────────────────────────────────────────────────────
+function showPage(page, param) {
+  var main = document.getElementById('main');
+  document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active'); });
+  var navId = param ? param : page;
+  var navEl = document.getElementById('nav-' + navId);
+  if (navEl) navEl.classList.add('active');
+
+  if (page === 'dashboard') {
+    var sorted = Object.keys(STOCKS).sort(function(a,b){ return calcScore(b)-calcScore(a); }).slice(0,5);
+    var topHtml = sorted.map(function(t) {
+      var s = STOCKS[t]; var sc = calcScore(t); var sl = scoreLabel(sc,'quality');
+      return '<div class="stock-card" onclick="openStock(\'' + t + '\')">' +
+        '<div class="s-ticker">' + t + '</div>' +
+        '<div class="s-name">' + s.name + '</div>' +
+        '<div class="s-price lp" id="lp-' + t + '">$' + s.price.toFixed(2) + '</div>' +
+        '<div class="s-chg ' + (s.change>=0?'pos':'neg') + '">' + (s.change>=0?'+':'') + s.change + '%</div>' +
+        '<div class="score-pill" style="color:' + sl.color + '">&#x2B21; ' + sc + ' ' + sl.label + '</div>' +
+        '</div>';
+    }).join('');
+    var sentHtml = Object.keys(STOCKS).slice(0,6).map(function(t) {
+      var s = STOCKS[t];
+      return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px">' +
+        '<div><span style="color:#f0c040;font-weight:700">' + t + '</span> <span style="color:#4a5a7a;font-size:11px">' + s.name + '</span></div>' +
+        '<div style="width:130px">' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:#4a5a7a">Sentiment</span><span>' + s.sentiment + '%</span></div>' +
+        '<div class="sent-bar"><div class="sent-fill" style="width:' + s.sentiment + '%"></div></div>' +
+        '</div></div>';
+    }).join('');
+    var etfHtml = ETFS.slice(0,6).map(function(e) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;cursor:pointer" onclick="openETF(\'' + e.ticker + '\')">' +
+        '<div><div style="color:#f0c040;font-weight:700">' + e.ticker + '</div><div style="color:#4a5a7a;font-size:11px">' + e.name.substring(0,32) + '...</div></div>' +
+        '<div style="text-align:right"><div class="' + (e.ytd>=0?'pos':'neg') + '" style="font-weight:700">' + (e.ytd>=0?'+':'') + e.ytd + '%</div><div style="color:#4a5a7a;font-size:11px">YTD</div></div>' +
+        '</div>';
+    }).join('');
+    main.innerHTML =
+      '<div class="page-header"><div class="page-title">Market Dashboard</div><div class="page-sub">Real-time AI-powered market intelligence</div></div>' +
+      '<div class="g4" style="margin-bottom:24px">' +
+      '<div class="mkt-card"><div class="mkt-label">S&amp;P 500</div><div class="mkt-val">5,842</div><div class="mkt-chg pos">+0.8% today</div></div>' +
+      '<div class="mkt-card"><div class="mkt-label">NASDAQ</div><div class="mkt-val">18,421</div><div class="mkt-chg pos">+1.2% today</div></div>' +
+      '<div class="mkt-card"><div class="mkt-label">Gold</div><div class="mkt-val">$2,341</div><div class="mkt-chg pos">+0.4% today</div></div>' +
+      '<div class="mkt-card"><div class="mkt-label">VIX</div><div class="mkt-val">14.2</div><div class="mkt-chg neu">Low volatility</div></div>' +
+      '</div>' +
+      '<div class="sec-title" style="margin-bottom:16px">Top Atlas Picks</div>' +
+      '<div class="g3" style="margin-bottom:24px">' + topHtml + '</div>' +
+      '<div class="g2">' +
+      '<div class="card"><div class="sec-title">Market Sentiment</div>' + sentHtml + '</div>' +
+      '<div class="card"><div class="sec-title">Top ETFs</div>' + etfHtml + '</div>' +
+      '</div>';
+  }
+
+  else if (page === 'portfolio') {
+    var q = calcPortQuality(portfolio);
+    var m = calcPortMomentum(portfolio);
+    var r = calcPortRisk(portfolio);
+    var ql = scoreLabel(q,'quality'), ml = scoreLabel(m,'quality'), rl = scoreLabel(r,'risk');
+    var totalVal=0, totalCost=0;
+    portfolio.forEach(function(p){ var s=STOCKS[p.ticker]; if(s){totalVal+=s.price*p.shares; totalCost+=p.avgCost*p.shares;} });
+    var pnl = totalVal - totalCost;
+    var pnlPct = totalCost ? pnl/totalCost*100 : 0;
+    var rowsHtml = portfolio.length === 0
+      ? '<tr><td colspan="9" style="text-align:center;padding:40px;color:#4a5a7a">No positions yet. Add your first stock above.</td></tr>'
+      : portfolio.map(function(p) {
+          var s = STOCKS[p.ticker];
+          var price = s ? s.price : 0;
+          var val = price * p.shares;
+          var cost = p.avgCost * p.shares;
+          var pl = val - cost;
+          var plPct = cost ? pl/cost*100 : 0;
+          var sc = s ? calcScore(p.ticker) : 50;
+          var sl = scoreLabel(sc,'quality');
+          return '<tr>' +
+            '<td style="color:#f0c040;font-weight:900;cursor:pointer" onclick="openStock(\'' + p.ticker + '\')">' + p.ticker + '</td>' +
+            '<td style="color:#6070a0">' + (s ? s.name : 'Unknown') + '</td>' +
+            '<td>' + p.shares + '</td>' +
+            '<td>$' + p.avgCost.toFixed(2) + '</td>' +
+            '<td class="lp" id="lp-' + p.ticker + '">$' + price.toFixed(2) + '</td>' +
+            '<td style="font-weight:700">$' + val.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>' +
+            '<td class="' + (pl>=0?'pos':'neg') + '">' + (pl>=0?'+':'') + '$' + Math.abs(pl).toFixed(2) + ' (' + (plPct>=0?'+':'') + plPct.toFixed(1) + '%)</td>' +
+            '<td><span style="color:' + sl.color + ';font-weight:800">' + sc + '</span></td>' +
+            '<td><button class="btn-ghost" onclick="removePosition(\'' + p.ticker + '\')">&#x2715;</button></td>' +
+            '</tr>';
+        }).join('');
+    main.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">' +
+      '<div class="page-header" style="margin-bottom:0"><div class="page-title">Portfolio</div><div class="page-sub">Your positions &amp; analytics</div></div>' +
+      '<button class="btn" onclick="showAddModal()">+ Add Position</button>' +
+      '</div>' +
+      '<div class="g2" style="margin-bottom:20px">' +
+      '<div class="card">' +
+      '<div style="font-size:11px;color:#4a5a7a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Total Value</div>' +
+      '<div style="font-size:34px;font-weight:900">$' + totalVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>' +
+      '<div class="' + (pnl>=0?'pos':'neg') + '" style="font-size:14px;margin-top:5px;font-weight:700">' + (pnl>=0?'+':'') + '$' + Math.abs(pnl).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' (' + (pnlPct>=0?'+':'') + pnlPct.toFixed(2) + '%)</div>' +
+      '</div>' +
+      '<div class="card" style="display:flex;align-items:center">' +
+      '<div style="font-size:12px;color:#4a5a7a;line-height:1.7"><b style="color:#6070a0">Quality</b> = Atlas scores weighted by position value<br><b style="color:#6070a0">Momentum</b> = 24h change + sentiment + sector trend<br><b style="color:#6070a0">Risk</b> = P/E + sentiment + concentration penalty</div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="g3" style="margin-bottom:24px">' +
+      '<div class="score-box"><div class="score-type">Quality</div><div class="score-num" style="color:' + ql.color + '">' + q + '</div><div class="score-lbl" style="color:' + ql.color + '">' + ql.label + '</div></div>' +
+      '<div class="score-box"><div class="score-type">Momentum</div><div class="score-num" style="color:' + ml.color + '">' + m + '</div><div class="score-lbl" style="color:' + ml.color + '">' + ml.label + '</div></div>' +
+      '<div class="score-box"><div class="score-type">Risk Score</div><div class="score-num" style="color:' + rl.color + '">' + r + '</div><div class="score-lbl" style="color:' + rl.color + '">' + rl.label + '</div></div>' +
+      '</div>' +
+      '<div class="card">' +
+      '<div class="sec-title">Positions</div>' +
+      '<div style="overflow-x:auto"><table class="pos-table"><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Cost</th><th>Current</th><th>Value</th><th>P&amp;L</th><th>Score</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
+      '</div>';
+  }
+
+  else if (page === 'etfs') {
+    var etfCards = ETFS.map(function(e) {
+      var sl = scoreLabel(e.score,'quality');
+      var hidden = (activeTag !== 'All' && e.tag !== activeTag) ? 'display:none' : '';
+      return '<div class="etf-card" data-tag="' + e.tag + '" onclick="openETF(\'' + e.ticker + '\')" style="' + hidden + '">' +
+        '<div class="etf-ticker">' + e.ticker + '</div>' +
+        '<div class="etf-name">' + e.name + '</div>' +
+        '<div class="etf-ytd ' + (e.ytd>=0?'pos':'neg') + '">' + (e.ytd>=0?'+':'') + e.ytd + '% YTD</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">' +
+        '<span class="tag">' + e.tag + '</span>' +
+        '<span style="color:' + sl.color + ';font-weight:800;font-size:13px">&#x2B21; ' + e.score + '</span>' +
+        '</div>' +
+        '<div class="etf-meta">Expense: ' + e.expense + '% &middot; AUM: ' + e.aum + '</div>' +
+        '</div>';
+    }).join('');
+    var filterBtns = ['All','AI','Tech','Value','Mining'].map(function(t) {
+      return '<button class="fbtn' + (t===activeTag?' active':'') + '" onclick="filterETFs(\'' + t + '\',this)">' + t + '</button>';
+    }).join('');
+    main.innerHTML =
+      '<div class="page-header"><div class="page-title">ETF Research</div><div class="page-sub">12 curated funds with Atlas scoring</div></div>' +
+      '<div class="filter-bar">' + filterBtns + '</div>' +
+      '<div class="g3">' + etfCards + '</div>';
+  }
+
+  else if (page === 'sector') {
+    var names = {ai:'Artificial Intelligence',tech:'Technology',defense:'Defense',mining:'Mining & Resources'};
+    var cards = Object.keys(STOCKS).filter(function(t){ return STOCKS[t].sector===param; }).map(function(t) {
+      var s = STOCKS[t]; var sc = calcScore(t); var sl = scoreLabel(sc,'quality');
+      return '<div class="stock-card" onclick="openStock(\'' + t + '\')">' +
+        '<div class="s-ticker">' + t + '</div>' +
+        '<div class="s-name">' + s.name + '</div>' +
+        '<div class="s-price lp" id="lp-' + t + '">$' + s.price.toFixed(2) + '</div>' +
+        '<div class="s-chg ' + (s.change>=0?'pos':'neg') + '">' + (s.change>=0?'+':'') + s.change + '%</div>' +
+        '<div class="score-pill" style="color:' + sl.color + '">&#x2B21; ' + sc + ' ' + sl.label + '</div>' +
+        '</div>';
+    }).join('');
+    main.innerHTML =
+      '<div class="page-header"><div class="page-title">' + (names[param]||param) + '</div><div class="page-sub">Sector deep-dive</div></div>' +
+      '<div class="g3">' + cards + '</div>';
+  }
+
+  else if (page === 'watchlist') {
+    var wCards = Object.keys(STOCKS).map(function(t) {
+      var s = STOCKS[t]; var sc = calcScore(t); var sl = scoreLabel(sc,'quality');
+      return '<div class="stock-card" onclick="openStock(\'' + t + '\')">' +
+        '<div class="s-ticker">' + t + '</div>' +
+        '<div class="s-name">' + s.name + '</div>' +
+        '<div class="s-price lp" id="lp-' + t + '">$' + s.price.toFixed(2) + '</div>' +
+        '<div class="s-chg ' + (s.change>=0?'pos':'neg') + '">' + (s.change>=0?'+':'') + s.change + '%</div>' +
+        '<div class="score-pill" style="color:' + sl.color + '">&#x2B21; ' + sc + ' ' + sl.label + '</div>' +
+        '</div>';
+    }).join('');
+    main.innerHTML =
+      '<div class="page-header"><div class="page-title">Watchlist</div><div class="page-sub">All tracked stocks</div></div>' +
+      '<div class="g3">' + wCards + '</div>';
+  }
+
+  else if (page === 'alerts') {
+    var alerts = [
+      {ticker:'NVDA',type:'Price Target',msg:'Approaching analyst consensus target of $1,050. Consider trimming position.',icon:'🎯',color:'#f0c040'},
+      {ticker:'FCX',type:'Momentum',msg:'Strong copper demand signal. Breakout above $42 resistance confirmed.',icon:'📈',color:'#00e088'},
+      {ticker:'PLTR',type:'Earnings',msg:'Q2 earnings in 3 weeks. AIP commercial growth is the key metric to watch.',icon:'📊',color:'#4f8fff'},
+      {ticker:'AMD',type:'Catalyst',msg:'MI300X shipment data expected. Watch for NVDA market share commentary.',icon:'⚡',color:'#ffb020'},
+      {ticker:'ABX',type:'Macro',msg:'Gold above $2,300. Barrick free cash flow inflection point reached.',icon:'🥇',color:'#c9a227'}
+    ];
+    var aHtml = alerts.map(function(a) {
+      return '<div class="alert-row">' +
+        '<div class="alert-icon" style="background:' + a.color + '20">' + a.icon + '</div>' +
+        '<div style="flex:1">' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:5px">' +
+        '<span style="color:#f0c040;font-weight:900">' + a.ticker + '</span>' +
+        '<span class="tag">' + a.type + '</span>' +
+        '</div>' +
+        '<div style="font-size:13px;color:#6070a0">' + a.msg + '</div>' +
+        '</div>' +
+        '<button class="btn btn-sm" onclick="openStock(\'' + a.ticker + '\')">View</button>' +
+        '</div>';
+    }).join('');
+    main.innerHTML =
+      '<div class="page-header"><div class="page-title">Alerts</div><div class="page-sub">AI-generated signals</div></div>' +
+      aHtml;
+  }
+
+  else if (page === 'news') {
+    var news = [
+      {tag:'AI',tagColor:'#4f8fff',title:'NVIDIA Blackwell GPU Demand Exceeds Supply Through Q3 2026',body:'Data center operators report 6-month lead times on H200 clusters. NVDA raises guidance citing unprecedented AI infrastructure buildout.',sentiment:'Bullish'},
+      {tag:'Macro',tagColor:'#f0c040',title:'Fed Signals Two Rate Cuts in 2026 as Inflation Cools to 2.3%',body:'Core PCE hits Fed target for second consecutive month. Markets pricing 94% probability of June cut. Growth stocks rally on news.',sentiment:'Bullish'},
+      {tag:'Mining',tagColor:'#c9a227',title:'Copper Deficit Widens as EV Demand Outpaces Mine Supply',body:'Goldman Sachs raises copper target to $12,000/ton. FCX and COPX ETF see record inflows. Grasberg expansion on track.',sentiment:'Bullish'},
+      {tag:'Defense',tagColor:'#ff4d4d',title:'NATO Members Commit to 3% GDP Defense Spending by 2028',body:'LMT and RTX shares surge on expanded European orders. F-35 backlog grows to 800+ aircraft. Patriot missile demand at record highs.',sentiment:'Bullish'},
+      {tag:'Tech',tagColor:'#00e088',title:'Microsoft Copilot Reaches 100M Daily Active Users',body:'Enterprise AI adoption accelerating faster than expected. Azure AI revenue up 180% YoY. MSFT raises FY2026 guidance.',sentiment:'Bullish'}
+    ];
+    var nHtml = news.map(function(n) {
+      return '<div class="news-card">' +
+        '<div class="news-tag" style="background:' + n.tagColor + '20;color:' + n.tagColor + '">' + n.tag + '</div>' +
+        '<h3>' + n.title + '</h3>' +
+        '<p>' + n.body + '</p>' +
+        '<div style="margin-top:10px;font-size:11px;color:#00e088;font-weight:700">&#x25CF; ' + n.sentiment + '</div>' +
+        '</div>';
+    }).join('');
+    main.innerHTML =
+      '<div class="page-header"><div class="page-title">Market News</div><div class="page-sub">AI-curated intelligence</div></div>' +
+      nHtml;
+  }
+
+  startLivePrices();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+// 1. Render dashboard immediately (no auth gate blocking render)
+buildTicker();
+showPage('dashboard');
+startLivePrices();
+
+// 2. Check auth asynchronously AFTER render — won't block anything
+checkAuthAsync();
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!--
+  SHOTBREAK — TIMELINE EDITOR (iMovie-level)
+  ==================================================
+  Drop this file at /editor/index.html (or wire it as a route in app.html).
+  Expects /agents/client.js to be loaded. Auth reuses existing SHOTBREAK session.
+
+  Features:
+   - Media bin with generated clips (AI video outputs + uploads)
+   - Preview window with accurate cross-clip playback and A/B crossfade
+   - Multi-track timeline: video V1 + audio A1 (extensible)
+   - Drag clips into timeline, drag to reorder, drag handles to trim in/out
+   - Split at playhead, delete, duplicate
+   - Transition picker per cut (hard cut, dissolve, fade, match cut marker, J-cut, L-cut)
+   - Zoomable timeline, frame-accurate playhead, JKL scrubbing
+   - Auteur/Showrunner agent dock: one-click recut
+   - Export EDL JSON (SHOTBREAK backend or ffmpeg.wasm can render downstream)
+  ==================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SHOTBREAK · Timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;900&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #B8922E;
+    --gold-bright: #D9AF3C;
+    --gold-dim: #7A6220;
+    --ink: #0B0B0E;
+    --ink-2: #15151A;
+    --ink-3: #1F1F26;
+    --ink-4: #2A2A33;
+    --line: #34343F;
+    --text: #EEEBE2;
+    --text-dim: #8F8D83;
+    --danger: #C84B3C;
+    --ok: #5BA96F;
+    --blue: #4A7BA8;
+    --track-h: 64px;
+    --ruler-h: 24px;
+    --bin-w: 260px;
+    --inspector-w: 300px;
+    --header-h: 54px;
+    --transport-h: 44px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--ink); color: var(--text); font-family: 'Archivo', sans-serif; overflow: hidden; }
+  button, input, select { font-family: inherit; }
+
+  .app { display: grid; grid-template-rows: var(--header-h) 1fr; height: 100vh; }
+
+  /* ===== Header ===== */
+  header.top {
+    display: flex; align-items: center; gap: 20px;
+    padding: 0 20px;
+    background: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+  }
+  header.top .brand {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 20px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  header.top .brand .dot { color: var(--gold); }
+  header.top .project {
+    font-size: 13px; color: var(--text-dim);
+    padding-left: 20px; border-left: 1px solid var(--line);
+  }
+  header.top .project input {
+    background: transparent; border: none; color: var(--text);
+    font-size: 13px; width: 200px; outline: none;
+  }
+  header.top .spacer { flex: 1; }
+  header.top button {
+    background: transparent; border: 1px solid var(--line); color: var(--text);
+    padding: 7px 14px; border-radius: 3px; cursor: pointer;
+    font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    transition: all 0.15s ease;
+  }
+  header.top button:hover { border-color: var(--gold); color: var(--gold-bright); }
+  header.top button.primary { background: var(--gold); border-color: var(--gold); color: var(--ink); font-weight: 600; }
+  header.top button.primary:hover { background: var(--gold-bright); color: var(--ink); }
+
+  /* ===== Main grid ===== */
+  .workspace {
+    display: grid;
+    grid-template-columns: var(--bin-w) 1fr var(--inspector-w);
+    grid-template-rows: 1fr auto;
+    height: calc(100vh - var(--header-h));
+    min-height: 0;
+  }
+
+  /* ===== Bin (left) ===== */ 
+  aside.bin {
+    grid-row: 1 / 3;
+    background: var(--ink-2);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  aside.bin h2 {
+    margin: 0; padding: 14px 16px;
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gold); border-bottom: 1px solid var(--line);
+  }
+  .bin-actions { padding: 8px 12px; display: flex; gap: 8px; border-bottom: 1px solid var(--line); }
+  .bin-actions button {
+    flex: 1; background: var(--ink-3); border: 1px solid var(--line); color: var(--text);
+    padding: 8px; border-radius: 3px; font-size: 11px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .bin-actions button:hover { border-color: var(--gold); color: var(--gold-bright); }
+  .bin-items { flex: 1; overflow-y: auto; padding: 8px; }
+  .bin-item {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 8px; margin-bottom: 6px;
+    background: var(--ink-3); border: 1px solid transparent;
+    border-radius: 4px; cursor: grab; user-select: none;
+    transition: border-color 0.12s ease;
+  }
+  .bin-item:hover { border-color: var(--gold-dim); }
+  .bin-item:active { cursor: grabbing; }
+  .bin-item .thumb {
+    width: 100%; aspect-ratio: 16/9; background: var(--ink);
+    border-radius: 2px; object-fit: cover; display: block;
+    border: 1px solid var(--line);
+  }
+  .bin-item .meta { font-size: 11px; color: var(--text-dim); }
+  .bin-item .meta .name { color: var(--text); font-weight: 500; font-size: 12px; }
+  .bin-item .meta .dur { font-family: 'JetBrains Mono', monospace; color: var(--gold); font-size: 10px; }
+
+  /* ===== Center column: preview + transport + timeline ===== */
+  main.stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .preview {
+    position: relative; flex: 1; min-height: 0;
+    background: #000; display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .preview video {
+    max-width: 100%; max-height: 100%;
+    position: absolute; pointer-events: none;
+    transition: opacity 0.1s linear;
+  }
+  .preview #previewA { opacity: 1; z-index: 2; }
+  .preview #previewB { opacity: 0; z-index: 1; }
+  .preview .placeholder {
+    color: var(--text-dim); font-family: 'Fraunces', serif;
+    font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  .transport {
+    height: var(--transport-h);
+    background: var(--ink-2);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  }
+  .transport button {
+    background: transparent; border: 1px solid var(--line); color: var(--text);
+    width: 32px; height: 30px; border-radius: 3px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .transport button:hover { border-color: var(--gold); color: var(--gold-bright); }
+  .transport button.play { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+  .transport button.play:hover { background: var(--gold-bright); }
+  .transport .timecode {
+    font-family: 'JetBrains Mono', monospace; font-weight: 500;
+    font-size: 14px; color: var(--gold); letter-spacing: 0.04em;
+    margin-left: 8px;
+  }
+  .transport .total { color: var(--text-dim); font-size: 12px; }
+  .transport .zoom { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .transport .zoom label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .transport input[type="range"] { width: 140px; accent-color: var(--gold); }
+
+  /* ===== Timeline ===== */
+  .timeline {
+    height: 260px; background: var(--ink-2);
+    display: flex; flex-direction: column; min-height: 0;
+    overflow: hidden;
+  }
+  .ruler {
+    height: var(--ruler-h);
+    background: var(--ink-3);
+    border-bottom: 1px solid var(--line);
+    position: relative; overflow: hidden;
+    cursor: pointer;
+  }
+  .ruler-inner { position: absolute; top: 0; left: 0; bottom: 0; }
+  .ruler-tick {
+    position: absolute; top: 0; bottom: 0; width: 1px;
+    background: var(--line);
+  }
+  .ruler-label {
+    position: absolute; top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--text-dim);
+    padding-left: 4px;
+  }
+
+  .tracks-scroll { flex: 1; overflow: auto; position: relative; }
+  .tracks-inner { position: relative; min-height: 100%; }
+  .track-label {
+    position: sticky; left: 0;
+    width: 60px; z-index: 3;
+    background: var(--ink-3);
+    border-right: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--gold);
+    letter-spacing: 0.06em;
+  }
+  .track {
+    position: relative;
+    height: var(--track-h);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+  }
+  .track .lane {
+    position: relative; flex: 1; min-width: 0;
+  }
+  .track.video .lane { background: var(--ink-2); }
+  .track.audio { height: 48px; }
+  .track.audio .lane { background: #141418; }
+
+  .clip {
+    position: absolute; top: 4px; bottom: 4px;
+    background: linear-gradient(180deg, #2a2332 0%, #1d1824 100%);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: grab;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 -1px 0 rgba(0,0,0,0.3) inset;
+    user-select: none;
+  }
+  .clip.selected { border-color: var(--gold-bright); box-shadow: 0 0 0 2px rgba(184,146,46,0.25); z-index: 5; }
+  .clip .clip-thumb { position: absolute; inset: 0; opacity: 0.5; object-fit: cover; width: 100%; height: 100%; }
+  .clip .clip-name {
+    position: absolute; left: 10px; top: 6px; right: 10px;
+    font-size: 11px; font-weight: 500; color: var(--text);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7); pointer-events: none;
+  }
+  .clip .clip-dur {
+    position: absolute; left: 10px; bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--gold-bright);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+    pointer-events: none;
+  }
+  .clip .handle {
+    position: absolute; top: 0; bottom: 0; width: 8px;
+    cursor: ew-resize; z-index: 2;
+    background: linear-gradient(90deg, rgba(184,146,46,0.4), transparent);
+  }
+  .clip .handle.right { right: 0; background: linear-gradient(270deg, rgba(184,146,46,0.4), transparent); }
+  .clip .transition-marker {
+    position: absolute; top: -1px; bottom: -1px; width: 0; z-index: 4;
+  }
+  .clip .transition-marker.dissolve { background: linear-gradient(90deg, rgba(184,146,46,0.6), transparent); width: 18px; left: -9px; }
+  .clip .transition-marker.fade { background: linear-gradient(90deg, rgba(0,0,0,0.9), transparent); width: 18px; left: -9px; }
+
+  .track.audio .clip {
+    background: linear-gradient(180deg, #1e2a30 0%, #182024 100%);
+    border-color: #2f6478;
+  }
+  .track.audio .clip.selected { border-color: #5fb3ce; box-shadow: 0 0 0 2px rgba(95,179,206,0.25); }
+
+  /* Playhead */
+  .playhead {
+    position: absolute; top: 0; bottom: 0; width: 2px; background: var(--gold-bright);
+    z-index: 10; pointer-events: none;
+    box-shadow: 0 0 8px rgba(217, 175, 60, 0.6);
+  }
+  .playhead::before {
+    content: ''; position: absolute; top: -4px; left: -5px;
+    width: 12px; height: 8px;
+    background: var(--gold-bright);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+
+  /* ===== Inspector (right) ===== */
+  aside.inspector {
+    grid-row: 1 / 2;
+    background: var(--ink-2);
+    border-left: 1px solid var(--line);
+    padding: 16px; overflow-y: auto;
+    min-height: 0;
+  }
+  aside.inspector h3 {
+    margin: 0 0 12px; font-family: 'Fraunces', serif; font-size: 13px;
+    color: var(--gold); text-transform: uppercase; letter-spacing: 0.12em;
+  }
+  .inspector-empty { color: var(--text-dim); font-size: 12px; font-style: italic; }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 4px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%; background: var(--ink-3); border: 1px solid var(--line);
+    color: var(--text); padding: 7px 9px; border-radius: 3px;
+    font-size: 12px; outline: none;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; }
+  .btn-row { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .btn-row button {
+    flex: 1; background: var(--ink-3); border: 1px solid var(--line); color: var(--text);
+    padding: 8px; border-radius: 3px; font-size: 11px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.05em; min-width: 80px;
+  }
+  .btn-row button:hover { border-color: var(--gold); color: var(--gold-bright); }
+  .btn-row button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ===== Agent dock (right, bottom) ===== */
+  aside.agent-dock {
+    grid-row: 2 / 3;
+    background: var(--ink-2);
+    border-left: 1px solid var(--line);
+    border-top: 1px solid var(--line);
+    padding: 14px 16px;
+    min-height: 200px;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+  aside.agent-dock h3 {
+    margin: 0 0 10px; font-family: 'Fraunces', serif; font-size: 12px;
+    color: var(--gold); text-transform: uppercase; letter-spacing: 0.14em;
+  }
+  .agent-actions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .agent-actions button {
+    background: transparent; border: 1px solid var(--gold-dim); color: var(--gold-bright);
+    padding: 9px 10px; border-radius: 3px; font-size: 11px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.06em; text-align: left;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .agent-actions button:hover { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .agent-actions button.secondary { border-color: var(--line); color: var(--text); font-weight: 400; }
+  .agent-actions button.secondary:hover { border-color: var(--gold); color: var(--gold-bright); background: transparent; }
+  .agent-log {
+    background: var(--ink); border: 1px solid var(--line); border-radius: 3px;
+    padding: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--text-dim);
+    max-height: 140px; overflow-y: auto;
+    line-height: 1.5;
+  }
+  .agent-log .line.ok { color: var(--ok); }
+  .agent-log .line.err { color: var(--danger); }
+  .agent-log .line.info { color: var(--gold); }
+
+  /* ===== Modal ===== */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--ink-2); border: 1px solid var(--gold-dim);
+    border-radius: 6px; padding: 24px; max-width: 560px; width: 90%;
+  }
+  .modal h2 { margin-top: 0; font-family: 'Fraunces', serif; color: var(--gold); }
+  .modal textarea { width: 100%; min-height: 140px; background: var(--ink); border: 1px solid var(--line); color: var(--text); padding: 10px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--ink); }
+  ::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+</style>
+
+<link rel="stylesheet" href="../css/theme.css">
+<link rel="stylesheet" href="../css/legacy-theme.css">
+</head>
+<body>
+<div class="cin-backbar"><span class="cin-backbar__brand">CINAMATE</span><span class="cin-backbar__sep">//</span><a href="../dashboard.html">&larr; Console</a><span class="cin-backbar__sep">·</span><a href="../index.html">Home</a></div>
+<div class="app">
+
+  <!-- Header -->
+  <header class="top">
+    <a class='brand' href='/app' style='text-decoration:none;color:inherit;cursor:pointer' title='Back to SHOTBREAK dashboard'>← SHOTBREAK<span class="dot">.</span></a>
+    <div class="project"><input id="project-name" value="Untitled Project" /></div>
+    <div class="spacer"></div>
+    <button id="btn-save">Save</button>
+    <button id="btn-export">Export EDL</button>
+    <button class="primary" id="btn-render">Render</button>
+  </header>
+
+  <!-- Workspace -->
+  <div class="workspace">
+    <!-- Bin -->
+    <aside class="bin">
+      <h2>Media Bin</h2>
+      <div class="bin-actions">
+        <button onclick="uploadMedia()">Upload MP4</button>
+        <button onclick="refreshGenerated()">Refresh Generated</button>
+      </div>
+      <div class="bin-items" id="binItems"></div>
+    </aside>
+
+    <!-- Stage -->
+    <main class="stage">
+      <div class="preview" id="preview">
+        <video id="previewA" playsinline></video>
+        <video id="previewB" playsinline></video>
+        <div class="placeholder" id="previewPlaceholder">Drop clips here or select from bin</div>
+      </div>
+
+      <div class="transport">
+        <button onclick="togglePlay()" class="play" id="playBtn">▶</button>
+        <button onclick="seek(-1)">◀</button>
+        <button onclick="seek(1)">▶</button>
+        <span class="timecode" id="timecode">00:00.00</span>
+        <span class="totalTime" id="totalTime">/ 00:00.00</span>
+        <div class="zoom">
+          <label>Zoom</label>
+          <input type="range" min="0.5" max="5" step="0.1" value="1" oninput="setZoom(this.value)">
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="ruler" id="ruler" onclick="seekToRuler(event)"></div>
+        <div class="tracks-scroll">
+          <div class="tracks-inner" id="tracks">
+            <div class="track video">
+              <div class="track-label">V1</div>
+              <div class="lane" id="videoLane"></div>
+            </div>
+            <div class="track audio">
+              <div class="track-label">A1</div>
+              <div class="lane" id="audioLane"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Inspector -->
+    <aside class="inspector">
+      <h3>Inspector</h3>
+      <div id="inspectorContent" class="inspector-empty">Select a clip</div>
+    </aside>
+
+    <!-- Agent Dock -->
+    <aside class="agent-dock">
+      <h3>Agents</h3>
+      <div class="agent-actions">
+        <button onclick="runAgentOnSelection('auteur')">Run Auteur on Selection</button>
+        <button onclick="runAgentOnSelection('showrunner')">Run Showrunner Recut</button>
+        <button class="secondary" onclick="clearTimeline()">Clear Timeline</button>
+      </div>
+      <div class="agent-log" id="agentLog"></div>
+    </aside>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2 id="modalTitle"></h2>
+    <textarea id="modalInput"></textarea>
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button onclick="submitModal()" class="primary">Run</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="/js/api-auth.js"></script>
+<script src="/js/config.js"></script>
+<script>
+  if (window.firebase && window.SHOTBREAK_CONFIG && window.SHOTBREAK_CONFIG.firebase) {
+    try { firebase.initializeApp(window.SHOTBREAK_CONFIG.firebase); } catch (e) { console.warn('[Editor] firebase init', e); }
+  }
+
+  // Rehydrate owner token from localStorage (set by app.html on owner login).
+  (function(){
+    try{
+      const tk=localStorage.getItem('SB_OWNER_TOKEN');
+      const nm=localStorage.getItem('SB_OWNER_NAME');
+      const exp=parseInt(localStorage.getItem('SB_OWNER_EXPIRES')||'0',10);
+      if(tk&&nm&&exp>Date.now()){
+        window.SB_OWNER_TOKEN=tk;
+        window.SB_OWNER_NAME=nm;
+      }else if(exp&&exp<=Date.now()){
+        localStorage.removeItem('SB_OWNER_TOKEN');
+        localStorage.removeItem('SB_OWNER_NAME');
+        localStorage.removeItem('SB_OWNER_EXPIRES');
+      }
+    }catch(e){}
+  })();
+  // (Rehydrate + getToken now handled centrally by js/auth.js loaded in <head>.)
+
+  // getToken/hdrs provided by early-loaded js/auth.js. Legacy local override removed.
+</script>
+
+<!-- Client library (registered under window.SB_Agents) -->
+<script src="/agents/client.js?v=69"></script>
+
+<!-- Editor engine -->
+<script src="/timeline/pro-cut.js?v=20260628a"></script>
+<script src="/js/ffmpeg-wasm.js?v=20260628a"></script>
+<script src="/editor/timeline-engine.js?v=20260628a"></script>
+</body>
+</html>

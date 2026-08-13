@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CINAMATE — Producer Suite</title>
+<link rel="icon" href="/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/timeline/timeline.css?v=cm1786481983822">
+<link rel="stylesheet" href="producer.css?v=cm1786481983822">
+
+<link rel="stylesheet" href="../css/theme.css">
+<link rel="stylesheet" href="../css/legacy-theme.css">
+</head>
+<body>
+<div class="cin-backbar"><span class="cin-backbar__brand">CINAMATE</span><span class="cin-backbar__sep">//</span><a href="../dashboard.html">&larr; Console</a><span class="cin-backbar__sep">·</span><a href="../index.html">Home</a></div>
+<div class="app">
+  <header class="topbar">
+    <div class="logo">CINA<span>MATE</span></div>
+    <nav class="ps-tabs" id="psTabs">
+      <button class="ps-tab on" data-tab="budget">Budget</button>
+      <button class="ps-tab" data-tab="schedule">Schedule</button>
+      <button class="ps-tab" data-tab="incentives">Incentives</button>
+    </nav>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn gold" id="psAddScript" title="Paste or import a screenplay — both tabs seed from it">✎ Add script</button>
+    <span class="tb-meta" id="psProject">Untitled Film</span>
+    <a class="tb-btn" href="/timeline/" title="Back to timeline">← Timeline</a>
+  </header>
+
+  <div class="ps-main">
+    <!-- ── BUDGET TAB — top-sheet editor ── -->
+    <section class="ps-pane" id="pane-budget">
+      <div class="ps-toolbar">
+        <button class="tb-btn gold" id="bsSeed" title="Pre-fill estimated column from the script-driven estimator">⚡ Seed from script estimate</button>
+        <button class="tb-btn" id="bsAddItem">+ Line item</button>
+        <button class="tb-btn" id="bsCsv" title="Export the top sheet as CSV for Excel / Sheets">Export CSV</button>
+        <button class="tb-btn" id="bsSave">Save (.json)</button>
+        <button class="tb-btn" id="bsLoad">Load</button>
+        <button class="tb-btn" id="bsPrint">Print / PDF</button>
+        <button class="tb-btn" id="bsReset" title="Reset to blank top sheet">New sheet</button>
+        <input type="file" id="bsFile" accept=".json" hidden>
+        <span class="ps-hint" id="bsHint">Click any amount to edit · Amt × Units × Rate fills the total</span>
+      </div>
+      <div class="ps-split">
+        <div class="ps-topsheet" id="bsTopSheet"></div>
+        <div class="ps-detail" id="bsDetail"><div class="ps-empty">Select a category on the left</div></div>
+      </div>
+    </section>
+
+    <!-- ── SCHEDULE TAB — stripboard + DOOD ── -->
+    <section class="ps-pane hidden" id="pane-schedule">
+      <div class="ps-toolbar">
+        <button class="tb-btn gold" id="sbSeed" title="Rebuild strips from the parsed script">⚡ Seed scenes from script</button>
+        <button class="tb-btn" id="sbAuto" title="Fill days at the target pace">Auto-schedule</button>
+        <select class="uc-sel" id="sbMode" title="Auto-schedule order">
+          <option value="script">Script order</option>
+          <option value="location">Group by location</option>
+        </select>
+        <label class="ps-inline">Target <input type="number" id="sbPace" min="1" max="12" step="0.5" value="4.5"> pages/day</label>
+        <button class="tb-btn" id="sbClear">Unschedule all</button>
+        <button class="tb-btn" id="sbDood">Day-out-of-Days</button>
+        <button class="tb-btn" id="sbPrint">Print / PDF</button>
+        <span class="ps-hint">Drag strips between days · double-click a strip to edit its breakdown · 📋 on a day = call sheet</span>
+      </div>
+      <div class="ps-board">
+        <aside class="ps-boneyard">
+          <h3>Boneyard <span id="sbBoneMeta"></span></h3>
+          <div class="ps-strips" id="sbBoneyard" data-day="-1"></div>
+        </aside>
+        <div class="ps-days" id="sbDays"></div>
+      </div>
+      <div class="ps-dood hidden" id="sbDoodWrap"></div>
+    </section>
+
+    <!-- ── INCENTIVES TAB — jurisdiction decoder ── -->
+    <section class="ps-pane hidden" id="pane-incentives">
+      <div class="ps-toolbar">
+        <label class="ps-inline">Budget $<input type="text" id="inBudget" value="" placeholder="5,000,000"></label>
+        <button class="tb-btn gold" id="inFromSheet" title="Use the Budget tab's grand total">Use top-sheet total</button>
+        <button class="tb-btn" id="inFromEst" title="Use the script-driven estimate">Use script estimate</button>
+        <span class="ps-hint">Recovery = budget × qualified-spend % × credit rate. Paid 6–18 months after audit.</span>
+      </div>
+      <div id="inTable"></div>
+      <p class="bud-note" style="padding:0 14px 14px">Headline program terms, 2025–26 — every program has qualification rules, caps and sunset dates; verify with a production accountant. Sources in <code>docs/PRODUCTION_PRICING.md</code>.</p>
+    </section>
+  </div>
+</div>
+
+<div class="modal hidden" id="sbEditModal"><div class="modal-card"></div></div>
+<div class="modal hidden" id="sbCallModal"><div class="modal-card cs-card"></div></div>
+
+<div class="modal hidden" id="psScriptModal">
+  <div class="modal-card">
+    <div class="modal-head"><span>Add screenplay</span><button type="button" class="tb-btn" id="psCloseScript">✕</button></div>
+    <p class="panel-desc" style="margin-bottom:10px">Paste your screenplay below or import a .txt / .fountain file. It saves to the shared project, so the Studio sees it too. (For PDF or Final Draft files, use the Studio's importer.)</p>
+    <textarea id="psScriptText" class="script-editor" rows="14" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="INT. LOCATION - DAY&#10;&#10;Your screenplay…" style="width:100%"></textarea>
+    <div class="script-actions" style="margin-top:10px">
+      <span class="script-meta" id="psScriptMeta">0 characters</span>
+      <div class="script-btns">
+        <button class="tb-btn" id="psImportFile" type="button">Import file</button>
+        <button class="tb-btn gold" id="psUseScript" type="button">Use this script</button>
+      </div>
+    </div>
+    <input type="file" id="psScriptFile" accept=".txt,.fountain,.text" hidden>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/timeline/timeline-budget.js?v=cm1786481983822"></script>
+<script src="budget-sheet.js?v=cm1786481983822"></script>
+<script src="schedule-board.js?v=cm1786481983822"></script>
+<script src="incentives.js?v=cm1786481983822"></script>
+<script>
+(function(){
+  'use strict';
+  function $(id){return document.getElementById(id)}
+  window.psToast=function(m){var t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},2800)};
+
+  /* Shared project context: read the timeline's saved project (script, cast,
+   * settings) so every tab can seed itself from the parsed screenplay. */
+  window.psProjectState=function(){
+    try{
+      var d=JSON.parse(localStorage.getItem('SB_Timeline_v1')||'null')||{};
+      return{projectName:d.projectName||'Untitled Film',scriptText:d.scriptText||'',clips:d.clips||[],
+        characters:d.characters||{},locationBible:d.locationBible||[],parseResult:d.parseResult||null,
+        global:d.global||{}};
+    }catch(e){return{projectName:'Untitled Film',scriptText:'',clips:[],characters:{},locationBible:[],parseResult:null,global:{}}}
+  };
+
+  var st=window.psProjectState();
+  $('psProject').textContent=st.projectName;
+
+  var tabs=document.querySelectorAll('.ps-tab');
+  tabs.forEach(function(b){
+    b.addEventListener('click',function(){
+      tabs.forEach(function(x){x.classList.toggle('on',x===b)});
+      ['budget','schedule','incentives'].forEach(function(t){
+        $('pane-'+t).classList.toggle('hidden',t!==b.dataset.tab);
+      });
+      if(b.dataset.tab==='incentives'&&window.SBIncentives)SBIncentives.render();
+    });
+  });
+
+  if(window.SBBudgetSheet)SBBudgetSheet.init();
+  if(window.SBScheduleBoard)SBScheduleBoard.init();
+  if(window.SBIncentives)SBIncentives.init();
+
+  /* ── Add-script modal: saves into the shared project (SB_Timeline_v1),
+   *    preserving everything else, then seeds the active tab. ── */
+  var modal=$('psScriptModal'),ta=$('psScriptText'),meta=$('psScriptMeta');
+  function openScriptModal(){
+    var existing=(window.psProjectState().scriptText||'');
+    // Prefilling a huge script freezes layout on slower machines — show a
+    // note instead and only replace on explicit paste.
+    if(existing.length>150000){
+      ta.value='';
+      ta.placeholder='Current script is '+Math.round(existing.length/1024)+'KB and stays as-is.\nPaste here only to REPLACE it.';
+      meta.textContent=existing.length.toLocaleString()+' characters stored';
+    }else{
+      ta.value=existing;
+      meta.textContent=ta.value.length.toLocaleString()+' characters';
+    }
+    modal.classList.remove('hidden');
+    ta.focus();
+  }
+  function closeScriptModal(){modal.classList.add('hidden')}
+  function saveScriptToProject(text){
+    var d={};
+    try{d=JSON.parse(localStorage.getItem('SB_Timeline_v1')||'{}')||{}}catch(e){}
+    d.scriptText=text;
+    if(!d.projectName)d.projectName='Untitled Film';
+    d.clips=d.clips||[];d.characters=d.characters||{};d.locationBible=d.locationBible||[];
+    d.global=d.global||{model:'seedance-2.0-turbo',quality:'720p',clipDuration:5};
+    localStorage.setItem('SB_Timeline_v1',JSON.stringify(d));
+  }
+  $('psAddScript').addEventListener('click',openScriptModal);
+  $('psCloseScript').addEventListener('click',closeScriptModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeScriptModal()});
+  ta.addEventListener('input',function(){meta.textContent=ta.value.length.toLocaleString()+' characters'});
+  $('psImportFile').addEventListener('click',function(){$('psScriptFile').click()});
+  $('psScriptFile').addEventListener('change',function(){
+    var f=this.files[0];this.value='';
+    if(!f)return;
+    f.text().then(function(t){ta.value=t;meta.textContent=t.length.toLocaleString()+' characters'})
+      .catch(function(){psToast('Could not read that file')});
+  });
+  $('psUseScript').addEventListener('click',function(){
+    var text=(ta.value||'').trim();
+    if(!text&&(window.psProjectState().scriptText||'').length>150000){
+      closeScriptModal();
+      return psToast('Kept the existing script');
+    }
+    if(text.length<40)return psToast('Paste a screenplay first (a few scenes at least)');
+    saveScriptToProject(text);
+    closeScriptModal();
+    var onSchedule=!$('pane-schedule').classList.contains('hidden');
+    var onBudget=!$('pane-budget').classList.contains('hidden');
+    if(onSchedule&&$('sbSeed'))$('sbSeed').click();
+    else if(onBudget&&$('bsSeed'))$('bsSeed').click();
+    else psToast('Script saved — use the Seed buttons on the Budget or Schedule tab');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+[The full updated registry.js with the 82 agents as per the provided breakdown and GOD level prompts. The local PATCHED copy has the complete detailed versions for all layers.]

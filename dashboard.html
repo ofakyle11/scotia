@@ -709,6 +709,48 @@ body { overflow: hidden; }
 }
 
 
+
+/* -- Module launcher --------------------------------------------- */
+
+.prod-modules {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.prod-modules__label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.prod-modules__link {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  color: var(--text-mid);
+  text-decoration: none;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  transition: color 200ms var(--ease-hover, ease),
+              border-color 200ms var(--ease-hover, ease);
+}
+
+.prod-modules__link:hover,
+.prod-modules__link:focus-visible {
+  color: var(--cyan);
+  border-color: var(--cyan-25);
+}
+
 /* ================================================================
    06B · BUDGET ESTIMATOR — cost model over the shot list
    ----------------------------------------------------------------
@@ -2528,6 +2570,19 @@ select.prod-field__input {
       <span class="prod__feed-stamp" id="prod-feed-stamp" aria-hidden="true">TELEMETRY&nbsp;FEED&nbsp;·&nbsp;1.2s</span>
     </div>
   </header>
+
+  <!-- ──────────────────────────────────────────────
+       MODULE LAUNCHER — the carried-over Studio tools
+       ────────────────────────────────────────────── -->
+  <nav class="prod-modules" data-reveal style="--reveal-delay: 60ms" aria-label="Studio modules">
+    <span class="prod-modules__label">Modules</span>
+    <a class="prod-modules__link" href="timeline/index.html">Studio&nbsp;/&nbsp;Timeline</a>
+    <a class="prod-modules__link" href="producer/index.html">Budget&nbsp;·&nbsp;Schedule&nbsp;·&nbsp;Incentives</a>
+    <a class="prod-modules__link" href="editor/index.html">Editor</a>
+    <a class="prod-modules__link" href="app.html">Rough-Draft&nbsp;Studio</a>
+    <a class="prod-modules__link" href="workflow/index.html">Workflow</a>
+    <a class="prod-modules__link" href="products.html">Overview</a>
+  </nav>
 
   <!-- ============================================================
        STAT TILES — 4-up · collapses 2×2 · 1-col

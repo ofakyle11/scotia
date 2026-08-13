@@ -1,0 +1,2 @@
+# 31MB ffmpeg wasm core — deployed to Netlify, not tracked in git
+static/ffmpeg/ffmpeg-core.wasm

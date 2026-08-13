@@ -1,0 +1,139 @@
+/* SHOTBREAK Producer Suite — budget top sheet, stripboard, incentives */
+
+.ps-tabs{display:flex;gap:4px;margin-left:14px}
+.ps-tab{border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:8px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer}
+.ps-tab.on{background:var(--gold);color:#000;border-color:var(--gold)}
+.ps-tab:hover:not(.on){color:#fff;border-color:var(--border2)}
+.ps-main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.ps-pane{flex:1;overflow:auto;display:flex;flex-direction:column}
+.ps-pane.hidden{display:none}
+.ps-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.ps-hint{font-size:10px;color:var(--dim);margin-left:auto}
+.ps-inline{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px}
+.ps-inline input{width:110px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:11px;font-family:var(--mono)}
+.ps-inline input#sbPace{width:56px}
+.ps-empty{padding:24px;text-align:center;color:var(--dim);font-size:12px}
+
+/* ── budget top sheet ── */
+.ps-split{flex:1;display:flex;overflow:hidden;min-height:0}
+.ps-topsheet{width:400px;min-width:320px;overflow-y:auto;border-right:1px solid var(--border);background:var(--surface)}
+.ps-detail{flex:1;overflow-y:auto;padding:14px}
+.bs-row{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:11px}
+.bs-row:hover{background:var(--surface2)}
+.bs-row.on{background:rgba(56,189,248,.08);border-left:2px solid var(--gold)}
+.bs-acct{font-family:var(--mono);color:var(--dim);width:44px;flex-shrink:0;font-size:10px}
+.bs-name{flex:1;color:var(--text);font-weight:600}
+.bs-amt{font-family:var(--mono);color:var(--text2);font-size:11px}
+.bs-pct{font-family:var(--mono);color:var(--dim);font-size:9px;width:38px;text-align:right}
+.bs-row.bs-total-row{background:var(--surface2);cursor:default;font-weight:700}
+.bs-row.bs-grand{background:rgba(56,189,248,.1);cursor:default}
+.bs-row.bs-grand .bs-amt{color:var(--gold);font-size:13px;font-weight:700}
+.bs-head{padding:12px;border-bottom:1px solid var(--border2)}
+.bs-head input{background:transparent;border:none;color:var(--text);font-family:var(--display);font-size:16px;font-weight:700;width:100%}
+.bs-head input:focus{outline:none;border-bottom:1px dashed var(--gold)}
+.bs-head .bs-sub{display:flex;gap:10px;margin-top:6px;font-size:10px;color:var(--dim);align-items:center}
+.bs-head .bs-sub input{font-family:var(--mono);font-size:10px;color:var(--text2);border:1px solid var(--border);border-radius:5px;padding:3px 6px;width:130px}
+.bs-head .bs-sub input.bs-cont{width:44px;text-align:right}
+
+.bsd-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px;font-family:var(--mono)}
+.bsd-table{width:100%;border-collapse:collapse;font-size:11px}
+.bsd-table th{text-align:left;color:var(--dim);font-size:9px;text-transform:uppercase;letter-spacing:.05em;padding:6px;border-bottom:1px solid var(--border2);white-space:nowrap}
+.bsd-table td{padding:4px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
+.bsd-table input{width:100%;background:var(--surface2);border:1px solid transparent;color:var(--text);border-radius:5px;padding:4px 6px;font-size:11px;font-family:var(--mono)}
+.bsd-table input.bsd-desc{font-family:var(--body)}
+.bsd-table input:hover{border-color:var(--border2)}
+.bsd-table input:focus{outline:none;border-color:var(--gold)}
+.bsd-table .bsd-tot{font-family:var(--mono);color:var(--text);text-align:right;white-space:nowrap}
+.bsd-table .bsd-x{color:var(--dim);text-align:center;padding:0 2px}
+.bsd-del{border:none;background:transparent;color:var(--dim);cursor:pointer;font-size:12px;padding:2px 6px}
+.bsd-del:hover{color:var(--red)}
+.bsd-foot{margin-top:10px;display:flex;gap:8px;align-items:center}
+.bsd-cat-tot{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--gold);font-weight:700}
+
+/* ── stripboard ── */
+.ps-board{flex:1;display:flex;overflow:hidden;min-height:0}
+.ps-boneyard{width:320px;min-width:260px;border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column}
+.ps-boneyard h3{padding:10px 12px;font-size:11px;color:var(--text2);letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.ps-boneyard h3 span{color:var(--dim);font-family:var(--mono);font-size:9px}
+.ps-strips{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:5px;min-height:60px}
+.ps-days{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-content:start}
+.ps-day{background:var(--surface);border:1px solid var(--border);border-radius:10px;min-height:110px;display:flex;flex-direction:column}
+.ps-day-head{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text)}
+.ps-day-head .ps-day-meta{font-family:var(--mono);font-size:9px;color:var(--dim);font-weight:400}
+.ps-day-head .ps-day-meta.over{color:var(--red)}
+.ps-day .ps-strips{padding:6px}
+.ps-strip{border-radius:6px;padding:6px 9px;font-size:10px;cursor:grab;border:1px solid rgba(0,0,0,.35);color:#111;user-select:none;line-height:1.35}
+.ps-strip:active{cursor:grabbing}
+.ps-strip.day{background:#e8a33d}
+.ps-strip.night{background:#6ea8e8}
+.ps-strip.dragging{opacity:.4}
+.ps-strip b{font-weight:700}
+.ps-strip .ps-strip-meta{font-family:var(--mono);font-size:9px;opacity:.75}
+.ps-strips.dragover{outline:2px dashed var(--gold);outline-offset:-4px;border-radius:8px}
+
+/* ── DOOD ── */
+.ps-dood{padding:14px;border-top:1px solid var(--border);background:var(--surface);max-height:45%;overflow:auto}
+.ps-dood h3{font-size:11px;color:var(--gold);letter-spacing:.05em;margin-bottom:8px}
+.dood-table{border-collapse:collapse;font-size:10px;font-family:var(--mono)}
+.dood-table th,.dood-table td{border:1px solid var(--border);padding:3px 6px;text-align:center;white-space:nowrap}
+.dood-table th{color:var(--dim);font-size:9px;background:var(--surface2)}
+.dood-table td:first-child{text-align:left;color:var(--text);font-family:var(--body);font-weight:600}
+.dood-table .sw{color:var(--green);font-weight:700}
+.dood-table .wf{color:var(--red);font-weight:700}
+.dood-table .h{color:var(--dim)}
+.dood-legend{font-size:9px;color:var(--dim);margin-top:6px;font-family:var(--mono)}
+
+/* ── incentives ── */
+.in-table{width:100%;border-collapse:collapse;font-size:11px}
+.in-table th{text-align:left;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--border2);cursor:pointer;white-space:nowrap}
+.in-table th:hover{color:var(--text)}
+.in-table td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+.in-table td.mono{font-family:var(--mono);white-space:nowrap;text-align:right}
+.in-table td.mono.good{color:var(--green)}
+.in-table tr:hover td{background:var(--surface2)}
+.in-table .in-name{color:var(--text);font-weight:600;white-space:nowrap}
+.in-table .in-note{font-size:10px;color:var(--dim);max-width:340px}
+.in-best td{background:rgba(34,197,94,.06)}
+
+/* ── print ── */
+@media print{
+  body{background:#fff;color:#000}
+  .topbar,.ps-toolbar,.ps-hint,.toast{display:none!important}
+  .ps-pane,.ps-split,.ps-board{overflow:visible!important;display:block!important}
+  .ps-topsheet{width:100%;border:none}
+  .ps-detail{page-break-before:always}
+  .bs-row,.bsd-table td,.dood-table td{color:#000!important}
+}
+
+/* ── breakdown tags + editor ── */
+.ps-tagchip{display:inline-block;background:rgba(0,0,0,.28);border-radius:4px;padding:0 4px;font-size:8px;font-weight:700;letter-spacing:.04em;margin-left:3px;vertical-align:1px}
+.ps-cs-btn{border:none;background:transparent;cursor:pointer;font-size:11px;padding:0 3px;opacity:.45}
+.ps-cs-btn:hover{opacity:1}
+.ps-cs-btn.has{opacity:1}
+.sbed-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.sbed-grid label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;flex:1}
+.sbed-grid input,.sbed-grid select,.sbed-grid textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 9px;font-size:12px;font-family:var(--body)}
+.sbed-grid input:focus,.sbed-grid textarea:focus{outline:none;border-color:var(--gold)}
+.sbed-row{display:flex;gap:10px}
+.sbed-tags{display:flex;flex-wrap:wrap;gap:8px}
+.ps-tagbox{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer}
+.ps-tagbox input{accent-color:var(--gold)}
+
+/* ── call sheet ── */
+.cs-card{max-height:88vh;overflow-y:auto}
+.cs-sheet h4{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px}
+.cs-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border2);padding-bottom:8px}
+.cs-title{font-family:var(--display);font-size:16px;font-weight:800}
+.cs-fields{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cs-fields input{width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:4px 7px;font-size:11px;font-family:var(--mono)}
+.cs-table{width:100%;border-collapse:collapse;font-size:11px}
+.cs-table th{text-align:left;color:var(--dim);font-size:9px;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid var(--border2)}
+.cs-table td{padding:4px 6px;border-bottom:1px solid var(--border);color:var(--text2)}
+.cs-locs{font-size:11px;color:var(--text2)}
+
+/* print only the call sheet when triggered from its Print button */
+body.cs-printing .app,body.cs-printing #sbEditModal,body.cs-printing #psScriptModal,body.cs-printing .toast{display:none!important}
+body.cs-printing #sbCallModal{position:static;background:#fff}
+body.cs-printing #sbCallModal .modal-card{width:100%;border:none;background:#fff}
+body.cs-printing #sbCallModal .script-actions,body.cs-printing #sbCallModal .modal-head button{display:none!important}
+body.cs-printing .cs-sheet,body.cs-printing .cs-sheet *{color:#000!important}

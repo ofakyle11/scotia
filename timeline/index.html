@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CINAMATE — Studio</title>
+<link rel="icon" href="/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="timeline.css?v=cm1786481983822">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="/js/config.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+<link rel="stylesheet" href="../css/theme.css">
+<link rel="stylesheet" href="../css/legacy-theme.css">
+</head>
+<body>
+<div class="cin-backbar"><span class="cin-backbar__brand">CINAMATE</span><span class="cin-backbar__sep">//</span><a href="../dashboard.html">&larr; Console</a><span class="cin-backbar__sep">·</span><a href="../index.html">Home</a></div>
+<div class="app">
+  <header class="topbar">
+    <div class="logo">CINA<span>MATE</span></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="btnImport">Import</button>
+      <button class="tb-btn gold" id="btnScript" title="Open screenplay editor">✎ Script</button>
+      <button class="tb-btn" id="btnAdd">+ Clip</button>
+      <button class="tb-btn gold" id="btnBatch">Generate All</button>
+    </div>
+    <div class="tb-more-wrap">
+      <button class="tb-btn tb-icon" id="btnMoreMenu" title="More actions">⋯</button>
+      <div class="tb-dropdown hidden" id="moreMenu">
+        <button class="tb-dd" id="btnSaveProj">Save project</button>
+        <button class="tb-dd" id="btnLoadProj">Load project</button>
+        <button class="tb-dd" id="btnMenuScript">Edit script</button>
+        <button class="tb-dd" id="btnDup">Duplicate clip</button>
+        <button class="tb-dd" id="btnUndo">Undo</button>
+        <button class="tb-dd" id="btnRedo">Redo</button>
+        <button class="tb-dd" id="btnPreviewAll">Preview all</button>
+      </div>
+    </div>
+    <div class="tb-spacer"></div>
+    <span class="tb-meta" id="projectTitle">Untitled Film</span>
+    <span class="tb-meta" id="userMeta">—</span>
+  </header>
+
+  <div class="settings-bar" id="settingsBar">
+    <div class="settings-row">
+      <span class="settings-label">Settings</span>
+      <div class="settings-quick">
+        <select class="uc-sel" id="gModel" title="Video model">
+          <option value="seedance-2.0-turbo" selected>Seedance 2.0 Turbo</option>
+          <option value="wan-2.7">Wan 2.7</option>
+          <option value="sora-2">Sora 2</option>
+          <option value="veo-3.1">Veo 3.1</option>
+          <option value="kling-3.0-pro">Kling 3.0 Pro</option>
+          <option value="grok-imagine">Grok Imagine (XAI)</option>
+        </select>
+        <select class="uc-sel" id="gAspect" title="Aspect ratio">
+          <option value="16:9" selected>16:9</option>
+          <option value="9:16">9:16</option>
+          <option value="1:1">1:1</option>
+        </select>
+        <select class="uc-sel" id="gDuration" title="Clip length">
+          <option value="4" selected>~4s</option>
+          <option value="5">~5s</option>
+          <option value="6">~6s</option>
+          <option value="8">~8s</option>
+          <option value="10">~10s</option>
+        </select>
+        <select class="uc-sel" id="gQuality" title="Quality">
+          <option value="720p" selected>720p</option>
+          <option value="1080p">1080p</option>
+        </select>
+      </div>
+      <button type="button" class="settings-more-btn" id="btnSettingsMore" title="More settings" aria-expanded="false">▾</button>
+    </div>
+    <div class="settings-full hidden" id="settingsFull">
+      <div class="uc-group"><span class="uc-label">Style</span><select class="uc-sel" id="gFilm"><option>Cinematic</option><option>Documentary</option><option>Film Noir</option><option>Neo-Noir</option><option>Commercial</option></select></div>
+      <div class="uc-group"><span class="uc-label">Color</span><select class="uc-sel" id="gColor"><option>Natural</option><option>Warm</option><option>Cool</option><option>Desaturated</option><option>High Contrast</option></select></div>
+
+      <div class="uc-group"><span class="uc-label">Audio</span><select class="uc-sel" id="gAudio"><option>Cinematic</option><option>Narration</option><option>Dialogue + Music</option></select></div>
+      <div class="uc-group"><span class="uc-label">Language</span><select class="uc-sel" id="gLang"><option>English</option><option>French</option><option>Bilingual</option></select></div>
+    </div>
+  </div>
+
+  <div class="flow-hint hidden" id="flowHint">Import script → parse into clips → click a clip → generate &amp; approve → export</div>
+
+  <div class="script-bar" id="scriptBar">
+    <button type="button" class="tb-btn gold" id="btnOpenScript">✎ Open script editor</button>
+    <span class="script-bar-meta" id="scriptBarMeta">No screenplay yet — import or paste to start</span>
+    <button type="button" class="tb-btn" id="btnBarImport">Import file</button>
+    <button type="button" class="tb-btn" id="btnBarReparse">↻ Re-parse</button>
+  </div>
+
+  <div class="main">
+    <section class="workspace">
+      <div class="import-zone" id="importZone">
+        <h3>Start with a script</h3>
+        <p>Import a screenplay (.txt, .pdf, or .fdx), or click the gold <strong>✎ Script</strong> button above. Re-parse anytime to replace the timeline.</p>
+        <div class="import-btns">
+          <button class="tb-btn gold" onclick="document.getElementById('btnImport').click()">Import Script</button>
+          <button class="tb-btn" id="btnPaste">Paste script</button>
+        </div>
+        <input type="file" id="fileInput" accept=".txt,.pdf,.fdx">
+      </div>
+
+      <div id="timelineSection" class="hidden">
+        <div class="timeline-wrap">
+          <div class="timeline-head">
+            <h2>Timeline</h2>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <button type="button" class="script-link" id="btnEditScriptLink">Edit script</button>
+              <span class="tb-meta" id="clipCount">0 clips</span>
+            </div>
+          </div>
+          <div class="time-ruler" id="timeRuler"></div>
+          <div class="clip-row" id="clipRow"></div>
+        </div>
+        <div class="chars hidden" id="charsStrip">
+          <h3>Characters</h3>
+          <div id="charChips"></div>
+        </div>
+        <div class="chars hidden" id="locsStrip">
+          <h3>Locations</h3>
+          <div id="locChips"></div>
+        </div>
+      </div>
+
+      <div class="module-stack">
+        <details class="module-panel">
+          <summary>Characters</summary>
+          <div class="panel-pad">
+            <div class="panel-head" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+              <button class="tb-btn" id="btnResyncChars" title="Local parse + AI character bible (appearance only)">↻ Sync from parse</button>
+              <button class="tb-btn" id="btnAddChar">+ Add Character</button>
+              <span id="tbBuildVer" style="font-size:9px;color:var(--dim);font-family:var(--mono);margin-left:auto">build …</span>
+            </div>
+            <div id="charListPanel"></div>
+            <div id="charEditorPanel" class="char-editor-wrap"></div>
+          </div>
+        </details>
+
+        <details class="module-panel" id="locationsPanel">
+          <summary>Locations</summary>
+          <div class="panel-pad">
+            <p class="panel-desc">Lock each set/location from your script. Locked descriptions + reference plates feed every matching clip when you hit Generate.</p>
+            <div class="panel-head" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+              <button class="tb-btn" id="btnResyncLocs" title="Pull locations from parsed timeline clips">↻ Sync from clips</button>
+            </div>
+            <div id="locListPanel"></div>
+            <div id="locEditorPanel" class="loc-editor-wrap"></div>
+          </div>
+        </details>
+
+        <details class="module-panel" id="budgetPanel">
+          <summary>Producer's Estimate</summary>
+          <div class="panel-pad">
+            <p class="panel-desc">Reads your parsed script and estimates (1) what the AI rough-draft preview will cost and how long the render run takes, and (2) what the same script would cost to shoot for real — pick your director, star, crew, location and VFX tiers. Planning-grade ranges, not quotes. Need the full toolkit (editable top sheet, stripboard, DOOD, incentive compare)? <a class="script-link" href="/producer/" target="_blank" rel="noopener">Open Producer Suite ↗</a></p>
+            <div id="budBody"><div class="bud-empty">Import and parse a script to see estimates.</div></div>
+          </div>
+        </details>
+
+        <details class="module-panel" id="editorPanel">
+          <summary>Editor</summary>
+          <div class="panel-pad">
+            <div id="assemblyBody" class="tl-editor">
+              <div class="tle-toolbar">
+                <button type="button" class="tb-btn gold" id="tle-btnSync">Sync clips</button>
+                <button type="button" class="tb-btn gold" id="tle-btnProCut" title="Analyze clips, trim AI mush, set dissolves on scene changes">Pro Cut</button>
+                <button type="button" class="tb-btn" id="tle-btnUpload">Upload MP4</button>
+                <button type="button" class="tb-btn" id="tle-btnRender">Render MP4</button>
+                <button type="button" class="tb-btn" id="tle-btnEdl">Export EDL</button>
+                <a class="tle-full-link" href="/editor/" target="_blank" rel="noopener">Full-screen editor ↗</a>
+                <span class="tle-sync-hint" id="tle-syncHint">Generate clips, then Sync</span>
+              </div>
+              <div class="tle-workspace">
+                <div class="tle-bin">
+                  <div class="tle-bin-head">Media bin</div>
+                  <div class="tle-bin-items" id="tle-binItems"></div>
+                </div>
+                <div class="tle-stage">
+                  <div class="tle-preview-wrap" id="tle-preview">
+                    <video id="tle-previewA" playsinline muted></video>
+                    <div class="tle-placeholder" id="tle-previewPlaceholder">Sync clips to load media</div>
+                  </div>
+                  <div class="tle-transport">
+                    <button type="button" class="tle-play" id="tle-playBtn">▶</button>
+                    <span class="tle-timecode" id="tle-timecode">00:00.00</span>
+                    <span class="tle-total" id="tle-totalTime">/ 00:00.00</span>
+                    <div class="tle-zoom">
+                      <label for="tle-zoom">Zoom</label>
+                      <input type="range" id="tle-zoom" min="0.5" max="5" step="0.1" value="1">
+                    </div>
+                  </div>
+                  <div class="tle-timeline">
+                    <div class="tle-ruler" id="tle-ruler"></div>
+                    <div class="tle-lane-wrap">
+                      <div class="tle-lane" id="tle-videoLane"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tle-inspector">
+                  <div class="tle-inspector-head">Inspector</div>
+                  <div id="tle-inspectorContent" class="inspector-empty">Select a clip on the edit track</div>
+                </div>
+              </div>
+              <div class="tle-log" id="tle-agentLog"></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="module-panel">
+          <summary>Export</summary>
+          <div class="panel-pad">
+            <p class="panel-desc" id="outputStats">0 approved</p>
+            <div id="queuePanel"></div>
+            <div class="output-btns">
+              <button class="tb-btn gold" id="btnFinal">Final Export (MP4)</button>
+              <button class="tb-btn" id="btnEDL">Export EDL</button>
+              <button class="tb-btn" id="btnExport">Open Editor</button>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="queue-bar" id="queueBar"><span id="queueText">Generating…</span></div>
+    </section>
+
+    <aside class="detail">
+      <div class="detail-h" id="detailTitle">Clip</div>
+      <div class="detail-body" id="detailBody"><div class="detail-empty">Select a clip to edit and generate.</div></div>
+      <div class="detail-actions">
+        <button class="tb-btn gold" id="btnGen">Generate</button>
+        <div class="act-row">
+          <button class="tb-btn" id="btnRegen">Regenerate</button>
+          <button class="tb-btn" id="btnPreview">Preview</button>
+        </div>
+        <button class="tb-btn approve-btn" id="btnApprove">Approve</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h1>Text-to-Video <span>Studio</span></h1>
+    <p>Sign in to generate video. Script parsing works offline.</p>
+    <div class="login-err" id="loginErr"></div>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPw" placeholder="Password">
+    <button class="tb-btn gold" id="loginBtn" style="width:100%;margin-top:8px">Sign in</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="previewModal">
+  <div class="modal-card">
+    <div class="modal-head"><span id="previewLabel">Preview</span><button class="tb-btn" id="btnClosePreview">✕</button></div>
+    <video id="previewPlayer" controls playsinline style="width:100%;border-radius:10px;background:#000"></video>
+  </div>
+</div>
+
+<div class="modal hidden" id="exportModal">
+  <div class="modal-card"><div class="modal-head"><span>Final Export</span><button class="tb-btn" id="btnCloseExport">✕</button></div><p id="exportStatus">Stitching clips…</p></div>
+</div>
+
+<div class="modal hidden" id="scriptModal">
+  <div class="modal-card script-modal-card">
+    <div class="modal-head"><span>Screenplay editor</span><button type="button" class="tb-btn" id="btnCloseScript" aria-label="Close">✕</button></div>
+    <p class="panel-desc" style="margin-bottom:10px">Paste or edit your screenplay. Flattened PDF paste? Click <strong>Unflatten</strong> first, then <strong>Re-parse timeline</strong>.</p>
+    <div class="script-warn hidden" id="scriptWarn"></div>
+    <textarea id="scriptEditor" class="script-editor script-editor-modal" rows="18" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="FADE IN:&#10;&#10;INT. LOCATION - DAY&#10;&#10;Your screenplay…"></textarea>
+    <div class="script-actions">
+      <span class="script-meta" id="scriptMeta">0 lines</span>
+      <div class="script-btns">
+        <button class="tb-btn gold" id="btnReparseScript" type="button">↻ Re-parse timeline</button>
+        <button class="tb-btn" id="btnUnflattenScript" type="button">⇤ Unflatten</button>
+        <button class="tb-btn" id="btnScriptImport" type="button">Import file</button>
+        <button class="tb-btn" id="btnRecoverScriptBar" type="button" title="Rebuild screenplay from last good parse">↻ Recover from parse</button>
+        <button class="tb-btn" id="btnNewScript" type="button">+ New script</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/js/model-config.js?v=cm1786481983822"></script>
+<script src="/js/mastery-resolver.js?v=cm1786481983822"></script>
+<script src="parser.js?v=cm1786481983822"></script>
+<script src="timeline-characters.js?v=cm1786481983822"></script>
+<script src="timeline-locations.js?v=cm1786481983822"></script>
+<script src="timeline-continuity.js?v=cm1786481983822"></script>
+<script src="timeline-locations-enrich.js?v=cm1786481983822"></script>
+<script src="timeline-enrich.js?v=cm1786481983822"></script>
+<script src="timeline-export.js?v=cm1786481983822"></script>
+<script src="timeline-budget.js?v=cm1786481983822"></script>
+<script src="pro-cut.js?v=cm1786481983822"></script>
+<script src="/js/ffmpeg-wasm.js?v=cm1786481983822"></script>
+<script src="/editor/timeline-engine.js?v=cm1786481983822"></script>
+<script src="timeline.js?v=cm1786481983822"></script>
+</body>
+</html>

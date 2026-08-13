@@ -1,0 +1,128 @@
+/* ==========================================================================
+   CINAMATE — css/legacy-theme.css
+   --------------------------------------------------------------------------
+   Re-themes the pages carried over from the previous build (app.html,
+   producer/, timeline/, editor/, workflow/, atlas.html) into the Cinamate
+   design language WITHOUT touching their markup or behaviour.
+
+   How it works
+   ------------
+   Every legacy page happens to drive its entire palette from CSS custom
+   properties declared in a `:root` block. So the whole re-theme is a
+   remap of those property names onto Cinamate's tokens. Nothing here
+   selects a component — no layout is moved, no class is restyled — which
+   is what keeps a 495KB page like app.html safe to convert.
+
+   Load order matters, per page:
+       1. the page's own <style> / stylesheet   (declares legacy tokens)
+       2. css/theme.css                          (declares Cinamate tokens)
+       3. this file                              (maps 1 onto 2)
+   Same specificity, so last declaration wins.
+
+   Names shared by both systems (--line, --ok, --text-dim, --warn) are
+   deliberately NOT redeclared here: theme.css already owns them, and
+   writing `--line: var(--line)` would be a circular reference that
+   resolves to nothing.
+   ========================================================================== */
+
+:root {
+  /* ---- Surfaces ---------------------------------------------------- */
+  --bg:        var(--void);
+  --surface:   var(--surface-1);
+  --surface2:  var(--surface-2);
+  --surface3:  #1B2233;              /* one step above --surface-2 */
+
+  /* editor/ uses an "ink" scale for the same ramp */
+  --ink:       var(--void);
+  --ink-2:     var(--surface-1);
+  --ink-3:     var(--surface-2);
+  --ink-4:     #1B2233;
+
+  /* ---- Hairlines --------------------------------------------------- */
+  --border:    var(--line);
+  --border2:   var(--line-bright);
+
+  /* ---- Accent -----------------------------------------------------
+     The legacy builds were gold (#d4a843 / #B8922E). Cinamate is cyan,
+     so every gold token collapses onto the cyan ramp. This single
+     remap is what carries most of the visual change.               */
+  --gold:         var(--cyan);
+  --gold2:        #67E8F9;
+  --gold-bright:  #67E8F9;
+  --gold-dim:     #0E7490;
+  --gold-bg:      rgba(34, 211, 238, 0.05);    /* --cyan at 5%  */
+  --gold-border:  rgba(34, 211, 238, 0.15);    /* --cyan at 15% */
+
+  /* ---- Status ------------------------------------------------------ */
+  --green:   var(--ok);
+  --blue:    var(--violet);
+  --purple:  var(--violet);
+  --red:     #FF6B6B;
+  --danger:  #FF6B6B;
+
+  /* ---- Type -------------------------------------------------------- */
+  --text:      var(--text-hi);
+  --text2:     var(--text-dim);
+  --dim:       var(--text-faint);
+
+  --display:   var(--font-display);
+  --body:      var(--font-display);
+  --mono:      var(--font-mono);
+}
+
+/* --------------------------------------------------------------------------
+   The legacy pages load Space Grotesk / Inter / Syne / Archivo / Fraunces
+   from Google Fonts. Those requests still fire; the declarations above just
+   stop the results being used. Nothing breaks if the CDN is blocked.
+   -------------------------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   A few structural touches the token remap cannot reach on its own.
+   Kept deliberately small — this is a re-skin, not a rebuild.
+   -------------------------------------------------------------------------- */
+
+body {
+  background: var(--void);
+  color: var(--text-hi);
+}
+
+/* Legacy accent buttons put black text on gold. Cyan needs the same
+   treatment for contrast, but the ink has to be the page void, not #000. */
+.tb-btn.gold,
+.btn.gold,
+button.gold {
+  color: var(--void);
+}
+
+/* Focus rings: the legacy builds mostly relied on the UA default, which
+   disappears against these surfaces. */
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* Return-to-console affordance injected into each legacy page. */
+.cin-backbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cin-backbar a {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+
+.cin-backbar a:hover,
+.cin-backbar a:focus-visible { color: var(--cyan); }
+
+.cin-backbar__brand { color: var(--text-hi); font-weight: 600; }
+.cin-backbar__sep { color: var(--text-faint); }

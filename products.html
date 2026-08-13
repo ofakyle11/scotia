@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CINAMATE — Script to Screen</title>
+<meta name="description" content="Cinamate: one site, two products — an AI rough-draft movie studio and a full producer's toolkit (budget, schedule, incentives), both driven by your screenplay.">
+<link rel="icon" href="/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#05070d;--surface:#0a0e18;--surface2:#0f1524;--border:rgba(147,178,255,.09);--border2:rgba(147,178,255,.16);
+    --cyan:#38bdf8;--cyan2:#6dd3ff;--indigo:#818cf8;--violet:#a78bfa;--text:#e8ecf5;--text2:#8b93a8;--dim:#565e73;
+    --display:'Space Grotesk',sans-serif;--body:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace}
+  body{background:var(--bg);color:var(--text);font-family:var(--body);-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(52% 42% at 18% -6%,rgba(56,189,248,.13),transparent 62%),
+               radial-gradient(46% 38% at 86% 4%,rgba(129,140,248,.12),transparent 60%),
+               radial-gradient(60% 46% at 50% 108%,rgba(167,139,250,.07),transparent 65%)}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background-image:linear-gradient(rgba(147,178,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(147,178,255,.045) 1px,transparent 1px);
+    background-size:56px 56px;
+    -webkit-mask-image:radial-gradient(70% 52% at 50% 0%,#000 30%,transparent 100%);mask-image:radial-gradient(70% 52% at 50% 0%,#000 30%,transparent 100%)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px;width:100%;position:relative;z-index:1}
+  header{padding:24px 0;display:flex;align-items:center;gap:10px}
+  .logo{font-family:var(--display);font-size:21px;font-weight:700;letter-spacing:.14em}
+  .logo span{background:linear-gradient(92deg,var(--cyan),var(--indigo));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .badge{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--dim);border:1px solid var(--border2);border-radius:999px;padding:4px 10px;text-transform:uppercase}
+  .hero{padding:72px 0 44px;text-align:center}
+  .hero .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);margin-bottom:18px}
+  .hero h1{font-family:var(--display);font-size:clamp(36px,6.4vw,68px);font-weight:700;letter-spacing:-.03em;line-height:1.04}
+  .hero h1 em{font-style:normal;background:linear-gradient(92deg,var(--cyan) 8%,var(--indigo) 55%,var(--violet) 96%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{color:var(--text2);font-size:15.5px;max-width:660px;margin:20px auto 0;line-height:1.7}
+  .flow{display:inline-flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:30px;font-family:var(--mono);font-size:11px;color:var(--dim);
+    border:1px solid var(--border);border-radius:999px;padding:10px 22px;background:rgba(10,14,24,.65);backdrop-filter:blur(8px)}
+  .flow b{color:var(--cyan2);font-weight:500}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:20px;padding:38px 0 22px}
+  .card{position:relative;background:linear-gradient(180deg,rgba(15,21,36,.92),rgba(10,14,24,.92));border:1px solid var(--border);border-radius:20px;padding:30px;display:flex;flex-direction:column;gap:13px;text-decoration:none;color:inherit;transition:.18s;overflow:hidden;backdrop-filter:blur(6px)}
+  .card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(56,189,248,.7),rgba(129,140,248,.7),transparent);opacity:.5;transition:.18s}
+  .card:hover{border-color:rgba(56,189,248,.4);transform:translateY(-3px);box-shadow:0 18px 48px rgba(56,189,248,.09)}
+  .card:hover::before{opacity:1}
+  .card.p2::before{background:linear-gradient(90deg,transparent,rgba(129,140,248,.7),rgba(167,139,250,.7),transparent)}
+  .card.p2:hover{border-color:rgba(129,140,248,.42);box-shadow:0 18px 48px rgba(129,140,248,.1)}
+  .card .tag{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan)}
+  .card.p2 .tag{color:var(--indigo)}
+  .card h2{font-family:var(--display);font-size:25px;font-weight:700;letter-spacing:-.01em}
+  .card p{color:var(--text2);font-size:13.5px;line-height:1.7;flex:1}
+  .card ul{list-style:none;display:flex;flex-direction:column;gap:7px;font-size:12.5px;color:var(--text2)}
+  .card ul li::before{content:"▸";color:var(--cyan);margin-right:9px}
+  .card.p2 ul li::before{color:var(--indigo)}
+  .card .go{margin-top:12px;align-self:flex-start;background:linear-gradient(92deg,var(--cyan),var(--indigo));color:#04101c;border-radius:10px;padding:11px 20px;font-size:13px;font-weight:700;letter-spacing:.01em}
+  .card.p2 .go{background:linear-gradient(92deg,var(--indigo),var(--violet))}
+  .card:hover .go{filter:brightness(1.12)}
+  .bridge{background:rgba(15,21,36,.7);border:1px solid var(--border);border-radius:16px;padding:20px 24px;font-size:12.5px;color:var(--text2);line-height:1.75;margin-bottom:38px;backdrop-filter:blur(6px)}
+  .bridge b{color:var(--text)}
+  .bridge .pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--cyan);margin-right:10px;box-shadow:0 0 0 0 rgba(56,189,248,.5);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(56,189,248,.45)}70%{box-shadow:0 0 0 9px rgba(56,189,248,0)}100%{box-shadow:0 0 0 0 rgba(56,189,248,0)}}
+  footer{margin-top:auto;border-top:1px solid var(--border);padding:20px 0;font-size:11.5px;color:var(--dim);display:flex;gap:18px;flex-wrap:wrap;position:relative;z-index:1}
+  footer a{color:var(--text2);text-decoration:none}
+  footer a:hover{color:var(--cyan2)}
+</style>
+
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/legacy-theme.css">
+</head>
+<body>
+<div class="cin-backbar"><span class="cin-backbar__brand">CINAMATE</span><span class="cin-backbar__sep">//</span><a href="dashboard.html">&larr; Console</a><span class="cin-backbar__sep">·</span><a href="index.html">Home</a></div>
+  <header class="wrap">
+    <div class="logo">CINA<span>MATE</span></div>
+    <span class="badge">Script · Preview · Budget</span>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div class="kicker">AI-native filmmaking</div>
+      <h1>Script to screen,<br><em>before you spend a dollar.</em></h1>
+      <p>Two products, one screenplay. Import your script once — preview the whole movie with AI, then budget and schedule the real shoot with producer-grade numbers.</p>
+      <div class="flow"><span>Import script</span> → <b>Studio</b> → <span>AI rough-draft movie</span> → <b>Producer</b> → <span>budget · schedule · incentives</span></div>
+    </section>
+
+    <section class="cards">
+      <a class="card" href="/timeline/">
+        <span class="tag">Product 01 · Studio</span>
+        <h2>AI Rough-Draft Studio</h2>
+        <p>Parse your screenplay into scenes and generate a lighting/set previz cut of the whole film — before anyone builds a set.</p>
+        <ul>
+          <li>Script → timeline of clips with cast &amp; location continuity</li>
+          <li>Seedance · Sora 2 · Veo 3.1 · Kling · Wan · Grok Imagine</li>
+          <li>50-agent crew for prompts, continuity and enrichment</li>
+          <li>Editor with Pro Cut, EDL export and final MP4 render</li>
+        </ul>
+        <span class="go">Open Studio →</span>
+      </a>
+      <a class="card p2" href="/producer/">
+        <span class="tag">Product 02 · Producer</span>
+        <h2>Producer Suite</h2>
+        <p>The same script, priced for the real world — planning-grade numbers calibrated to published union scale and market rates.</p>
+        <ul>
+          <li>Budget top sheet — 18 accounts, Amt × Units × Rate, contingency</li>
+          <li>Stripboard schedule in eighths + Day-out-of-Days report</li>
+          <li>Tax incentives — 20 jurisdictions compared on net cost</li>
+          <li>Tiered estimator: director, star, crew, locations, VFX</li>
+        </ul>
+        <span class="go">Open Producer →</span>
+      </a>
+    </section>
+
+    <div class="bridge"><span class="pulse"></span><b>How they connect:</b> both products read the same project. Import a screenplay in the Studio and the Producer Suite seeds its budget, stripboard and incentive comparison from that exact parse — same scenes, same cast, same locations. Change the script, re-parse, re-estimate.</div>
+  </main>
+
+  <footer class="wrap">
+    <span>© 2026 Cinamate</span>
+    <a href="/timeline/">Studio</a>
+    <a href="/producer/">Producer Suite</a>
+    <a href='/app'>Shot Lab</a>
+    <span style="margin-left:auto">Estimates are planning-grade, not quotes.</span>
+  </footer>
+</body>
+</html>
