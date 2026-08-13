@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """Embed the two photographs into for-mom.html as data URIs.
 
-    python3 embed-photos.py seadoo.jpg deck.jpg
+Drop the photos into photos/ as seadoo.jpg and deck.jpg, then:
 
-Photo one goes in the hero frame at the top of the card, photo two in the
-family snapshot further down. The card must stay self-contained -- no external
-image files -- so the bytes are inlined directly. Run it once; to start over,
-restore the placeholders with `git checkout for-mom.html`.
+    python3 embed-photos.py
+
+Or pass any two paths explicitly:
+
+    python3 embed-photos.py ~/Downloads/IMG_4471.jpg ~/Downloads/IMG_4390.jpg
+
+The first photo fills the hero frame at the top of the card, the second the
+family snapshot further down. The card has to stay self-contained -- one file
+you can email or text -- so the bytes are inlined rather than linked. Run it
+once; to start over, restore the placeholders with `git checkout for-mom.html`.
 """
 
 import base64
@@ -53,14 +59,22 @@ def data_uri(path: Path) -> str:
     return f"data:{mime};base64,{base64.b64encode(data).decode()}"
 
 
+DEFAULTS = [Path(__file__).parent / "photos" / n for n in ("seadoo.jpg", "deck.jpg")]
+
+
 def main(argv: list[str]) -> None:
-    if len(argv) != 2:
+    if argv and len(argv) != 2:
         sys.exit(__doc__)
 
-    photos = [Path(p) for p in argv]
-    for photo in photos:
-        if not photo.is_file():
-            sys.exit(f"No such file: {photo}")
+    photos = [Path(p) for p in argv] if argv else DEFAULTS
+    missing = [p for p in photos if not p.is_file()]
+    if missing:
+        sys.exit(
+            "Couldn't find: "
+            + ", ".join(str(p) for p in missing)
+            + ("\n\nDrop the two photos into photos/ under those names, "
+               "or pass their paths as arguments." if not argv else "")
+        )
 
     html = CARD.read_text()
     if len(PLACEHOLDER.findall(html)) != 2:
