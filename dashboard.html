@@ -749,9 +749,10 @@ body { overflow: hidden; }
 
 .prod-estimator__controls {
   display: grid;
-  /* 132px floor keeps two columns at 390px viewport (310px of inner
-     width): 132 + 16 gap + 132 = 280. A 150px floor drops to one. */
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  /* 168px floor: tier labels ("Emerging (feature credits)") need the
+     room. Still two columns at 390px viewport? No — one, deliberately:
+     a truncated tier label is worse than a taller panel. */
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
   gap: var(--sp-4) var(--sp-4);
   margin: 0 0 var(--sp-5);
   padding: 0;
@@ -861,6 +862,73 @@ select.prod-field__input {
 .prod-estimator.is-over .prod-estimator__bar-fill {
   background: linear-gradient(90deg, var(--warn), var(--magenta));
 }
+
+
+/* -- Script textarea + top sheet (real budget engine) ------------ */
+
+.prod-field--script { grid-column: 1 / -1; margin-bottom: var(--sp-4); }
+
+.prod-field__textarea {
+  resize: vertical;
+  min-height: 88px;
+  line-height: 1.55;
+}
+
+.prod-estimator__scriptmeta {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  color: var(--text-faint);
+}
+
+.prod-out__sub {
+  margin: 0.3rem 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--track-data);
+  color: var(--text-dim);
+}
+
+.prod-topsheet {
+  width: 100%;
+  margin-top: var(--sp-5);
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.prod-topsheet th,
+.prod-topsheet td {
+  padding: 0.5rem 0.6rem;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.prod-topsheet th:first-child,
+.prod-topsheet td:first-child { text-align: left; white-space: normal; }
+
+.prod-topsheet thead th {
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.prod-topsheet tbody td { color: var(--text-mid); }
+.prod-topsheet tbody td:nth-child(3) { color: var(--text-hi); }
+
+.prod-topsheet tr.is-total td {
+  border-bottom: 0;
+  border-top: 1px solid var(--line-bright);
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+/* Table scrolls rather than forcing the panel wide on small screens. */
+.prod-estimator__sheetwrap { overflow-x: auto; }
 
 .prod-estimator__note {
   margin: var(--sp-4) 0 0;
@@ -2689,74 +2757,44 @@ select.prod-field__input {
       <header class="panel__header prod-estimator__header">
         <h2 class="prod-panel-title" id="prod-est-title">BUDGET&nbsp;ESTIMATOR&nbsp;//&nbsp;COST&nbsp;MODEL</h2>
         <span class="chip chip--cyan">
-          <span class="chip__dot" aria-hidden="true"></span><span id="prod-est-alloc-label">Q3&nbsp;ALLOCATION</span>
+          <span class="chip__dot" aria-hidden="true"></span>PLANNING&nbsp;GRADE
         </span>
       </header>
 
-      <fieldset class="prod-estimator__controls">
-        <legend class="prod-visually-hidden">Estimate inputs</legend>
+      <div class="prod-field prod-field--script">
+        <label class="prod-field__label" for="est-script">Screenplay&nbsp;&mdash;&nbsp;paste&nbsp;to&nbsp;analyze</label>
+        <textarea class="prod-field__input prod-field__textarea" id="est-script"
+                  rows="4" spellcheck="false"
+                  placeholder="INT. WAREHOUSE - NIGHT&#10;&#10;Paste a screenplay. Scene headings, cast and action drive the breakdown."></textarea>
+        <p class="prod-estimator__scriptmeta" id="est-scriptmeta">NO SCRIPT — USING TIER DEFAULTS</p>
+      </div>
 
-        <div class="prod-field">
-          <label class="prod-field__label" for="est-production">Production</label>
-          <select class="prod-field__input" id="est-production">
-            <option value="last-signal">The Last Signal</option>
-            <option value="meridian-drift">Meridian Drift</option>
-            <option value="saltwater-empire">Saltwater Empire</option>
-            <option value="quiet-machine">A Quiet Machine</option>
-            <option value="vermillion-sky">Vermillion Sky</option>
-            <option value="hollow-orbit">Hollow Orbit</option>
-          </select>
-        </div>
+      <div class="prod-field prod-field--alloc">
+        <label class="prod-field__label" for="est-allocation">Financing&nbsp;Allocation&nbsp;(USD)</label>
+        <input class="prod-field__input" id="est-allocation" type="number"
+               inputmode="numeric" min="10000" max="500000000" step="10000" value="5000000" />
+      </div>
 
-        <div class="prod-field">
-          <label class="prod-field__label" for="est-shots">Shots</label>
-          <input class="prod-field__input" id="est-shots" type="number"
-                 inputmode="numeric" min="1" max="2000" step="1" value="24" />
-        </div>
-
-        <div class="prod-field">
-          <label class="prod-field__label" for="est-length">Avg&nbsp;Shot&nbsp;(sec)</label>
-          <input class="prod-field__input" id="est-length" type="number"
-                 inputmode="decimal" min="1" max="120" step="0.5" value="6" />
-        </div>
-
-        <div class="prod-field">
-          <label class="prod-field__label" for="est-tier">Model&nbsp;Tier</label>
-          <select class="prod-field__input" id="est-tier">
-            <option value="draft">Draft</option>
-            <option value="standard" selected>Standard</option>
-            <option value="premium">Premium</option>
-          </select>
-        </div>
-
-        <div class="prod-field">
-          <label class="prod-field__label" for="est-res">Output</label>
-          <select class="prod-field__input" id="est-res">
-            <option value="hd">1080p</option>
-            <option value="uhd" selected>4K</option>
-          </select>
-        </div>
-
-        <div class="prod-field">
-          <label class="prod-field__label" for="est-passes">Passes</label>
-          <input class="prod-field__input" id="est-passes" type="number"
-                 inputmode="numeric" min="1" max="10" step="1" value="2" />
-        </div>
+      <fieldset class="prod-estimator__controls" id="est-tiers">
+        <legend class="prod-visually-hidden">Budget tiers</legend>
       </fieldset>
 
       <div class="prod-estimator__out">
         <div>
-          <p class="prod-out__label">Estimated Spend</p>
+          <p class="prod-out__label">Likely Budget</p>
           <p class="prod-out__value prod-out__value--spend" id="est-spend"
              role="status" aria-live="polite" data-numeric>$0</p>
+          <p class="prod-out__sub" id="est-range">&mdash;</p>
         </div>
         <div>
-          <p class="prod-out__label">Render Hours</p>
-          <p class="prod-out__value" id="est-hours" data-numeric>0</p>
+          <p class="prod-out__label">Shoot Days</p>
+          <p class="prod-out__value" id="est-days" data-numeric>0</p>
+          <p class="prod-out__sub" id="est-weeks">&mdash;</p>
         </div>
         <div>
-          <p class="prod-out__label">Billable Seconds</p>
-          <p class="prod-out__value" id="est-seconds" data-numeric>0</p>
+          <p class="prod-out__label">Incentive Recovery</p>
+          <p class="prod-out__value" id="est-recovery" data-numeric>$0</p>
+          <p class="prod-out__sub" id="est-net">&mdash;</p>
         </div>
         <div>
           <p class="prod-out__label">Allocation Used</p>
@@ -2767,6 +2805,14 @@ select.prod-field__input {
           </div>
         </div>
       </div>
+
+      <table class="prod-topsheet" id="est-topsheet">
+        <caption class="prod-visually-hidden">Budget top sheet by account group</caption>
+        <thead>
+          <tr><th scope="col">Account Group</th><th scope="col">Low</th><th scope="col">Likely</th><th scope="col">High</th></tr>
+        </thead>
+        <tbody id="est-topsheet-body"></tbody>
+      </table>
 
       <p class="prod-estimator__note" id="est-note"></p>
     </section>
@@ -3154,6 +3200,7 @@ select.prod-field__input {
 
 <!-- Auth FIRST; the guard runs before any content script executes. -->
 <script src="js/auth.js"></script>
+<script src="js/budget-engine.js"></script>
 <script>
   /* Session gate — unauthorized visitors are redirected to index.html
      by requireSession() before any dashboard logic runs. The flag halts
@@ -4022,146 +4069,252 @@ select.prod-field__input {
      so the tile never fights the number the producer just typed.
      -------------------------------------------------------------- */
 
-  /* $/sec and render-hours/sec of finished output, 1080p baseline. */
-  var EST_TIERS = {
-    draft:    { rate: 1.80,  hours: 0.04, label: 'DRAFT' },
-    standard: { rate: 4.50,  hours: 0.09, label: 'STANDARD' },
-    premium:  { rate: 11.00, hours: 0.22, label: 'PREMIUM' }
+  /* Tier selects are built from the engine's own tables, so adding a
+     tier in js/budget-engine.js surfaces here with no markup change. */
+  var EST_TIER_FIELDS = [
+    { key: 'scale',     label: 'Scale' },
+    { key: 'director',  label: 'Director' },
+    { key: 'lead',      label: 'Lead Cast' },
+    { key: 'supporting',label: 'Supporting' },
+    { key: 'crew',      label: 'Crew' },
+    { key: 'locations', label: 'Locations' },
+    { key: 'equipment', label: 'Equipment' },
+    { key: 'vfx',       label: 'VFX' }
+  ];
+
+  var EST_DEFAULTS = {
+    scale: 'indie', director: 'emerging', lead: 'rising', supporting: 'scale',
+    crew: 'nonunion', locations: 'local', equipment: 'indie', vfx: 'auto',
+    incentive: 'none'
   };
 
-  var EST_RES = {
-    hd:  { mult: 1,   label: '1080P' },
-    uhd: { mult: 2.4, label: '4K' }
-  };
-
-  var EST_ALLOCATION = 250000;   /* Q3 founder-tier ceiling, USD */
+  /* Financing target the estimate is measured against. Editable —
+     a fixed constant is meaningless across indie-to-tentpole scale. */
+  var EST_ALLOCATION_DEFAULT = 5000000;
 
   var estEls = {
     root:     $('#prod-estimator'),
-    prod:     $('#est-production'),
-    shots:    $('#est-shots'),
-    length:   $('#est-length'),
-    tier:     $('#est-tier'),
-    res:      $('#est-res'),
-    passes:   $('#est-passes'),
+    script:   $('#est-script'),
+    meta:     $('#est-scriptmeta'),
+    tiers:    $('#est-tiers'),
     spend:    $('#est-spend'),
-    hours:    $('#est-hours'),
-    seconds:  $('#est-seconds'),
+    range:    $('#est-range'),
+    days:     $('#est-days'),
+    weeks:    $('#est-weeks'),
+    recovery: $('#est-recovery'),
+    net:      $('#est-net'),
     alloc:    $('#est-alloc'),
+    allocIn:  $('#est-allocation'),
     bar:      $('#est-bar'),
     barWrap:  $('#est-bar-wrap'),
+    sheet:    $('#est-topsheet-body'),
     note:     $('#est-note'),
     budgetDelta: $('#prod-delta-budget')
   };
 
-  /* Set once the producer edits any control. */
   var estimateActive = false;
+  var estSel = {};
 
-  /* Clamp a control's value into its own min/max, tolerating junk. */
-  function estNum(el, fallback) {
-    if (!el) { return fallback; }
-    var v = parseFloat(el.value);
-    if (!isFinite(v)) { return fallback; }
-    var min = parseFloat(el.getAttribute('min'));
-    var max = parseFloat(el.getAttribute('max'));
-    if (isFinite(min) && v < min) { v = min; }
-    if (isFinite(max) && v > max) { v = max; }
-    return v;
+  function estEngine() {
+    return (window.SBBudget && typeof window.SBBudget.analyze === 'function')
+      ? window.SBBudget : null;
   }
 
-  function estCompute() {
-    var tier = EST_TIERS[estEls.tier && estEls.tier.value] || EST_TIERS.standard;
-    var res = EST_RES[estEls.res && estEls.res.value] || EST_RES.uhd;
-    var shots = estNum(estEls.shots, 24);
-    var len = estNum(estEls.length, 6);
-    var passes = estNum(estEls.passes, 2);
+  /* Build one select per tier group, plus the incentive jurisdiction. */
+  function estBuildControls() {
+    var B = estEngine();
+    if (!B || !estEls.tiers) { return; }
 
-    var seconds = shots * len * passes;
-    var spend = seconds * tier.rate * res.mult;
-    var hours = seconds * tier.hours * res.mult;
-    var pct = EST_ALLOCATION > 0 ? (spend / EST_ALLOCATION) * 100 : 0;
+    var html = '<legend class="prod-visually-hidden">Budget tiers</legend>';
+    var i, j, list, opts;
 
-    return {
-      seconds: seconds, spend: spend, hours: hours, pct: pct,
-      tier: tier, res: res, shots: shots, len: len, passes: passes
-    };
+    for (i = 0; i < EST_TIER_FIELDS.length; i++) {
+      var f = EST_TIER_FIELDS[i];
+      list = B.TIERS[f.key] || [];
+      opts = '';
+      /* VFX supports an auto tier the engine infers from the script. */
+      if (f.key === 'vfx') { opts += '<option value="auto">Auto (from script)</option>'; }
+      for (j = 0; j < list.length; j++) {
+        opts += '<option value="' + list[j].id + '">' + list[j].label + '</option>';
+      }
+      html += '<div class="prod-field">' +
+                '<label class="prod-field__label" for="est-t-' + f.key + '">' + f.label + '</label>' +
+                '<select class="prod-field__input" id="est-t-' + f.key + '" data-tier="' + f.key + '">' +
+                opts + '</select></div>';
+    }
+
+    opts = '';
+    for (i = 0; i < B.INCENTIVES.length; i++) {
+      opts += '<option value="' + B.INCENTIVES[i].id + '">' + B.INCENTIVES[i].label + '</option>';
+    }
+    html += '<div class="prod-field">' +
+              '<label class="prod-field__label" for="est-t-incentive">Incentive</label>' +
+              '<select class="prod-field__input" id="est-t-incentive" data-tier="incentive">' +
+              opts + '</select></div>';
+
+    estEls.tiers.innerHTML = html;
+
+    var selects = estEls.tiers.querySelectorAll('select');
+    for (i = 0; i < selects.length; i++) {
+      var key = selects[i].getAttribute('data-tier');
+      if (estSel[key]) { selects[i].value = estSel[key]; }
+      if (!selects[i].value) { selects[i].selectedIndex = 0; }
+      estSel[key] = selects[i].value;
+      selects[i].addEventListener('change', function (ev) {
+        estSel[ev.target.getAttribute('data-tier')] = ev.target.value;
+        estimateActive = true;
+        estRender();
+      });
+    }
   }
 
   function estRender() {
-    var r = estCompute();
-    var pctRounded = Math.round(r.pct);
-    var over = r.pct > 100;
+    var B = estEngine();
+    if (!B || !estEls.root) { return; }
 
-    if (estEls.spend) { estEls.spend.textContent = '$' + formatGrouped(Math.round(r.spend)); }
-    if (estEls.hours) { estEls.hours.textContent = formatGrouped(Math.round(r.hours)); }
-    if (estEls.seconds) { estEls.seconds.textContent = formatGrouped(Math.round(r.seconds)); }
+    var text = estEls.script ? estEls.script.value : '';
+    var analysis, prod;
+    try {
+      analysis = B.analyze({ scriptText: text });
+      prod = B.estimateProduction(analysis, estSel);
+    } catch (err) {
+      /* A malformed script must not take the dashboard down. */
+      if (estEls.note) { estEls.note.textContent = 'ESTIMATOR ERROR — CHECK SCRIPT INPUT'; }
+      return;
+    }
+
+    var likely = prod.total.likely;
+    var allocation = EST_ALLOCATION_DEFAULT;
+    if (estEls.allocIn) {
+      var a = parseFloat(estEls.allocIn.value);
+      if (isFinite(a) && a > 0) { allocation = a; }
+    }
+    var pct = allocation > 0 ? (likely / allocation) * 100 : 0;
+    var pctRounded = Math.round(pct);
+    var over = pct > 100;
+
+    if (estEls.spend) { estEls.spend.textContent = B.fmtMoney(likely); }
+    if (estEls.range) { estEls.range.textContent = B.fmtRange([prod.total.low, prod.total.high]); }
+    if (estEls.days) { estEls.days.textContent = formatGrouped(prod.schedule.shootDays); }
+    if (estEls.weeks) {
+      estEls.weeks.textContent = prod.schedule.totalWeeks + ' WEEKS PREP→POST';
+    }
+
+    var recov = prod.recovery;
+    var rec = (recov && isFinite(recov.likely)) ? recov.likely : 0;
+    if (estEls.recovery) { estEls.recovery.textContent = B.fmtMoney(rec); }
+    if (estEls.net) {
+      if (!recov) {
+        estEls.net.textContent = 'NO JURISDICTION SELECTED';
+      } else if (recov.belowMin) {
+        estEls.net.textContent = 'BELOW MINIMUM SPEND — NOT QUALIFIED';
+      } else if (recov.overCap) {
+        estEls.net.textContent = 'OVER BUDGET CAP — NOT QUALIFIED';
+      } else {
+        estEls.net.textContent = 'NET ' + B.fmtMoney(recov.netLikely);
+      }
+    }
+
     if (estEls.alloc) { estEls.alloc.textContent = pctRounded + '%'; }
-
-    if (estEls.bar) { estEls.bar.style.width = Math.max(0, Math.min(100, r.pct)) + '%'; }
+    if (estEls.bar) { estEls.bar.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
     if (estEls.barWrap) {
       estEls.barWrap.setAttribute('aria-label', 'Allocation used ' + pctRounded + ' percent');
     }
-    if (estEls.root) { estEls.root.classList.toggle('is-over', over); }
+    estEls.root.classList.toggle('is-over', over);
 
-    if (estEls.note) {
-      estEls.note.textContent =
-        r.tier.label + ' · ' + r.res.label + ' · ' +
-        formatGrouped(r.shots) + ' SHOTS × ' + r.len + 'S × ' +
-        r.passes + ' PASS' + (r.passes === 1 ? '' : 'ES') + ' — ' +
-        (over
-          ? 'OVER Q3 ALLOCATION BY $' + formatGrouped(Math.round(r.spend - EST_ALLOCATION))
-          : '$' + formatGrouped(Math.round(EST_ALLOCATION - r.spend)) + ' REMAINING OF $' +
-            formatGrouped(EST_ALLOCATION));
+    /* Top sheet — the engine's own account groups. */
+    if (estEls.sheet) {
+      var rows = '';
+      var names = ['Above the line', 'Production (below the line)', 'Post-production', 'Other'];
+      var i;
+      for (i = 0; i < names.length; i++) {
+        var g = prod.groupTotals[names[i]];
+        if (!g) { continue; }
+        rows += '<tr><td>' + names[i] + '</td>' +
+                '<td>' + B.fmtMoney(g[0]) + '</td>' +
+                '<td>' + B.fmtMoney((g[0] + g[1]) / 2) + '</td>' +
+                '<td>' + B.fmtMoney(g[1]) + '</td></tr>';
+      }
+      rows += '<tr class="is-total"><td>Total</td>' +
+              '<td>' + B.fmtMoney(prod.total.low) + '</td>' +
+              '<td>' + B.fmtMoney(likely) + '</td>' +
+              '<td>' + B.fmtMoney(prod.total.high) + '</td></tr>';
+      estEls.sheet.innerHTML = rows;
     }
 
-    /* Drive the portfolio tile from the live estimate. */
+    /* Script readout — what the breakdown actually saw. */
+    if (estEls.meta) {
+      estEls.meta.textContent = text.trim()
+        ? analysis.pages + ' PAGES · ' + analysis.scenes + ' SCENES (' +
+          analysis.intCount + ' INT / ' + analysis.extCount + ' EXT · ' +
+          analysis.nightCount + ' NIGHT) · ' + analysis.castTotal + ' SPEAKING · ' +
+          analysis.uniqueLocations + ' LOCATIONS · ' + String(analysis.genre || '').toUpperCase()
+        : 'NO SCRIPT — TIER DEFAULTS ONLY';
+    }
+
+    if (estEls.note) {
+      var drivers = (analysis.drivers || []).slice(0, 4).map(function (d) {
+        return String(d.label || d.key).toUpperCase();
+      }).join(' · ');
+      estEls.note.textContent =
+        (prod.tiers.vfxAuto ? 'VFX AUTO → ' + prod.tiers.vfx.label.toUpperCase() + ' · ' : '') +
+        (drivers ? 'DRIVERS: ' + drivers + ' · ' : '') +
+        (over
+          ? 'OVER ALLOCATION BY ' + B.fmtMoney(likely - allocation)
+          : B.fmtMoney(allocation - likely) + ' REMAINING OF ' + B.fmtMoney(allocation)) +
+        ' — PLANNING-GRADE RANGE, NOT A QUOTE';
+    }
+
     if (estimateActive) {
       statsState.budget = pctRounded;
       writeStore(KEYS.stats, statsState);
       renderStats(els.budget);
       if (estEls.budgetDelta) {
-        estEls.budgetDelta.textContent =
-          'Estimate · ' + (estEls.prod
-            ? estEls.prod.options[estEls.prod.selectedIndex].text
-            : 'portfolio');
+        estEls.budgetDelta.textContent = 'Estimate · ' + prod.tiers.scale.label;
       }
     }
 
     writeStore(KEYS.estimate, {
-      production: estEls.prod ? estEls.prod.value : null,
-      shots: r.shots, len: r.len, passes: r.passes,
-      tier: estEls.tier ? estEls.tier.value : 'standard',
-      res: estEls.res ? estEls.res.value : 'uhd',
-      active: estimateActive
+      script: text.slice(0, 20000), sel: estSel,
+      allocation: allocation, active: estimateActive
     });
   }
 
   function initEstimator() {
     if (!estEls.root) { return; }
 
-    /* Restore a prior estimate for this session. */
+    if (!estEngine()) {
+      /* Engine missing — say so rather than showing zeros. */
+      if (estEls.note) { estEls.note.textContent = 'BUDGET ENGINE UNAVAILABLE'; }
+      return;
+    }
+
+    var k;
+    for (k in EST_DEFAULTS) {
+      if (Object.prototype.hasOwnProperty.call(EST_DEFAULTS, k)) { estSel[k] = EST_DEFAULTS[k]; }
+    }
+
     var saved = readStore(KEYS.estimate, null);
     if (saved && typeof saved === 'object') {
-      if (estEls.prod && saved.production) { estEls.prod.value = saved.production; }
-      if (estEls.shots && isFinite(saved.shots)) { estEls.shots.value = saved.shots; }
-      if (estEls.length && isFinite(saved.len)) { estEls.length.value = saved.len; }
-      if (estEls.passes && isFinite(saved.passes)) { estEls.passes.value = saved.passes; }
-      if (estEls.tier && saved.tier) { estEls.tier.value = saved.tier; }
-      if (estEls.res && saved.res) { estEls.res.value = saved.res; }
+      if (saved.sel && typeof saved.sel === 'object') {
+        for (k in saved.sel) {
+          if (Object.prototype.hasOwnProperty.call(saved.sel, k)) { estSel[k] = saved.sel[k]; }
+        }
+      }
+      if (estEls.script && typeof saved.script === 'string') { estEls.script.value = saved.script; }
+      if (estEls.allocIn && isFinite(saved.allocation) && saved.allocation > 0) {
+        estEls.allocIn.value = saved.allocation;
+      }
       estimateActive = !!saved.active;
     }
 
-    var controls = [estEls.prod, estEls.shots, estEls.length,
-                    estEls.tier, estEls.res, estEls.passes];
-    var i;
-    for (i = 0; i < controls.length; i++) {
-      if (!controls[i]) { continue; }
-      controls[i].addEventListener('input', function () {
-        estimateActive = true;
-        estRender();
-      });
-      /* change covers select keyboard commits and number spinners */
-      controls[i].addEventListener('change', function () {
+    estBuildControls();
+
+    var live = [estEls.script, estEls.allocIn];
+    var n;
+    for (n = 0; n < live.length; n++) {
+      if (!live[n]) { continue; }
+      live[n].addEventListener('input', function () {
         estimateActive = true;
         estRender();
       });
