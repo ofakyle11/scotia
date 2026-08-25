@@ -7,6 +7,12 @@ const totp = require('./totp.js');
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8h
 const RATE = { windowMs: 15 * 60 * 1000, max: 20 };
 
+// Seat lock: enrollment is limited to exactly these named seats. Override
+// with CHAMBERS_SEATS="Name:role,Name:role" before first boot.
+const SEATS = (process.env.CHAMBERS_SEATS || 'Dan G:admin,Matt D:admin')
+  .split(',').map((s) => { const i = s.lastIndexOf(':'); return { name: (i > 0 ? s.slice(0, i) : s).trim(), role: (i > 0 ? s.slice(i + 1) : 'lawyer').trim() }; })
+  .filter((s) => s.name);
+
 class Auth {
   constructor(store, audit) {
     this.store = store;
@@ -22,6 +28,9 @@ class Auth {
     h.n++;
     return h.n > RATE.max;
   }
+  activeCount() { return this.store.firm.list('user', (u) => u.active).length; }
+  seatCap() { return SEATS.length; }
+  seats() { return SEATS; }
   userByEmail(email) {
     return this.store.firm.list('user', (u) => u.email.toLowerCase() === String(email).toLowerCase() && u.active)[0];
   }
@@ -84,20 +93,40 @@ class Auth {
   }
   logout(t) { if (t) this.sessions.delete(sha256(t)); }
   createInvite(email, role, name, by) {
+    if (this.activeCount() >= this.seatCap()) { this.audit.log(by, 'invite.refused.seatlock', String(this.seatCap())); return null; }
     const code = token(24);
     this.store.firm.put('invite', { code, email, role, name, exp: Date.now() + 24 * 60 * 60 * 1000, used: false }, by);
     this.audit.log(by, 'invite.created', email + ':' + role);
     return code;
   }
-  redeemInvite(code, password) {
+  // Seat invites: bound to a NAME; the person supplies their own email and
+  // password at enrollment. Minted only at first boot, one per seat.
+  createSeatInvites() {
+    const out = [];
+    for (const seat of SEATS) {
+      const code = token(24);
+      this.store.firm.put('invite', { code, seat: true, name: seat.name, role: seat.role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000, used: false }, 'system');
+      this.audit.log('system', 'invite.seat.created', seat.name + ':' + seat.role);
+      out.push({ ...seat, code });
+    }
+    return out;
+  }
+  redeemInvite(code, password, email) {
     const inv = this.store.firm.list('invite', (i) => i.code === code && !i.used)[0];
     if (!inv || Date.now() > inv.exp) return null;
+    if (this.activeCount() >= this.seatCap()) return { error: 'Seat lock: every seat in this build is already enrolled.' };
     if (String(password).length < 12) return { error: 'Password must be at least 12 characters.' };
+    let userEmail = inv.email;
+    if (inv.seat) {
+      userEmail = String(email || '').trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(userEmail)) return { error: 'Enter a valid email — it becomes your sign-in.' };
+      if (this.userByEmail(userEmail)) return { error: 'That email is already enrolled.' };
+    }
     const user = this.store.firm.put('user', {
-      email: inv.email, name: inv.name || inv.email, role: inv.role, active: true, pw: hashPassword(password),
+      email: userEmail, name: inv.name || userEmail, role: inv.role, active: true, pw: hashPassword(password),
     }, 'invite');
     this.store.firm.put('invite', { ...inv, used: true }, user.id);
-    this.audit.log(user.id, 'user.enrolled', inv.role);
+    this.audit.log(user.id, 'user.enrolled', inv.role + (inv.seat ? ':seat' : ''));
     return { user };
   }
 }

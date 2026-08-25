@@ -142,11 +142,13 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh}
 </style></head><body>
 <div class="door"><div class="rule"></div>
 ${err ? `<div class="flash err">${esc(err)}</div>` : ''}
-<p style="font-size:13px;color:var(--ink-soft);margin:0 0 6px">Provisioned access for <b>${esc(invite.email)}</b> (${esc(invite.role)}).</p>
+<p style="font-size:13px;color:var(--ink-soft);margin:0 0 6px">Provisioned access for <b>${esc(invite.seat ? invite.name : invite.email)}</b> (${esc(invite.role)}).</p>
 <form method="POST" action="/invite/${esc(invite.code)}">
-<label for="p1">Choose a password (12+ characters)</label><input id="p1" name="password" type="password" autocomplete="new-password" minlength="12" required autofocus>
+${invite.seat ? '<label for="em">Your email (becomes your sign-in)</label><input id="em" name="email" type="email" autocomplete="username" required autofocus>' : ''}
+<label for="p1">Choose a password (12+ characters)</label><input id="p1" name="password" type="password" autocomplete="new-password" minlength="12" required ${invite.seat ? '' : 'autofocus'}>
 <button style="width:100%">Enroll &amp; enter</button>
 </form>
+<p style="font-size:11.5px;color:var(--ink-faint);margin-top:12px">You set your own password now and your own two-factor code inside (Account → enable 2FA). Nobody else holds either.</p>
 </div></body></html>`;
 }
 

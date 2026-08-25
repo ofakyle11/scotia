@@ -26,6 +26,7 @@ if (store.firm.list('user', (u) => u.email.toLowerCase() === email.toLowerCase()
   process.exit(1);
 }
 const code = auth.createInvite(email, role, name || email, 'console');
+if (!code) { console.error(`Refusing: seat lock — this build is limited to ${auth.seatCap()} enrolled accounts.`); process.exit(1); }
 console.log(`Single-use invite for ${email} (${role}), expires in 24h:`);
 console.log(`  /invite/${code}`);
 console.log('Prefix with your deployment URL, e.g. https://chambers.yourfirm.ca/invite/' + code.slice(0, 8) + '…');

@@ -22,12 +22,13 @@ const audit = new Audit(DATA);
 const auth = new Auth(store, audit);
 const app = new App();
 
-// First boot: provision the founding administrator, once, via console.
+// First boot: mint one invite per locked seat. Each person supplies their
+// own email, password, and 2FA — nothing is pre-shared.
 if (store.firm.list('user').length === 0 && store.firm.list('invite', (i) => !i.used).length === 0) {
-  const email = process.env.CHAMBERS_ADMIN_EMAIL || 'admin@firm.local';
-  const code = auth.createInvite(email, 'admin', 'Founding admin', 'system');
-  console.log('\n  FIRST BOOT — founding admin invite (single use, 24h):');
-  console.log(`  http://localhost:${PORT}/invite/${code}\n`);
+  const seats = auth.createSeatInvites();
+  console.log('\n  FIRST BOOT — seat invites (single use each, 7 days):');
+  for (const s2 of seats) console.log(`  ${s2.name} (${s2.role}):  http://localhost:${PORT}/invite/${s2.code}`);
+  console.log('');
 }
 
 const flashes = new Map(); // one-shot flash messages keyed by session cookie
@@ -89,10 +90,12 @@ app.route('GET', '/invite/:code', (req, res, ctx) => {
 app.route('POST', '/invite/:code', (req, res, ctx) => {
   const inv = store.firm.list('invite', (i) => i.code === ctx.params.code && !i.used)[0];
   if (!inv || Date.now() > inv.exp) { send(res, 404, 'Not found.'); return; }
-  const out = auth.redeemInvite(ctx.params.code, ctx.body.password || '');
+  const out = auth.redeemInvite(ctx.params.code, ctx.body.password || '', ctx.body.email);
   if (!out) { send(res, 404, 'Not found.'); return; }
   if (out.error) { html(res, ui.enrollPage(inv, out.error)); return; }
-  redirect(res, '/r/desk', cookie('s', auth.createSession(out.user.id), { maxAge: 8 * 3600 }));
+  const t = auth.createSession(out.user.id);
+  flashes.set(t, { msg: 'Enrolled. Next: enable two-factor authentication below — it takes thirty seconds.', kind: '' });
+  redirect(res, '/account', cookie('s', t, { maxAge: 8 * 3600 }));
 });
 app.route('POST', '/matter/select', (req, res, ctx) => {
   redirect(res, req.headers.referer && new URL(req.headers.referer).pathname.startsWith('/r/') ? new URL(req.headers.referer).pathname : '/r/desk',
@@ -200,7 +203,8 @@ app.route('GET', '/admin', (req, res, ctx) => {
 });
 app.route('POST', '/admin/invite', (req, res, ctx) => {
   if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
-  auth.createInvite(ctx.body.email, ['lawyer', 'clerk', 'admin'].includes(ctx.body.role) ? ctx.body.role : 'lawyer', ctx.body.name, ctx.user.id);
+  const code = auth.createInvite(ctx.body.email, ['lawyer', 'clerk', 'admin'].includes(ctx.body.role) ? ctx.body.role : 'lawyer', ctx.body.name, ctx.user.id);
+  if (!code) { ctx.setFlash(`Seat lock: this build is limited to ${auth.seatCap()} enrolled accounts.`, 'err'); redirect(res, '/admin'); return; }
   ctx.setFlash('Invite created — share the single-use link from the open invites list.');
   redirect(res, '/admin');
 });
