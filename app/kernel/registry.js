@@ -29,4 +29,8 @@ module.exports = [
   { num: 26, id: 'closing',     title: 'Closing Room',           phase: 'Resolve' },
   { num: 27, id: 'desk',        title: 'Workflow',               phase: 'Always on' },
   { num: 28, id: 'books',       title: 'Trust & Books',          phase: 'Always on' },
+  { num: 29, id: 'canlii',      title: 'CanLII',                 phase: 'Always on' },
+  { num: 30, id: 'uscourts',    title: 'PACER / RECAP',          phase: 'Always on' },
+  { num: 31, id: 'edgar',       title: 'EDGAR',                  phase: 'Always on' },
+  { num: 32, id: 'sources',     title: 'Sources',                phase: 'Always on' },
 ];

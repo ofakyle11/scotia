@@ -2,6 +2,9 @@
 // The kernel facade rooms build on. Wall checks happen here, before any
 // key unwrap — a screened user cannot reach a matter's DEK at all.
 const rules = require('./rules.js');
+const canlii = require('./canlii.js');
+const uscourts = require('./uscourts.js');
+const edgar = require('./edgar.js');
 
 function makeKernel({ store, audit, keyring }, user) {
   function walledFrom(matterId) {
@@ -79,6 +82,18 @@ function makeKernel({ store, audit, keyring }, user) {
     user,
     matters, matter, requireMatter, scope, firm, ledger,
     createMatter: (meta) => firm.put('matter', meta),
+    canlii: {
+      ...canlii,
+      apiKey: () => { const s = store.firm.get('setting', 'canlii'); return s && s.apiKey ? s.apiKey : null; },
+    },
+    uscourts: {
+      ...uscourts,
+      token: () => { const s = store.firm.get('setting', 'courtlistener'); return s && s.token ? s.token : null; },
+    },
+    edgar: {
+      ...edgar,
+      contact: () => { const s = store.firm.get('setting', 'edgar'); return s && s.contact ? s.contact : null; },
+    },
     rules,
     audit: (action, object) => audit.log(user.id, action, object),
     auditTrail: () => ({ verify: () => auditVerify(), tail: (n) => auditTail(n) }),
