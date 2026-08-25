@@ -1,0 +1,930 @@
+<title>The 28-Room Firm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root{
+    --ground:#E7E9EE;
+    --surface:#FBFBFC;
+    --surface-2:#F1F3F6;
+    --ink:#101620;
+    --ink-soft:#4A5361;
+    --ink-faint:#79828F;
+    --rule:#C6CBD5;
+    --rule-soft:#DEE2E9;
+    --navy:#1B3A6B;
+    --oxide:#8E2B24;
+    --oxide-wash:rgba(142,43,36,0.08);
+    --navy-wash:rgba(27,58,107,0.07);
+
+    --f-display:"Spectral",Georgia,"Times New Roman",serif;
+    --f-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+    --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B0E14;
+      --surface:#141A23;
+      --surface-2:#1B222D;
+      --ink:#E8EBF1;
+      --ink-soft:#A7B0BE;
+      --ink-faint:#79838F;
+      --rule:#2C3542;
+      --rule-soft:#232B36;
+      --navy:#8FB3E6;
+      --oxide:#E08379;
+      --oxide-wash:rgba(224,131,121,0.12);
+      --navy-wash:rgba(143,179,230,0.10);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E14;
+    --surface:#141A23;
+    --surface-2:#1B222D;
+    --ink:#E8EBF1;
+    --ink-soft:#A7B0BE;
+    --ink-faint:#79838F;
+    --rule:#2C3542;
+    --rule-soft:#232B36;
+    --navy:#8FB3E6;
+    --oxide:#E08379;
+    --oxide-wash:rgba(224,131,121,0.12);
+    --navy-wash:rgba(143,179,230,0.10);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--f-body);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1080px;margin:0 auto;padding:0 20px 96px;}
+  h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;}
+  p{margin:0;}
+  code{font-family:var(--f-mono);font-size:0.92em;color:var(--navy);}
+
+  .eyebrow{
+    font-family:var(--f-mono);
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+
+  /* ---------- Caption ---------- */
+  .caption{
+    margin-top:56px;
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-top:3px solid var(--navy);
+  }
+  .caption-grid{display:grid;grid-template-columns:1.35fr 1fr;}
+  .caption-left{padding:34px 32px 30px;}
+  .caption-right{
+    padding:34px 32px 30px;
+    border-left:1px solid var(--rule);
+    display:flex;flex-direction:column;gap:13px;
+  }
+  .court{
+    font-family:var(--f-mono);
+    font-size:11px;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    padding-bottom:14px;
+    border-bottom:1px solid var(--rule-soft);
+    margin-bottom:22px;
+  }
+  h1{font-size:clamp(34px,5.2vw,54px);line-height:1.04;font-weight:700;letter-spacing:-0.015em;}
+  h1 em{font-style:italic;color:var(--navy);}
+  .dek{margin-top:18px;font-size:17px;line-height:1.62;color:var(--ink-soft);max-width:36em;}
+  .dek + .dek{margin-top:13px;}
+  .docket-line{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin:0;}
+  .docket-line dt{
+    font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-faint);padding-top:2px;
+  }
+  .docket-line dd{margin:0;text-align:right;color:var(--ink);font-weight:500;}
+
+  .stats{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    border:1px solid var(--rule);border-top:0;background:var(--surface-2);
+  }
+  .stat{padding:20px 24px;border-left:1px solid var(--rule);}
+  .stat:first-child{border-left:0;}
+  .stat .n{
+    font-family:var(--f-display);font-size:32px;font-weight:600;
+    line-height:1;font-variant-numeric:tabular-nums;
+  }
+  .stat .l{
+    margin-top:7px;font-family:var(--f-mono);font-size:10.5px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  .stat.gate .n{color:var(--oxide);}
+
+  /* ---------- Stage strip ---------- */
+  .stages{
+    display:flex;flex-wrap:wrap;gap:0;
+    border:1px solid var(--rule);border-top:0;background:var(--surface);
+  }
+  .stage{
+    flex:1 1 auto;min-width:130px;padding:14px 20px;
+    border-left:1px solid var(--rule-soft);
+    display:flex;align-items:baseline;gap:9px;
+  }
+  .stage:first-child{border-left:0;}
+  .stage b{
+    font-family:var(--f-mono);font-size:11.5px;letter-spacing:.14em;
+    text-transform:uppercase;font-weight:500;
+  }
+  .stage span{font-size:12px;color:var(--ink-faint);}
+
+  /* ---------- Sections ---------- */
+  section{margin-top:72px;}
+  .sec-head{
+    display:flex;align-items:baseline;gap:16px;
+    padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:26px;
+  }
+  .sec-head h2{font-size:26px;font-weight:600;letter-spacing:-0.01em;}
+  .sec-note{margin-bottom:28px;color:var(--ink-soft);max-width:68ch;font-size:15.5px;}
+
+  /* ---------- Cards ---------- */
+  .cards{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));
+    gap:1px;background:var(--rule);border:1px solid var(--rule);
+  }
+  .card{background:var(--surface);padding:22px 22px 24px;}
+  .card h3{font-size:17px;font-weight:600;margin-bottom:9px;}
+  .card p{font-size:14px;color:var(--ink-soft);line-height:1.58;}
+  .card .from{
+    font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;
+  }
+  .card .figs{
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--rule-soft);
+    display:grid;gap:7px;
+  }
+  .fig{display:flex;justify-content:space-between;gap:12px;align-items:baseline;}
+  .fig dt{
+    font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .fig dd{
+    margin:0;font-family:var(--f-mono);font-size:11px;color:var(--navy);
+    text-align:right;font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- Pleading paper ---------- */
+  .pleading{background:var(--surface);border:1px solid var(--rule);padding:8px 0;}
+  .wing-head{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    margin:34px 30px 6px 96px;padding-bottom:10px;
+    border-bottom:1px solid var(--rule-soft);
+  }
+  .wing:first-child .wing-head{margin-top:24px;}
+  .wing-head h3{font-size:19px;font-weight:600;letter-spacing:-0.005em;}
+  .wing-head .range{
+    font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .wing-head .role{font-size:13.5px;color:var(--ink-soft);flex-basis:100%;}
+
+  .mod{
+    display:grid;grid-template-columns:96px 1fr;align-items:start;
+    padding:16px 30px 16px 0;border-bottom:1px solid var(--rule-soft);
+  }
+  .mod:last-child{border-bottom:0;}
+  .mod .num{
+    font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;
+    color:var(--ink-faint);text-align:right;padding-right:26px;padding-top:4px;
+    position:relative;
+  }
+  .mod .num::after{
+    content:"";position:absolute;top:-16px;bottom:-17px;right:8px;width:5px;
+    border-left:1px solid var(--rule);border-right:1px solid var(--rule);
+  }
+  .mod h4{
+    font-family:var(--f-display);font-size:18.5px;font-weight:600;
+    margin:0 0 3px;letter-spacing:-0.005em;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .mod .tagline{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px;
+  }
+  .mod .job{font-size:14.5px;line-height:1.6;color:var(--ink-soft);max-width:72ch;}
+  .facts{margin-top:11px;display:grid;gap:5px;}
+  .fact{display:grid;grid-template-columns:88px 1fr;gap:12px;font-size:13px;line-height:1.5;}
+  .fact dt{
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--ink-faint);padding-top:3px;margin:0;
+  }
+  .fact dd{margin:0;color:var(--ink-soft);}
+
+  .tag{
+    font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;padding:3px 7px;border:1px solid var(--rule);
+    color:var(--ink-faint);white-space:nowrap;font-weight:500;
+  }
+  .tag.gate{color:var(--oxide);border-color:var(--oxide);background:var(--oxide-wash);}
+  .tag.spine{color:var(--navy);border-color:var(--navy);background:var(--navy-wash);}
+
+  /* ---------- Table ---------- */
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);}
+  table{border-collapse:collapse;width:100%;min-width:660px;font-size:14px;}
+  th,td{text-align:left;padding:12px 18px;border-bottom:1px solid var(--rule-soft);vertical-align:top;}
+  thead th{
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);
+    border-bottom:1px solid var(--rule);font-weight:500;
+  }
+  tbody tr:last-child td{border-bottom:0;}
+  td.from{font-family:var(--f-mono);font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  td.to{font-weight:500;}
+  td.why{color:var(--ink-soft);}
+
+  /* ---------- Phases ---------- */
+  .phases{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .phase{background:var(--surface);display:grid;grid-template-columns:158px 1fr;gap:22px;padding:20px 24px;}
+  .phase .p-n{
+    font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--oxide);
+  }
+  .phase .p-label h3{font-size:17px;font-weight:600;margin-top:4px;}
+  .phase p{font-size:14px;color:var(--ink-soft);line-height:1.58;}
+  .mods-in{margin-top:9px;font-family:var(--f-mono);font-size:11.5px;color:var(--navy);}
+
+  /* ---------- Tiers ---------- */
+  .tiers{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    gap:1px;background:var(--rule);border:1px solid var(--rule);
+  }
+  .tier{background:var(--surface);padding:22px;display:flex;flex-direction:column;gap:10px;}
+  .tier h3{font-size:18px;font-weight:600;}
+  .tier .who{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .tier p{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
+  .tier .count{
+    margin-top:auto;padding-top:12px;border-top:1px solid var(--rule-soft);
+    font-family:var(--f-mono);font-size:11.5px;color:var(--navy);
+  }
+
+  footer{
+    margin-top:76px;padding-top:22px;border-top:1px solid var(--rule);
+    font-size:13px;color:var(--ink-faint);line-height:1.62;max-width:74ch;
+  }
+
+  @media (max-width:720px){
+    .caption-grid{grid-template-columns:1fr;}
+    .caption-right{border-left:0;border-top:1px solid var(--rule);}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .stat:nth-child(3){border-left:0;}
+    .stat:nth-child(n+3){border-top:1px solid var(--rule);}
+    .mod{grid-template-columns:58px 1fr;padding-right:18px;}
+    .mod .num{padding-right:16px;}
+    .wing-head{margin-left:58px;margin-right:18px;}
+    .fact{grid-template-columns:1fr;gap:2px;}
+    .phase{grid-template-columns:1fr;gap:10px;}
+  }
+</style>
+
+<div class="page">
+
+  <header class="caption">
+    <div class="caption-grid">
+      <div class="caption-left">
+        <div class="court">The Cinamate build, pointed at the practice of law &nbsp;·&nbsp; United States &amp; Canada</div>
+        <h1>The 28-Room <em>Firm</em></h1>
+        <p class="dek">Cinamate is twenty-eight rooms that share one project state, advise each other, and price everything against a published rate rather than a guess. The same architecture ports to a law practice almost room for room — a matter moves through phases the way a picture does, and every room downstream reads the same file.</p>
+        <p class="dek">What doesn't port is the tolerance for being wrong. A soft number in a budget is an estimate; a soft number in a filing is a sanction. Three rooms below are gates, not features.</p>
+      </div>
+      <div class="caption-right">
+        <dl class="docket-line"><dt>Pattern</dt><dd>Cinamate &middot; 28 rooms</dd></dl>
+        <dl class="docket-line"><dt>Phases</dt><dd>6</dd></dl>
+        <dl class="docket-line"><dt>Shared state</dt><dd>One matter file</dd></dl>
+        <dl class="docket-line"><dt>Jurisdictions</dt><dd>51 US &middot; 13 CA</dd></dl>
+        <dl class="docket-line"><dt>Mission control</dt><dd>Workflow</dd></dl>
+        <dl class="docket-line"><dt>Ships when</dt><dd>Counsel signs</dd></dl>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">28</div><div class="l">Working rooms</div></div>
+      <div class="stat"><div class="n">64</div><div class="l">Jurisdictions</div></div>
+      <div class="stat gate"><div class="n">3</div><div class="l">Hard gates</div></div>
+      <div class="stat"><div class="n">6</div><div class="l">Ship-first rooms</div></div>
+    </div>
+    <div class="stages">
+      <div class="stage"><b>Intake</b><span>take it or pass</span></div>
+      <div class="stage"><b>Build</b><span>the record</span></div>
+      <div class="stage"><b>Discover</b><span>the evidence</span></div>
+      <div class="stage"><b>Argue</b><span>the motion</span></div>
+      <div class="stage"><b>Resolve</b><span>and get paid</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">01</span>
+      <h2>What changes when the studio is a firm</h2>
+    </div>
+    <p class="sec-note">Four things in the Cinamate architecture cannot survive the port unchanged. Everything else — one shared project state, rooms that advise each other, estimators anchored to published rates, mission control reading all of them — carries over intact.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">Generation &rarr;</div>
+        <h3>Verification</h3>
+        <p>The generation floor's best trait is invention, and in law it is the failure mode. Every citation, quoted holding and statutory subsection is resolved against a real retrievable source and its current treatment before it can move to the next room. Unresolved means blocked, not flagged.</p>
+      </div>
+      <div class="card">
+        <div class="from">One project state &rarr;</div>
+        <h3>Walled state</h3>
+        <p>Cinamate wants every room to see the whole picture. A firm cannot let one client's facts surface in another client's brief. State is shared inside a matter and walled between them, enforced at the index rather than by instruction — because the wall is a professional obligation, not a preference.</p>
+      </div>
+      <div class="card">
+        <div class="from">Export &rarr;</div>
+        <h3>Signature</h3>
+        <p>A master ships when it renders. A filing ships when a licensed lawyer signs it, and the audit trail records what was drafted by the platform, what was edited, and by whom. The platform never files; it hands counsel something ready to file.</p>
+      </div>
+      <div class="card">
+        <div class="from">Location &rarr;</div>
+        <h3>Jurisdiction</h3>
+        <p>You can move a shoot. You cannot move the governing law. Jurisdiction is set at intake and constrains every room below it — limitation periods, pleading standard, page limits, interrogatory counts, and whether the case is in common law at all, because Québec is not.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">02</span>
+      <h2>Every department. One address.</h2>
+    </div>
+    <p class="sec-note">Twenty-eight working rooms, grouped by the phase of the matter, sharing one file. Numbered in the order a matter passes through them — nothing runs before Intake has opened the matter, and nothing leaves before counsel signs it out of the Filing Room.</p>
+
+    <div class="pleading">
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Intake</h3>
+          <span class="range">Rooms 01&ndash;05</span>
+          <span class="role">Before you take the case &mdash; and the phase where the malpractice claims are actually created.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">01</div>
+          <div>
+            <h4>Intake Desk <span class="tag spine">Ship first</span></h4>
+            <div class="tagline">Inquiry in &mdash; matter file out</div>
+            <p class="job">Drop the client's emails, records, photos and police report; get a structured matter back. Parties detected, dates extracted into a first chronology, claim types inferred, the limitation clock started and counting, and a merits screen that says take it, pass, or refer out. A decline prints the non-engagement letter &mdash; the one nobody remembers to send.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Limitation and notice periods for all 64 jurisdictions by claim type, including discoverability rules and municipal notice traps</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Ethics &amp; Conflicts, Chronology</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">02</div>
+          <div>
+            <h4>Ethics &amp; Conflicts <span class="tag gate">Gate</span> <span class="tag spine">Ship first</span></h4>
+            <div class="tagline">The pre-engagement scan</div>
+            <p class="job">Cinamate's Clearance room, aimed at the firm instead of the script. Every party, related entity, corporate parent, insurer and witness run against every matter the firm has ever opened &mdash; current, former and positional conflicts, imputed across offices &mdash; with the waiver letter or the screen drafted before anyone bills an hour. It keeps running after engagement, re-checking each time a new party appears, and it holds the advertising, supervision and AI-disclosure rules the rest of the platform has to satisfy.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>State bar and law society conflict rules, including where a screen cures a lateral's conflict and where only consent will</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Retainer, Vault (wall configuration)</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">03</div>
+          <div>
+            <h4>Retainer <span class="tag spine">Ship first</span></h4>
+            <div class="tagline">The deal on paper</div>
+            <p class="job">The Deal Memos room. Engagement letter with scope in and scope out, fee model &mdash; hourly, flat, contingency, hybrid &mdash; rate card, cost responsibility, evergreen terms and termination. Signed retainers become live commitments in Trust &amp; Books the moment they're executed, and a scope change re-issues the letter instead of quietly widening the matter.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Contingency caps by statute and by the Solicitors Act, written-agreement requirements, matter types where contingency is barred outright</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trust &amp; Books, Case Value</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">04</div>
+          <div>
+            <h4>Case Value</h4>
+            <div class="tagline">The money, before the case</div>
+            <p class="job">The Investors room, rebuilt for litigation. Exposure and recovery modelled from reported outcomes in your claim type and your venue and reported as bands, not a number; cost to try against cost to settle; the phase budget the client approves before you spend it; and on a contingency file, whether the case actually pays once costs and liens come out.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Reported verdicts and settlements by claim type &times; venue, damages caps, prejudgment interest rates, cost-shifting and offer-to-settle rules</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Settlement Waterfall, Workflow</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">05</div>
+          <div>
+            <h4>Client Desk</h4>
+            <div class="tagline">Updates that land</div>
+            <p class="job">Status letters on a cadence instead of on request, budget against actual before the invoice arrives, decision memos for the calls that are the client's to make rather than counsel's, and a record of the authority given. Everything in plain language at a set reading level, and in French where the matter requires it.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Communication duties under Rule 1.4 and the law society codes; Québec and federal language requirements</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Reads every room</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Build</h3>
+          <span class="range">Rooms 06&ndash;11</span>
+          <span class="role">Everything before the first filing. The record gets made here or it doesn't get made.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">06</div>
+          <div>
+            <h4>Chronology</h4>
+            <div class="tagline">The record, in order</div>
+            <p class="job">The spine, the way the script is Cinamate's spine. Every fact carries a date, an actor and a source &mdash; Bates number, transcript page and line, exhibit number &mdash; flagged disputed or undisputed, with the gaps called out rather than papered over. Pleadings, briefs and examination outlines are all generated from it, so the story cannot drift between filings.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Source-or-drop at entry: a fact without a cite never reaches a brief</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Pleadings, Depositions, Brief Writer, Trial Book</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">07</div>
+          <div>
+            <h4>Research Desk</h4>
+            <div class="tagline">Issue in &mdash; authority out</div>
+            <p class="job">Binding authority weighted against persuasive for your court specifically, splits surfaced rather than smoothed over, and the adverse authority listed at the top instead of buried &mdash; because you are obliged to disclose the controlling case that hurts you, and you would rather find it than read it in their response.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Court hierarchy per jurisdiction; what binds what, and what is merely persuasive</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Citation Check, Brief Writer</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">08</div>
+          <div>
+            <h4>Citation Check <span class="tag gate">Gate</span></h4>
+            <div class="tagline">Checked, then filed</div>
+            <p class="job">The room that makes the rest of the platform sellable, and the direct heir to Cinamate's "checked, then shipped." Every citation resolves to a real decision. The quoted words appear at the pinpoint cited. The proposition matches the holding rather than dicta. The treatment is current &mdash; not reversed, vacated or superseded. Anything unresolved blocks the document; it does not annotate it.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Citation formats by jurisdiction, treatment history, and the standing orders requiring disclosure of AI assistance</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Filing Room &mdash; and nothing reaches it without passing here</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">09</div>
+          <div>
+            <h4>Jurisdiction Desk</h4>
+            <div class="tagline">Sixty-four jurisdictions, decoded</div>
+            <p class="job">Cinamate decodes twenty-one tax-credit jurisdictions; this decodes sixty-four legal ones. Fifty states, DC and the territories, ten provinces and three territories, federal on both sides of the border &mdash; governing law, venue, limitation periods, service and pleading standard, plus cross-border service and enforcement. It is also the room that knows Québec is civil law, where common-law reasoning does not translate badly so much as not apply.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Per-jurisdiction rule sets: pleading standards, limitation regimes, service methods, choice-of-law and forum-clause treatment</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Every drafting room, as a constraint they cannot override</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">10</div>
+          <div>
+            <h4>Pleadings</h4>
+            <div class="tagline">Complaint to answer</div>
+            <p class="job">Every element of every cause of action checked against the Chronology, with the elements that still have no fact behind them reported before you file rather than after the motion to dismiss. Answers and defences, counterclaims, and the affirmative defences that are waived if you leave them out.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Element sets by cause of action and jurisdiction; the pleading standard that applies in that court</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Citation Check, Filing Room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">11</div>
+          <div>
+            <h4>Court Book</h4>
+            <div class="tagline">Every courthouse, on file</div>
+            <p class="job">The Scout Book, for courts instead of locations. Each court with its e-filing system, filing fees, page and word limits, formatting and font rules, motion calendars and timing, the judges' standing orders and chambers preferences, and whether courtesy copies are expected &mdash; the practical layer research tools skip and clerks reject filings over.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Verified court directory: fees, portals, local rules, standing orders, with the date each entry was last confirmed</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Filing Room, Trial Calendar, Brief Writer</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Discover</h3>
+          <span class="range">Rooms 12&ndash;17</span>
+          <span class="role">The phase that costs the most &mdash; Cinamate's shoot, and the same budget problem.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">12</div>
+          <div>
+            <h4>Discovery Desk</h4>
+            <div class="tagline">Requests, responses, objections</div>
+            <p class="job">Requests for production, interrogatories, admissions and subpoenas going out; specific and proportional responses coming back &mdash; not boilerplate, which now draws sanctions rather than shrugs. Meet-and-confer and deficiency letters, and the ESI protocol negotiated in writing before the collection starts instead of after.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Interrogatory limits, response deadlines, proportionality standards and discovery-plan requirements per jurisdiction</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Document Review, Depositions</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">13</div>
+          <div>
+            <h4>Document Review</h4>
+            <div class="tagline">Review, code, log</div>
+            <p class="job">Ingest the collection, de-duplicate and thread it, code for issue and responsiveness, call privilege, apply redactions, and produce the privilege log in the format that court expects &mdash; plus the production volumes and load file the other side can actually load.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Privilege log formats by court; solicitor-client and litigation privilege treated as the separate doctrines they are in Canada</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Chronology, Evidence Room, Depositions</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">14</div>
+          <div>
+            <h4>Depositions</h4>
+            <div class="tagline">Outlines out &mdash; digests back</div>
+            <p class="job">Outlines built from the Chronology and the exhibits, sequenced so the documents land in the right order; then transcripts digested, admissions indexed, and the impeachment table built against every prior statement the witness has made. Undertakings tracked and answered on Canadian examinations, where the practice runs on them.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Deposition rules and time limits; the scope difference between US depositions and examinations for discovery</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Chronology, Trial Book, Moot Room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">15</div>
+          <div>
+            <h4>Experts</h4>
+            <div class="tagline">Retention to challenge</div>
+            <p class="job">Candidate experts with rate bands, retention letters and scope, report support, disclosure deadlines that the Trial Calendar already knows about, and both sides of the qualification fight &mdash; the challenge to theirs and the defence of yours.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Expert rate bands by discipline; the two gatekeeping tests &mdash; <em>Daubert</em> with amended Rule 702, and <em>Mohan</em> as refined by <em>White Burgess</em></dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trial Book, Case Value</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">16</div>
+          <div>
+            <h4>Evidence Room</h4>
+            <div class="tagline">Exhibits, with foundation</div>
+            <p class="job">Every exhibit with the witness who authenticates it, the rule it comes in under, and its hearsay path traced to an exception. The exhibit list, the demonstratives, and the motions in limine to keep the other side's problems out before the jury hears them.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Authentication and hearsay rules federally, by state, and under the provincial evidence acts; self-authentication notice requirements</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trial Book, Filing Room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">17</div>
+          <div>
+            <h4>Tools &times;20</h4>
+            <div class="tagline">Twenty small rooms</div>
+            <p class="job">Kept exactly as Cinamate keeps it &mdash; the drawer of things opened fifteen times a day. Subpoena generator, service and proof, affidavits and declarations, records requests, medical chronologies, damages and interest calculators, cost and tariff estimators, redaction, Bates stamping, transcript search, deadline math, translation requests, and the rest.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Statutory interest rates, court reporter and process server rates, records request fee caps</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Whichever room called it</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Argue</h3>
+          <span class="range">Rooms 18&ndash;22</span>
+          <span class="role">Where the case is actually won &mdash; the cutting room of the practice.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">18</div>
+          <div>
+            <h4>Brief Writer</h4>
+            <div class="tagline">The argument, assembled</div>
+            <p class="job">Standard of review, issue order, the structure held section by section, facts pulled from the Chronology with their cites already attached, then the whole thing fitted to that court's real limits with the table of authorities and the proposed order generated rather than typed.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Word and page limits, formatting rules, and whether a table of authorities is required &mdash; per court, sometimes per judge</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Moot Room, then Citation Check, then Filing Room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">19</div>
+          <div>
+            <h4>Moot Room</h4>
+            <div class="tagline">The other side's best brief</div>
+            <p class="job">The Screening Room, whose notes land as markers on the ruler &mdash; here they land as margin comments on the paragraph they belong to. It writes the opposition in earnest, names the weakest fact in your chronology, finds the authority that hurts, and asks the questions a hot bench asks, before filing rather than after their response arrives.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Motion outcome base rates by court and motion type; opposing counsel's filing patterns where public</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Brief Writer, as comments in place</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">20</div>
+          <div>
+            <h4>Trial Book</h4>
+            <div class="tagline">Openings to verdict form</div>
+            <p class="job">Witness order and examination outlines, the exhibit binder assembled from the Evidence Room, openings and closings, jury instructions built from the pattern instructions for that jurisdiction, the verdict form, and the objections sheet &mdash; printed, tabbed, and also on the tablet.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Pattern jury instructions by jurisdiction; verdict form conventions; voir dire practice where it differs</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trial Calendar, Workflow</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">21</div>
+          <div>
+            <h4>Trial Calendar <span class="tag spine">Ship first</span></h4>
+            <div class="tagline">Computed back from the trial date</div>
+            <p class="job">Cinamate's Post Supervisor computes the post calendar backward from the delivery date, weekends skipped. This does the same from the trial date or any trigger event, against that court's own counting rules: expert disclosure, discovery close, dispositive motions, pretrial conference, exchange deadlines &mdash; holidays and service-method extensions applied, the entire chain recalculating when one date moves. Every date shows the rule it was computed from.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Rule-based date computation per court, court holiday calendars, service extensions &mdash; the most expensive data to maintain and the most valuable to get right</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Workflow, Client Desk, every drafting room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">22</div>
+          <div>
+            <h4>Filing Room <span class="tag gate">Gate</span></h4>
+            <div class="tagline">Formatted, filed, served</div>
+            <p class="job">Caption, local formatting, tables, signature blocks, exhibit tabs, personal-identifier redaction, and the packet built for CM/ECF or the state or provincial portal &mdash; then it stops. Nothing transmits until the lawyer of record signs, and the record keeps what was drafted by the platform, what was edited, and by whom. Certificate of service and proof of filing come back onto the file automatically.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>E-filing requirements per portal; redaction rules that attach at filing rather than at drafting</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trial Calendar (new dates), Trust &amp; Books (fees), the audit trail</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Resolve</h3>
+          <span class="range">Rooms 23&ndash;26</span>
+          <span class="role">Getting it finished and getting paid &mdash; where all but a few per cent of matters actually end.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">23</div>
+          <div>
+            <h4>Mediation &amp; ADR</h4>
+            <div class="tagline">Where most cases end</div>
+            <p class="job">Mediation briefs and position statements drawn from the Chronology, provider panels with rates and lead times, arbitration under the applicable rules, formal offers to settle with their cost consequences computed, and the settlement agreement with its releases and confidentiality terms.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>ADR provider directory with fees and lead times; offer-to-settle cost rules; mandatory mediation regimes where they apply</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Settlement Waterfall, Closing Room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">24</div>
+          <div>
+            <h4>Settlement Waterfall</h4>
+            <div class="tagline">What it nets, honestly</div>
+            <p class="job">Cinamate's recoupment waterfall, run in the other direction. Gross recovery down to what the client actually receives: costs advanced, medical and statutory liens, conditional payments and subrogation, the contingency fee at the tier that applies, referral splits &mdash; with the disbursement statement printed and the trust entries already staged.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Lien and subrogation formulas, statutory reduction rules, fee tier structures by jurisdiction</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trust &amp; Books, Client Desk</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">25</div>
+          <div>
+            <h4>Judgment &amp; Enforcement</h4>
+            <div class="tagline">Getting paid after you win</div>
+            <p class="job">A judgment is not money. Post-judgment interest accruing, garnishment and execution, judgment liens, domestication in another state or province, and enforcement across the border &mdash; tracked until the file is actually satisfied.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Post-judgment interest rates, exemption schedules, domestication and reciprocal enforcement procedures</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Trust &amp; Books, Closing Room</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">26</div>
+          <div>
+            <h4>Closing Room</h4>
+            <div class="tagline">Closing the file properly</div>
+            <p class="job">The closing letter with appeal windows and any remaining limitation dates spelled out, the final disbursement statement, originals returned, and the file retained on that jurisdiction's schedule &mdash; then destroyed on it, rather than kept forever in a basement because nobody knew the rule.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>File retention and destruction schedules by jurisdiction; appeal periods by court and order type</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Vault, Workflow</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Always on</h3>
+          <span class="range">Rooms 27&ndash;28</span>
+          <span class="role">Underneath every phase.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">27</div>
+          <div>
+            <h4>Workflow <span class="tag spine">Ship first</span></h4>
+            <div class="tagline">Mission control</div>
+            <p class="job">Reads every room: what is due this week, which matters are at risk, where the limitation clocks are, what is unbilled, what is sitting in trust unapplied, who to staff and what to decline. And Today in your pocket &mdash; the day's hearings, the courthouse, the judge, the file numbers, and what to bring.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Nothing of its own &mdash; it is the read across all twenty-seven others</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>The lawyer, first thing in the morning</dd></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">28</div>
+          <div>
+            <h4>Trust &amp; Books <span class="tag spine">Ship first</span></h4>
+            <div class="tagline">The ledger and the vault</div>
+            <p class="job">Cinamate's Money Room and Projects vault, merged, because in a firm they are the same regulated object. Time captured as it happens and coded, LEDES invoices for insurer and corporate clients, a pre-bill pass that catches block billing and vague narratives before they reach the client, the cost report per matter &mdash; and trust accounting kept strictly separate: client funds segregated, no commingling, three-way reconciliation on schedule. The whole matter backed up, shared across the firm with the walls from room 02 enforced, and every generated document carrying its provenance.</p>
+            <div class="facts">
+              <div class="fact"><dt>On file</dt><dd>Trust accounting rules and reconciliation requirements per state bar and law society; UTBMS task codes; insurer billing guidelines</dd></div>
+              <div class="fact"><dt>Hands to</dt><dd>Every room, and the auditor when they ask</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">03</span>
+      <h2>Numbers you can defend</h2>
+    </div>
+    <p class="sec-note">Cinamate's accuracy pitch is the part that ports best, because it is the part lawyers are hardest to sell without. No black boxes: every estimate traces to a published rate, a statute, or a fitted model &mdash; with the error bars shown.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">ACC.01</div>
+        <h3>Calibrated Outcomes</h3>
+        <p>Recovery and exposure are modelled on reported verdicts and settlements in the claim type and the venue, and reported as bands because a range is what the data honestly supports. A point estimate on a case value is a number somebody will quote back to you in a deposition.</p>
+        <div class="figs">
+          <div class="fig"><dt>Reported as</dt><dd>P10 &ndash; P90 bands</dd></div>
+          <div class="fig"><dt>Segmented by</dt><dd>Claim &times; venue</dd></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="from">ACC.02</div>
+        <h3>Published Scale, Not Guesses</h3>
+        <p>Where Cinamate anchors to union rate cards, this anchors to instruments that are equally public and equally binding: filing fee schedules, statutory limitation periods, tariff and cost grids, statutory interest rates, lien formulas. Each entry carries its source and the date it was last confirmed.</p>
+        <div class="figs">
+          <div class="fig"><dt>Anchors</dt><dd>Statute &middot; rules &middot; tariff</dd></div>
+          <div class="fig"><dt>Every entry</dt><dd>Sourced &amp; dated</dd></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="from">ACC.03</div>
+        <h3>Checked, Then Filed</h3>
+        <p>Every citation resolves before the document moves. Every computed deadline shows the rule it came from. Every generated paragraph carries whether it was drafted, edited or authored &mdash; and nothing transmits to a court until the lawyer of record signs it.</p>
+        <div class="figs">
+          <div class="fig"><dt>Citations</dt><dd>Resolve or block</dd></div>
+          <div class="fig"><dt>Filing</dt><dd>Human signature</dd></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">04</span>
+      <h2>Room for room against Cinamate</h2>
+    </div>
+    <p class="sec-note">The port is closer than it looks, because both businesses are project work with a deadline, a budget, a crew, and a delivery nobody can be late for.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Cinamate</th><th>The firm</th><th>Why it maps</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="from">Writer</td><td class="to">Intake Desk (01)</td><td class="why">Unstructured input in, structured project file out</td></tr>
+          <tr><td class="from">Clearance</td><td class="to">Ethics &amp; Conflicts (02)</td><td class="why">The pre-liability scan, run before anyone commits money</td></tr>
+          <tr><td class="from">Deal Memos</td><td class="to">Retainer (03)</td><td class="why">Signed paper becomes live commitments in the ledger</td></tr>
+          <tr><td class="from">Investors</td><td class="to">Case Value (04)</td><td class="why">Does this project pay, modelled before you start it</td></tr>
+          <tr><td class="from">Scout Book</td><td class="to">Court Book (11)</td><td class="why">Verified venue directory: fees, permits, lead times, local rules</td></tr>
+          <tr><td class="from">Producer Suite</td><td class="to">Trial Calendar + Case Value</td><td class="why">The schedule and the budget, generated rather than typed</td></tr>
+          <tr><td class="from">Screening Room</td><td class="to">Moot Room (19)</td><td class="why">Critique that lands in place, on the thing being critiqued</td></tr>
+          <tr><td class="from">Post Supervisor</td><td class="to">Trial Calendar (21)</td><td class="why">Milestones computed backward from an immovable date</td></tr>
+          <tr><td class="from">Sales &amp; Waterfall</td><td class="to">Settlement Waterfall (24)</td><td class="why">Gross down to net, through everyone with a prior claim on it</td></tr>
+          <tr><td class="from">Tax Credits</td><td class="to">Jurisdiction Desk (09)</td><td class="why">Jurisdictions decoded &mdash; twenty-one becomes sixty-four</td></tr>
+          <tr><td class="from">Money Room + Projects</td><td class="to">Trust &amp; Books (28)</td><td class="why">Cost report and vault, merged because trust law merges them</td></tr>
+          <tr><td class="from">Tools &times;20</td><td class="to">Tools &times;20 (17)</td><td class="why">The drawer of small things, kept as a drawer</td></tr>
+          <tr><td class="from">Workflow</td><td class="to">Workflow (27)</td><td class="why">Mission control reading every room, unchanged</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">05</span>
+      <h2>Build order</h2>
+    </div>
+    <p class="sec-note">Twenty-eight rooms is the destination, not the first release. The order is set by what a firm will pay for before it trusts generated legal reasoning at all &mdash; operations first, judgment last.</p>
+    <div class="phases">
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release one</div><h3>The rooms that pay rent</h3></div>
+        <div>
+          <p>Six rooms that make the platform a system of record. Not one of them asks the firm to trust a generated argument, and every one displaces software they already pay for. This is the release that sells and the beachhead everything else is built on.</p>
+          <div class="mods-in">01 &middot; 02 &middot; 03 &middot; 21 &middot; 27 &middot; 28</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release two</div><h3>The gates and the reference</h3></div>
+        <div>
+          <p>Verification, jurisdiction data and the court directory &mdash; built before any drafting ships. This is what separates the product from a chat window with a legal prompt, and it is the part competitors skip.</p>
+          <div class="mods-in">05 &middot; 08 &middot; 09 &middot; 11</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release three</div><h3>The paper</h3></div>
+        <div>
+          <p>Research and the production floor, gated by release two. Correspondence and discovery first &mdash; highest volume, lowest risk, most tolerant of a rough first draft &mdash; then pleadings and briefs, then filing.</p>
+          <div class="mods-in">06 &middot; 07 &middot; 10 &middot; 12 &middot; 17 &middot; 18 &middot; 22</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release four</div><h3>The litigation file</h3></div>
+        <div>
+          <p>Evidence at scale, the red team, and the money out the other end. Heaviest to build, deepest moat, and only meaningful once the first three releases are holding real matters.</p>
+          <div class="mods-in">04 &middot; 13 &middot; 14 &middot; 15 &middot; 16 &middot; 19 &middot; 20 &middot; 23 &middot; 24 &middot; 25 &middot; 26</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">06</span>
+      <h2>Packaging</h2>
+    </div>
+    <p class="sec-note">Cinamate's tiers map onto firm size almost directly, because the rooms a solo needs and the rooms a litigation boutique needs barely overlap.</p>
+    <div class="tiers">
+      <div class="tier">
+        <h3>Solo</h3>
+        <div class="who">Creator</div>
+        <p>One lawyer, no staff. Intake, conflicts, retainer, calendar, trust and books, mission control &mdash; the practice floor, plus the ethics gate.</p>
+        <div class="count">8 rooms</div>
+      </div>
+      <div class="tier">
+        <h3>Firm</h3>
+        <div class="who">Studio</div>
+        <p>Two to twenty lawyers. Adds research, drafting, filing, the court book and the client desk, across shared matters with real walls between them.</p>
+        <div class="count">18 rooms</div>
+      </div>
+      <div class="tier">
+        <h3>Litigation</h3>
+        <div class="who">Production</div>
+        <p>Adds the whole discovery phase and the red team: review, depositions, experts, exhibits, the moot room, trial book, waterfall.</p>
+        <div class="count">26 rooms</div>
+      </div>
+      <div class="tier">
+        <h3>Enterprise</h3>
+        <div class="who">Enterprise</div>
+        <p>All 28, plus on-premise or in-country deployment, data residency controls, insurer billing guidelines, and the audit surface a general counsel's office asks for.</p>
+        <div class="count">28 rooms</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Product architecture, not legal advice. Every room described here produces attorney work product for review by a licensed lawyer &mdash; the platform assists the practice of law and does not practise it. The jurisdictional details noted throughout are design constraints to build against, and each should be confirmed against current rules in the relevant jurisdiction before the room that depends on it ships.</p>
+  </footer>
+
+</div>
