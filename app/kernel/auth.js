@@ -41,19 +41,32 @@ class Auth {
     this.audit.log(user.id, 'login.ok', ip);
     return { session: this.createSession(user.id) };
   }
+  // Verify AND burn a TOTP code for an enrolled user: a code that has granted
+  // access once can never grant it again, even inside the +/-1-step window.
+  consumeTotp(userId, code2) {
+    const user = this.store.firm.get('user', userId);
+    if (!user || !user.active || !user.totp) return false;
+    const step = totp.matchStep(user.totp, code2);
+    if (step === null) return false;
+    if (user.totpLastStep && step <= user.totpLastStep) {
+      this.audit.log(userId, 'totp.replay.denied', String(step));
+      return false;
+    }
+    this.store.firm.put('user', { ...user, totpLastStep: step }, userId);
+    return true;
+  }
   verifyTotp(pendingToken, code2, ip) {
     if (this.rateLimited(ip)) return null;
     const key = sha256(String(pendingToken || ''));
     const p = this.pending.get(key);
     if (!p || Date.now() > p.exp) { this.pending.delete(key); return null; }
-    const user = this.store.firm.get('user', p.uid);
-    if (!user || !user.active || !user.totp || !totp.verify(user.totp, code2)) {
+    if (!this.consumeTotp(p.uid, code2)) {
       this.audit.log(p.uid, 'login.2fa.denied', ip);
       return null;
     }
     this.pending.delete(key);
-    this.audit.log(user.id, 'login.ok+2fa', ip);
-    return this.createSession(user.id);
+    this.audit.log(p.uid, 'login.ok+2fa', ip);
+    return this.createSession(p.uid);
   }
   createSession(uid) {
     const t = token(32);

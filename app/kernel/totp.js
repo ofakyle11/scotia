@@ -37,17 +37,26 @@ function code(secretB32, forTime = Date.now()) {
   return String(bin % 1000000).padStart(6, '0');
 }
 
-function verify(secretB32, input, forTime = Date.now()) {
+// Returns the matched time-step counter, or null. Callers that grant access
+// MUST persist the counter and refuse any step <= the stored one (RFC 6238
+// s.5.2: a verified code is burned — it never verifies twice).
+function matchStep(secretB32, input, forTime = Date.now()) {
   const given = String(input || '').replace(/\s+/g, '');
-  if (!/^\d{6}$/.test(given)) return false;
+  if (!/^\d{6}$/.test(given)) return null;
+  let matched = null;
   for (const w of [-1, 0, 1]) {
-    const expect = code(secretB32, forTime + w * 30000);
-    if (crypto.timingSafeEqual(Buffer.from(expect), Buffer.from(given))) return true;
+    const at = forTime + w * 30000;
+    const expect = code(secretB32, at);
+    if (crypto.timingSafeEqual(Buffer.from(expect), Buffer.from(given)) && matched === null) {
+      matched = Math.floor(at / 1000 / 30);
+    }
   }
-  return false;
+  return matched;
 }
+
+const verify = (secretB32, input, forTime = Date.now()) => matchStep(secretB32, input, forTime) !== null;
 
 const otpauthUri = (account, secret) =>
   `otpauth://totp/${encodeURIComponent('Chambers:' + account)}?secret=${secret}&issuer=Chambers&algorithm=SHA1&digits=6&period=30`;
 
-module.exports = { genSecret, code, verify, otpauthUri, base32Encode, base32Decode };
+module.exports = { genSecret, code, verify, matchStep, otpauthUri, base32Encode, base32Decode };

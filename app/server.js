@@ -137,8 +137,9 @@ app.route('POST', '/account/totp-start', (req, res, ctx) => {
 app.route('POST', '/account/totp-confirm', (req, res, ctx) => {
   const u = ctx.kernel.firm.get('user', ctx.user.id);
   if (!u.pendingTotp) { ctx.setFlash('Start enrollment first.', 'err'); redirect(res, '/account'); return; }
-  if (!totpKit.verify(u.pendingTotp, ctx.body.code)) { ctx.setFlash('That code did not verify — try again with a fresh one.', 'err'); redirect(res, '/account'); return; }
-  ctx.kernel.firm.put('user', { ...u, totp: u.pendingTotp, pendingTotp: null });
+  const enrollStep = totpKit.matchStep(u.pendingTotp, ctx.body.code);
+  if (enrollStep === null) { ctx.setFlash('That code did not verify — try again with a fresh one.', 'err'); redirect(res, '/account'); return; }
+  ctx.kernel.firm.put('user', { ...u, totp: u.pendingTotp, pendingTotp: null, totpLastStep: enrollStep });
   ctx.kernel.audit('user.2fa.enabled', ctx.user.id);
   ctx.setFlash('Two-factor authentication enabled. It is now required at every sign-in.');
   redirect(res, '/account');
@@ -146,8 +147,9 @@ app.route('POST', '/account/totp-confirm', (req, res, ctx) => {
 app.route('POST', '/account/totp-disable', (req, res, ctx) => {
   const u = ctx.kernel.firm.get('user', ctx.user.id);
   if (!u.totp) { ctx.setFlash('2FA is not enabled.', 'err'); redirect(res, '/account'); return; }
-  if (!totpKit.verify(u.totp, ctx.body.code)) { ctx.setFlash('That code did not verify.', 'err'); redirect(res, '/account'); return; }
-  ctx.kernel.firm.put('user', { ...u, totp: null, pendingTotp: null });
+  if (!auth.consumeTotp(u.id, ctx.body.code)) { ctx.setFlash('That code did not verify.', 'err'); redirect(res, '/account'); return; }
+  const u2 = ctx.kernel.firm.get('user', u.id);
+  ctx.kernel.firm.put('user', { ...u2, totp: null, pendingTotp: null, totpLastStep: null });
   ctx.kernel.audit('user.2fa.disabled', ctx.user.id);
   ctx.setFlash('Two-factor authentication disabled.');
   redirect(res, '/account');
