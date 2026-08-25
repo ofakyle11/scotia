@@ -5,6 +5,7 @@ const rules = require('./rules.js');
 const canlii = require('./canlii.js');
 const uscourts = require('./uscourts.js');
 const edgar = require('./edgar.js');
+const ai = require('./ai.js');
 
 function makeKernel({ store, audit, keyring }, user) {
   function walledFrom(matterId) {
@@ -93,6 +94,26 @@ function makeKernel({ store, audit, keyring }, user) {
     edgar: {
       ...edgar,
       contact: () => { const s = store.firm.get('setting', 'edgar'); return s && s.contact ? s.contact : null; },
+    },
+    ai: {
+      config: () => store.firm.get('setting', 'ai') || null,
+      enabled() { const c = this.config(); return !!(c && c.endpoint && c.model); },
+      policy: (matterId) => { const m = store.firm.get('matter', matterId); return (m && m.aiPolicy) || 'allowed'; },
+      // The one path to a model. Policy-checked, audited, never training.
+      async chat(matterId, messages, opts) {
+        const cfg = store.firm.get('setting', 'ai');
+        if (!cfg || !cfg.endpoint || !cfg.model) return { ok: false, message: 'No model endpoint configured (admin sets it at /admin).' };
+        if (matterId) {
+          const m = store.firm.get('matter', matterId);
+          if (!m) return { ok: false, message: 'Matter unavailable.' };
+          if ((m.aiPolicy || 'allowed') === 'forbidden') {
+            audit.log(user.id, 'ai.denied.policy', matterId);
+            return { ok: false, message: 'Model use is forbidden on this matter by its data-handling policy.' };
+          }
+        }
+        audit.log(user.id, 'ai.call', (matterId || 'firm') + ':' + cfg.model);
+        return ai.chat(cfg, messages, opts);
+      },
     },
     rules,
     audit: (action, object) => audit.log(user.id, action, object),

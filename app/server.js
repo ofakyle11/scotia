@@ -182,6 +182,15 @@ app.route('GET', '/admin', (req, res, ctx) => {
         ${ui.input('basis', 'Basis', { placeholder: 'e.g. prior retainer at former firm' })}
         <button>Raise wall</button>
       </form>
+      <h2 class="sec">Model gateway</h2>
+      ${(() => { const c = ctx.kernel.ai.config(); return c && c.endpoint ? `<p>${ui.tag('configured', 'ok')} <span class="num">${ui.esc(c.model)}</span> at <span class="num">${ui.esc(c.endpoint)}</span></p>` : `<p>${ui.tag('off — no endpoint', 'gate')}</p>`; })()}
+      <form method="POST" action="/admin/ai">
+        ${ui.input('endpoint', 'OpenAI-compatible endpoint (blank to disable)', { placeholder: 'http://localhost:11434/v1  (local Ollama)' })}
+        ${ui.input('model', 'Model name', { placeholder: 'e.g. qwen2.5:14b' })}
+        ${ui.input('apiKey', 'API key (only if the endpoint needs one)')}
+        <button>Save gateway</button>
+      </form>
+      <p class="note">The gateway is the only door to any model. Local endpoint = nothing leaves the building. Every call is audited; matters can forbid model use entirely (set in the Moot Room). Client content never trains anything.</p>
       <h2 class="sec">Audit chain</h2>
       <p>${chain.ok ? ui.tag('intact', 'ok') : ui.tag('BROKEN', 'gate')} <span class="num">${chain.entries}</span> entries, hash-chained.</p>
       <p class="note">Every login, read denial, key event and ledger post lands here. Content never does.</p>
@@ -193,6 +202,15 @@ app.route('POST', '/admin/invite', (req, res, ctx) => {
   if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
   auth.createInvite(ctx.body.email, ['lawyer', 'clerk', 'admin'].includes(ctx.body.role) ? ctx.body.role : 'lawyer', ctx.body.name, ctx.user.id);
   ctx.setFlash('Invite created — share the single-use link from the open invites list.');
+  redirect(res, '/admin');
+});
+app.route('POST', '/admin/ai', (req, res, ctx) => {
+  if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
+  const endpoint = String(ctx.body.endpoint || '').trim();
+  if (endpoint && !/^https?:\/\//.test(endpoint)) { ctx.setFlash('Endpoint must be a full http(s) URL.', 'err'); redirect(res, '/admin'); return; }
+  ctx.kernel.firm.put('setting', { id: 'ai', endpoint: endpoint || null, model: String(ctx.body.model || '').trim() || null, apiKey: String(ctx.body.apiKey || '').trim() || null });
+  ctx.kernel.audit('ai.gateway.' + (endpoint ? 'configured' : 'disabled'), endpoint || 'off');
+  ctx.setFlash(endpoint ? 'Model gateway configured (settings encrypted at rest).' : 'Model gateway disabled.');
   redirect(res, '/admin');
 });
 app.route('POST', '/admin/wall', (req, res, ctx) => {

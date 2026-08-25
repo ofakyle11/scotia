@@ -14,6 +14,50 @@ const ACCOUNTS = [
   ['ar:client', 'Accounts receivable'],
 ];
 
+function reconCard(ctx, k) {
+  const bal = k.ledger.balances();
+  const ledgerTrust = bal['trust:bank'] || 0;
+  // Client liabilities per matter: what the trust account owes, and to whom.
+  const perMatter = new Map();
+  for (const t of k.ledger.list()) for (const l of t.lines) {
+    if (l.account === 'trust:client') {
+      const cur = perMatter.get(t.matterId) || 0;
+      perMatter.set(t.matterId, cur + (l.cr || 0) - (l.dr || 0));
+    }
+  }
+  const liabRows = [...perMatter.entries()].filter(([, v]) => Math.abs(v) > 0.004).map(([mid, v]) => {
+    const m = k.firm.get('matter', mid);
+    return [esc(m ? m.title : mid), money(v)];
+  });
+  const liabTotal = [...perMatter.values()].reduce((s2, v) => s2 + v, 0);
+  const recons = k.firm.list('reconciliation').sort((a, b2) => (b2.statementDate || '').localeCompare(a.statementDate || '')).slice(0, 6);
+  return `<div class="card">
+    <h2 class="sec" style="margin-top:0">Three-way reconciliation — firm trust account</h2>
+    <div class="grid2">
+      <div>
+        ${table(['Leg', 'Balance'], [
+          ['1 · Trust ledger (trust:bank)', money(ledgerTrust)],
+          ['2 · Client trust liabilities (sum of matters)', money(liabTotal)],
+          ['Ledger vs liabilities', Math.abs(ledgerTrust - liabTotal) < 0.005 ? tag('agree', 'ok') : tag('DISAGREE', 'gate')],
+        ])}
+        ${liabRows.length ? table(['Matter', 'Held for client'], liabRows) : ''}
+      </div>
+      <div>
+        <form method="POST" action="/r/books/reconcile">
+          ${input('statementBalance', '3 · Bank statement balance', { type: 'number', required: true })}
+          ${input('statementDate', 'Statement date', { type: 'date', required: true })}
+          <button>Run three-way reconciliation</button>
+        </form>
+        <p class="note">Leg 3 is the bank's own number. All three must agree; a signed reconciliation record is kept either way — law societies audit the misses too.</p>
+      </div>
+    </div>
+    ${recons.length ? table(['Statement date', 'Bank', 'Ledger', 'Liabilities', 'Result', 'By'], recons.map((r) => [
+      date(r.statementDate), money(r.statementBalance), money(r.ledger), money(r.liabilities),
+      r.ok ? tag('RECONCILED', 'ok') : tag('OUT OF BALANCE', 'gate'), esc(r.byName || ''),
+    ])) : ''}
+  </div>`;
+}
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -62,6 +106,7 @@ function register(app) {
     </form></div>
     ${time.length ? table(['Date', 'Hours', 'Rate', 'Code', 'Narrative', 'State'], time.slice().reverse().map((t) => [date(t.createdAt), `<span class="num">${t.hours}</span>`, money(t.rate), esc((t.utbms || '').slice(0, 4)), esc(t.narrative), t.lint ? tag('lint: ' + t.lint, 'gate') : tag(t.state || 'draft')])) : empty('No time recorded on this matter.')}
     ` : ''}
+    ${reconCard(ctx, k)}
     <h2 class="sec">Ledger${ctx.matter ? ' — this matter' : ''}</h2>
     ${txns.length ? table(['Date', 'Kind', 'Memo', 'Lines'], txns.map((t) => [
       date(t.date), t.kind === 'trust-transfer' ? tag('trust-transfer', 'gate') : tag(t.kind),
@@ -97,6 +142,22 @@ function register(app) {
       ],
     });
     ctx.setFlash(`Transferred ${amt.toFixed(2)} of earned fees — flagged as trust-transfer in the audit chain.`);
+    redirect(res, '/r/books');
+  });
+
+  app.route('POST', `/r/${ROOM.id}/reconcile`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const stmt = Number(ctx.body.statementBalance);
+    const sdate = String(ctx.body.statementDate || '');
+    if (!Number.isFinite(stmt) || !sdate) { ctx.setFlash('Statement balance and date are required.', 'err'); redirect(res, '/r/books'); return; }
+    const bal = k.ledger.balances();
+    const ledger = bal['trust:bank'] || 0;
+    let liabilities = 0;
+    for (const t of k.ledger.list()) for (const l of t.lines) if (l.account === 'trust:client') liabilities += (l.cr || 0) - (l.dr || 0);
+    const ok = Math.abs(stmt - ledger) < 0.005 && Math.abs(ledger - liabilities) < 0.005;
+    k.firm.put('reconciliation', { statementDate: sdate, statementBalance: stmt, ledger, liabilities, ok, byName: ctx.user.name });
+    k.audit('trust.reconciliation', sdate + ':' + (ok ? 'ok' : 'OUT-OF-BALANCE'));
+    ctx.setFlash(ok ? `Three-way reconciliation for ${sdate}: all legs agree.` : `Reconciliation for ${sdate} is OUT OF BALANCE — investigate before any further trust activity.`, ok ? undefined : 'err');
     redirect(res, '/r/books');
   });
 
