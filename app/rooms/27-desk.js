@@ -28,7 +28,7 @@ function register(app) {
 
     const inquiries = k.firm.list('inquiry', (i) => i.status === 'screening');
     const bal = k.ledger.balances();
-    const trust = Object.entries(bal).filter(([a]) => a.startsWith('trust')).reduce((s, [, v]) => s + v, 0);
+    const trust = bal['trust:bank'] || 0;
     const chain = k.auditTrail().verify();
 
     const statCard = (n, l, kind) => `<div class="card" style="text-align:center"><div style="font-family:var(--f-display);font-size:30px;font-weight:600;color:${kind === 'bad' ? 'var(--oxide)' : 'var(--ink)'}">${n}</div><div class="note" style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase">${esc(l)}</div></div>`;

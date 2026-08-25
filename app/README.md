@@ -11,7 +11,8 @@ A private, encrypted practice platform. Zero dependencies: `node server.js`.
   its history unreadable everywhere, permanently.
 - **Append-only** — matter state is an encrypted event log; the audit trail is a
   SHA-256 hash chain holding metadata only, never content.
-- **The 28 rooms** — one module each under `rooms/`, all built on the same kernel
+- **The 28 rooms + 4 connectors** — one module each under `rooms/` (28 practice rooms
+  plus CanLII, PACER/RECAP, EDGAR, and the Sources shelf), all built on the same kernel
   (`kernel/`): store, crypto, auth, ledger, rules-as-code deadline engine, UI.
 
 Run: `node server.js` → http://localhost:8028 · Tests: `node test/harness.js` and
