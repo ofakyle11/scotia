@@ -90,7 +90,7 @@ function layout(ctx, { title, body, sub }) {
         <select name="matter" aria-label="Matter">${mopts || '<option value="">No matters yet</option>'}</select>
         <button class="quiet">Open</button>
       </form>
-      <span class="who">${esc(user.name)} · ${esc(user.role)} · <a href="/logout-form" style="color:inherit">sign out</a></span>
+      <span class="who">${esc(user.name)} · ${esc(user.role)} · <a href="/account" style="color:inherit">account</a> · <a href="/logout-form" style="color:inherit">sign out</a></span>
     </div>
     ${flash ? `<div class="flash ${flash.kind === 'err' ? 'err' : ''}">${esc(flash.msg)}</div>` : ''}
     <h1 class="room">${esc(title)}</h1>
@@ -113,6 +113,23 @@ ${err ? '<div class="flash err">Access denied.</div>' : ''}
 <label for="e">Email</label><input id="e" name="email" type="email" autocomplete="username" required autofocus>
 <label for="p">Password</label><input id="p" name="password" type="password" autocomplete="current-password" required>
 <button style="width:100%">Sign in</button>
+</form>
+</div></body></html>`;
+}
+
+// Second factor challenge — same bare door, still confirms nothing.
+function totpPage(pendingToken, err) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Sign in</title>${FONTS}<style>${CSS}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.door{width:340px;border:1px solid var(--rule);background:var(--surface);padding:34px 32px 30px}
+.door .rule{height:2px;background:var(--navy-deep);margin-bottom:26px}
+</style></head><body>
+<div class="door"><div class="rule"></div>
+${err ? '<div class="flash err">Access denied.</div>' : ''}
+<form method="POST" action="/login/totp">
+<input type="hidden" name="pending" value="${esc(pendingToken)}">
+<label for="c">Authenticator code</label><input id="c" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
+<button style="width:100%">Continue</button>
 </form>
 </div></body></html>`;
 }
@@ -146,4 +163,4 @@ const select = (name, labelTxt, options, selected) => `<label for="${name}">${es
 const date = (d) => d ? `<span class="num">${esc(String(d).slice(0, 10))}</span>` : '';
 const money = (n) => `<span class="num">$${Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
 
-module.exports = { esc, layout, loginPage, enrollPage, table, empty, tag, kv, input, textarea, select, date, money };
+module.exports = { esc, layout, loginPage, totpPage, enrollPage, table, empty, tag, kv, input, textarea, select, date, money };

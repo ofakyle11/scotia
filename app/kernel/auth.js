@@ -2,6 +2,7 @@
 // Provisioned access only. There is no signup path in this codebase.
 // Uniform-time login, in-memory sessions, per-IP rate limiting, single-use invites.
 const { hashPassword, verifyPassword, token, sha256 } = require('./crypto.js');
+const totp = require('./totp.js');
 
 const SESSION_TTL = 8 * 60 * 60 * 1000; // 8h
 const RATE = { windowMs: 15 * 60 * 1000, max: 20 };
@@ -11,6 +12,7 @@ class Auth {
     this.store = store;
     this.audit = audit;
     this.sessions = new Map(); // sha256(token) -> {uid, exp}
+    this.pending = new Map(); // sha256(token) -> {uid, exp} awaiting TOTP
     this.hits = new Map(); // ip -> {n, resetAt}
   }
   rateLimited(ip) {
@@ -30,7 +32,27 @@ class Auth {
     // wrong password are indistinguishable in response and in time.
     const ok = verifyPassword(password, user ? user.pw : undefined);
     if (!user || !ok) { this.audit.log(String(email), 'login.denied', ip); return null; }
+    if (user.totp) {
+      const t = token(24);
+      this.pending.set(sha256(t), { uid: user.id, exp: Date.now() + 5 * 60 * 1000 });
+      this.audit.log(user.id, 'login.await2fa', ip);
+      return { pending: t };
+    }
     this.audit.log(user.id, 'login.ok', ip);
+    return { session: this.createSession(user.id) };
+  }
+  verifyTotp(pendingToken, code2, ip) {
+    if (this.rateLimited(ip)) return null;
+    const key = sha256(String(pendingToken || ''));
+    const p = this.pending.get(key);
+    if (!p || Date.now() > p.exp) { this.pending.delete(key); return null; }
+    const user = this.store.firm.get('user', p.uid);
+    if (!user || !user.active || !user.totp || !totp.verify(user.totp, code2)) {
+      this.audit.log(p.uid, 'login.2fa.denied', ip);
+      return null;
+    }
+    this.pending.delete(key);
+    this.audit.log(user.id, 'login.ok+2fa', ip);
     return this.createSession(user.id);
   }
   createSession(uid) {

@@ -1,0 +1,33 @@
+[Unit]
+Description=Chambers — private legal practice platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chambers
+Group=chambers
+WorkingDirectory=/opt/chambers/app
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+Environment=PORT=8028
+Environment=CHAMBERS_DATA=/var/lib/chambers
+
+# Hardening: the service can write its data dir and nothing else.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/chambers
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

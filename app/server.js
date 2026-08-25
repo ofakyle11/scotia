@@ -34,7 +34,7 @@ const flashes = new Map(); // one-shot flash messages keyed by session cookie
 function setFlash(req, msg, kind) { const t = (req._cookies || {}).s; if (t) flashes.set(t, { msg, kind }); }
 function takeFlash(req) { const t = (req._cookies || {}).s; const f = flashes.get(t); flashes.delete(t); return f; }
 
-const PUBLIC = new Set(['GET /', 'POST /login', 'GET /healthz']);
+const PUBLIC = new Set(['GET /', 'POST /login', 'POST /login/totp', 'GET /healthz', 'GET /robots.txt']);
 
 async function makeCtx(req, res, base) {
   req._cookies = base.cookies;
@@ -63,9 +63,16 @@ app.route('GET', '/', (req, res, ctx) => {
 });
 app.route('POST', '/login', (req, res, ctx) => {
   const ip = req.socket.remoteAddress || '?';
-  const t = auth.login(ctx.body.email || '', ctx.body.password || '', ip);
-  if (!t) { redirect(res, '/?d=1'); return; }
-  redirect(res, '/r/desk', cookie('s', t, { maxAge: 8 * 3600 }));
+  const out = auth.login(ctx.body.email || '', ctx.body.password || '', ip);
+  if (!out) { redirect(res, '/?d=1'); return; }
+  if (out.pending) { html(res, ui.totpPage(out.pending)); return; }
+  redirect(res, '/r/desk', cookie('s', out.session, { maxAge: 8 * 3600 }));
+});
+app.route('POST', '/login/totp', (req, res, ctx) => {
+  const ip = req.socket.remoteAddress || '?';
+  const session = auth.verifyTotp(ctx.body.pending, ctx.body.code, ip);
+  if (!session) { redirect(res, '/?d=1'); return; }
+  redirect(res, '/r/desk', cookie('s', session, { maxAge: 8 * 3600 }));
 });
 app.route('GET', '/logout-form', (req, res) => {
   html(res, `<!doctype html><meta charset="utf-8"><body style="background:#0B0E14"><form method="POST" action="/logout" id="f"></form><script>document.getElementById('f').submit()</script>`);
@@ -90,6 +97,60 @@ app.route('POST', '/invite/:code', (req, res, ctx) => {
 app.route('POST', '/matter/select', (req, res, ctx) => {
   redirect(res, req.headers.referer && new URL(req.headers.referer).pathname.startsWith('/r/') ? new URL(req.headers.referer).pathname : '/r/desk',
     cookie('m', ctx.body.matter || '', { maxAge: 30 * 24 * 3600 }));
+});
+
+
+// ---------- account security (any signed-in user) ----------
+const totpKit = require('./kernel/totp.js');
+app.route('GET', '/account', (req, res, ctx) => {
+  const u = ctx.kernel.firm.get('user', ctx.user.id);
+  const enrolled = !!u.totp;
+  const pending = u.pendingTotp;
+  const body = `
+  <div class="grid2">
+    <div class="card">
+      <h2 class="sec" style="margin-top:0">Two-factor authentication</h2>
+      <p>${enrolled ? ui.tag('enabled — required at every sign-in', 'ok') : ui.tag('not enabled', 'gate')}</p>
+      ${!enrolled && !pending ? `<form method="POST" action="/account/totp-start"><button>Begin enrollment</button></form>
+        <p class="note">Generates a secret for any authenticator app (Google Authenticator, 1Password, Aegis). Enrollment completes only after you prove a working code.</p>` : ''}
+      ${pending ? `
+        <p class="note">Add this secret to your authenticator (manual entry), then confirm with a current code:</p>
+        <p class="num" style="font-size:15px;word-break:break-all">${ui.esc(pending)}</p>
+        <p class="note" style="word-break:break-all">${ui.esc(totpKit.otpauthUri(u.email, pending))}</p>
+        <form method="POST" action="/account/totp-confirm">${ui.input('code', 'Current 6-digit code', { required: true })}<button>Confirm &amp; enable</button></form>` : ''}
+      ${enrolled ? `<form method="POST" action="/account/totp-disable">${ui.input('code', 'Current code to disable', { required: true })}<button class="danger">Disable 2FA</button></form>` : ''}
+    </div>
+    <div class="card">
+      <h2 class="sec" style="margin-top:0">Session</h2>
+      ${ui.kv([['Signed in as', ui.esc(u.name)], ['Email', ui.esc(u.email)], ['Role', ui.esc(u.role)], ['Session policy', '8h sliding · HttpOnly · SameSite=Strict']])}
+      <p class="note">Sessions live in server memory only — a restart signs everyone out, deliberately.</p>
+    </div>
+  </div>`;
+  html(res, ui.layout({ ...ctx, room: null }, { title: 'Account security', sub: 'Your credentials, your second factor', body }));
+});
+app.route('POST', '/account/totp-start', (req, res, ctx) => {
+  const u = ctx.kernel.firm.get('user', ctx.user.id);
+  if (u.totp) { ctx.setFlash('2FA is already enabled.', 'err'); redirect(res, '/account'); return; }
+  ctx.kernel.firm.put('user', { ...u, pendingTotp: totpKit.genSecret() });
+  redirect(res, '/account');
+});
+app.route('POST', '/account/totp-confirm', (req, res, ctx) => {
+  const u = ctx.kernel.firm.get('user', ctx.user.id);
+  if (!u.pendingTotp) { ctx.setFlash('Start enrollment first.', 'err'); redirect(res, '/account'); return; }
+  if (!totpKit.verify(u.pendingTotp, ctx.body.code)) { ctx.setFlash('That code did not verify — try again with a fresh one.', 'err'); redirect(res, '/account'); return; }
+  ctx.kernel.firm.put('user', { ...u, totp: u.pendingTotp, pendingTotp: null });
+  ctx.kernel.audit('user.2fa.enabled', ctx.user.id);
+  ctx.setFlash('Two-factor authentication enabled. It is now required at every sign-in.');
+  redirect(res, '/account');
+});
+app.route('POST', '/account/totp-disable', (req, res, ctx) => {
+  const u = ctx.kernel.firm.get('user', ctx.user.id);
+  if (!u.totp) { ctx.setFlash('2FA is not enabled.', 'err'); redirect(res, '/account'); return; }
+  if (!totpKit.verify(u.totp, ctx.body.code)) { ctx.setFlash('That code did not verify.', 'err'); redirect(res, '/account'); return; }
+  ctx.kernel.firm.put('user', { ...u, totp: null, pendingTotp: null });
+  ctx.kernel.audit('user.2fa.disabled', ctx.user.id);
+  ctx.setFlash('Two-factor authentication disabled.');
+  redirect(res, '/account');
 });
 
 // ---------- firm administration (kernel-level, not one of the 28) ----------

@@ -1,0 +1,13 @@
+# Chambers reverse proxy — automatic HTTPS via Let's Encrypt.
+# Replace chambers.example.com with your domain (install.sh does this for you).
+chambers.example.com {
+	reverse_proxy localhost:8028
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/chambers-access.log
+		format json
+	}
+}
