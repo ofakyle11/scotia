@@ -41,7 +41,10 @@ function extractCites(text) {
 
 const today = () => new Date().toISOString().slice(0, 10);
 const roomUrl = (draftId) => '/r/citations' + (draftId ? '?draft=' + encodeURIComponent(draftId) : '');
-const draftText = (d) => String(d.text || d.body || '');
+// A draft's text lives in .text (this room's registered drafts) or in the
+// Brief Writer's .sections — read BOTH, or section drafts would extract as
+// empty and sail through the gate unchecked.
+const draftText = (d) => String(d.text || d.body || (d.sections && typeof d.sections === 'object' ? Object.values(d.sections).filter(Boolean).join('\n\n') : '') || '');
 
 // Recompute the gate for one draft and write citeStatus back onto the draft
 // record. Verified-all (and only that) opens the gate.

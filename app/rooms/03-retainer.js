@@ -157,9 +157,9 @@ function register(app) {
     const feeModel = FEE_MODELS.some(([v]) => v === ctx.body.feeModel) ? ctx.body.feeModel : null;
     if (!scopeIn || !feeModel) { ctx.setFlash('Scope in and a fee model are required.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
     const rate = Number(ctx.body.rate), flatAmount = Number(ctx.body.flatAmount), pct = Number(ctx.body.contingencyPct);
-    if (feeModel === 'hourly' && !(rate > 0)) { ctx.setFlash('Hourly model needs a positive hourly rate.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
-    if (feeModel === 'flat' && !(flatAmount > 0)) { ctx.setFlash('Flat model needs a positive flat fee.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
-    if (feeModel === 'contingency' && !(pct > 0 && pct <= 100)) { ctx.setFlash('Contingency model needs a percentage between 0 and 100.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
+    if (feeModel === 'hourly' && !(Number.isFinite(rate) && rate > 0)) { ctx.setFlash('Hourly model needs a positive hourly rate.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
+    if (feeModel === 'flat' && !(Number.isFinite(flatAmount) && flatAmount > 0)) { ctx.setFlash('Flat model needs a positive flat fee.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
+    if (feeModel === 'contingency' && !(Number.isFinite(pct) && pct > 0 && pct <= 100)) { ctx.setFlash('Contingency model needs a percentage between 0 and 100.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
     const sc = k.scope(ctx.matter.id);
     const all = sc.list('engagement');
     const version = all.reduce((m, e) => Math.max(m, e.version || 0), 0) + 1;
@@ -187,7 +187,8 @@ function register(app) {
     const sc = k.scope(ctx.matter.id);
     const e = ctx.body.id ? sc.get('engagement', ctx.body.id) : null;
     if (!e) { ctx.setFlash('No such engagement version.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
-    const on = /^\d{4}-\d{2}-\d{2}$/.test(String(ctx.body.on || '')) ? ctx.body.on : today();
+    const onRaw = String(ctx.body.on || '');
+    const on = /^\d{4}-\d{2}-\d{2}$/.test(onRaw) && !Number.isNaN(Date.parse(onRaw)) ? onRaw : today();
     if (ctx.body.to === 'sent' && e.status === 'draft') {
       sc.put('engagement', { ...e, status: 'sent', sentAt: on });
       ctx.setFlash(`Engagement v${e.version} recorded as sent ${on}.`);
