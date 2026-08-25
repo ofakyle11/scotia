@@ -1,0 +1,381 @@
+<title>The Privilege Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root{
+    --ground:#E7E9EE;
+    --surface:#FBFBFC;
+    --surface-2:#F1F3F6;
+    --ink:#101620;
+    --ink-soft:#4A5361;
+    --ink-faint:#79828F;
+    --rule:#C6CBD5;
+    --rule-soft:#DEE2E9;
+    --navy:#1B3A6B;
+    --oxide:#8E2B24;
+    --oxide-wash:rgba(142,43,36,0.08);
+    --navy-wash:rgba(27,58,107,0.07);
+
+    --f-display:"Spectral",Georgia,"Times New Roman",serif;
+    --f-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+    --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B0E14;
+      --surface:#141A23;
+      --surface-2:#1B222D;
+      --ink:#E8EBF1;
+      --ink-soft:#A7B0BE;
+      --ink-faint:#79838F;
+      --rule:#2C3542;
+      --rule-soft:#232B36;
+      --navy:#8FB3E6;
+      --oxide:#E08379;
+      --oxide-wash:rgba(224,131,121,0.12);
+      --navy-wash:rgba(143,179,230,0.10);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E14;
+    --surface:#141A23;
+    --surface-2:#1B222D;
+    --ink:#E8EBF1;
+    --ink-soft:#A7B0BE;
+    --ink-faint:#79838F;
+    --rule:#2C3542;
+    --rule-soft:#232B36;
+    --navy:#8FB3E6;
+    --oxide:#E08379;
+    --oxide-wash:rgba(224,131,121,0.12);
+    --navy-wash:rgba(143,179,230,0.10);
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .page{max-width:1080px;margin:0 auto;padding:0 20px 96px;}
+  h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;}
+  p{margin:0;}
+  code{font-family:var(--f-mono);font-size:0.92em;color:var(--navy);}
+
+  .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);}
+
+  .caption{margin-top:56px;background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--navy);}
+  .caption-grid{display:grid;grid-template-columns:1.35fr 1fr;}
+  .caption-left{padding:34px 32px 30px;}
+  .caption-right{padding:34px 32px 30px;border-left:1px solid var(--rule);display:flex;flex-direction:column;gap:13px;}
+  .court{font-family:var(--f-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:14px;border-bottom:1px solid var(--rule-soft);margin-bottom:22px;}
+  h1{font-size:clamp(34px,5.2vw,54px);line-height:1.04;font-weight:700;letter-spacing:-0.015em;}
+  h1 em{font-style:italic;color:var(--navy);}
+  .dek{margin-top:18px;font-size:17px;line-height:1.62;color:var(--ink-soft);max-width:36em;}
+  .dek + .dek{margin-top:13px;}
+  .docket-line{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin:0;}
+  .docket-line dt{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);padding-top:2px;}
+  .docket-line dd{margin:0;text-align:right;color:var(--ink);font-weight:500;}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--rule);border-top:0;background:var(--surface-2);}
+  .stat{padding:20px 24px;border-left:1px solid var(--rule);}
+  .stat:first-child{border-left:0;}
+  .stat .n{font-family:var(--f-display);font-size:32px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
+  .stat .l{margin-top:7px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);}
+  .stat.gate .n{color:var(--oxide);}
+
+  section{margin-top:72px;}
+  .sec-head{display:flex;align-items:baseline;gap:16px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:26px;}
+  .sec-head h2{font-size:26px;font-weight:600;letter-spacing:-0.01em;}
+  .sec-note{margin-bottom:28px;color:var(--ink-soft);max-width:70ch;font-size:15.5px;}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .card{background:var(--surface);padding:22px 22px 24px;}
+  .card h3{font-size:17px;font-weight:600;margin-bottom:9px;}
+  .card p{font-size:14px;color:var(--ink-soft);line-height:1.58;}
+  .card .from{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;}
+
+  .pleading{background:var(--surface);border:1px solid var(--rule);padding:8px 0;}
+  .wing-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:34px 30px 6px 96px;padding-bottom:10px;border-bottom:1px solid var(--rule-soft);}
+  .wing:first-child .wing-head{margin-top:24px;}
+  .wing-head h3{font-size:19px;font-weight:600;letter-spacing:-0.005em;}
+  .wing-head .range{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);}
+  .wing-head .role{font-size:13.5px;color:var(--ink-soft);flex-basis:100%;}
+
+  .mod{display:grid;grid-template-columns:96px 1fr;align-items:start;padding:16px 30px 16px 0;border-bottom:1px solid var(--rule-soft);}
+  .mod:last-child{border-bottom:0;}
+  .mod .num{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-faint);text-align:right;padding-right:26px;padding-top:4px;position:relative;}
+  .mod .num::after{content:"";position:absolute;top:-16px;bottom:-17px;right:8px;width:5px;border-left:1px solid var(--rule);border-right:1px solid var(--rule);}
+  .mod h4{font-family:var(--f-display);font-size:18.5px;font-weight:600;margin:0 0 3px;letter-spacing:-0.005em;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .mod .tagline{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px;}
+  .mod .job{font-size:14.5px;line-height:1.6;color:var(--ink-soft);max-width:74ch;}
+  .facts{margin-top:11px;display:grid;gap:5px;}
+  .fact{display:grid;grid-template-columns:104px 1fr;gap:12px;font-size:13px;line-height:1.5;}
+  .fact dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);padding-top:3px;margin:0;}
+  .fact dd{margin:0;color:var(--ink-soft);}
+
+  .tag{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;border:1px solid var(--rule);color:var(--ink-faint);white-space:nowrap;font-weight:500;}
+  .tag.gate{color:var(--oxide);border-color:var(--oxide);background:var(--oxide-wash);}
+  .tag.spine{color:var(--navy);border-color:var(--navy);background:var(--navy-wash);}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);}
+  table{border-collapse:collapse;width:100%;min-width:700px;font-size:13.5px;}
+  th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--rule-soft);vertical-align:top;}
+  thead th{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);background:var(--surface-2);border-bottom:1px solid var(--rule);font-weight:500;}
+  tbody tr:last-child td{border-bottom:0;}
+  td.threat{font-weight:500;}
+  td.ctrl{color:var(--ink-soft);}
+  td.mech{font-family:var(--f-mono);font-size:11.5px;color:var(--navy);white-space:nowrap;}
+
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .tier{background:var(--surface);padding:22px;display:flex;flex-direction:column;gap:10px;}
+  .tier h3{font-size:18px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .tier .who{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}
+  .tier p{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
+  .tier .count{margin-top:auto;padding-top:12px;border-top:1px solid var(--rule-soft);font-family:var(--f-mono);font-size:11.5px;color:var(--navy);}
+
+  footer{margin-top:76px;padding-top:22px;border-top:1px solid var(--rule);font-size:13px;color:var(--ink-faint);line-height:1.62;max-width:76ch;}
+
+  @media (max-width:720px){
+    .caption-grid{grid-template-columns:1fr;}
+    .caption-right{border-left:0;border-top:1px solid var(--rule);}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .stat:nth-child(3){border-left:0;}
+    .stat:nth-child(n+3){border-top:1px solid var(--rule);}
+    .mod{grid-template-columns:58px 1fr;padding-right:18px;}
+    .mod .num{padding-right:16px;}
+    .wing-head{margin-left:58px;margin-right:18px;}
+    .fact{grid-template-columns:1fr;gap:2px;}
+  }
+</style>
+
+<div class="page">
+
+  <header class="caption">
+    <div class="caption-grid">
+      <div class="caption-left">
+        <div class="court">Companion to The 28-Room Firm &amp; the Build Sheet &nbsp;·&nbsp; licensing &amp; confidentiality architecture &nbsp;·&nbsp; built for Ontario</div>
+        <h1>The Privilege <em>Vault</em></h1>
+        <p class="dek">Two questions settle before a line of code: do we have the legal right to ship a product assembled from open source, and can it hold a client file to the standard a Toronto litigator answers for. The first answer is yes by design &mdash; a licence is the permission, and nothing needs rewriting. The second is an engineering discipline this document specifies end to end.</p>
+        <p class="dek">One correction to the plan, made in the firm's favour: rewriting the open source to &ldquo;avoid copyright&rdquo; is the one move that creates the risk it tries to remove. What follows is the compliant path, and then the vault.</p>
+      </div>
+      <div class="caption-right">
+        <dl class="docket-line"><dt>Rewrites required</dt><dd>Zero</dd></dl>
+        <dl class="docket-line"><dt>Compliance cost</dt><dd>Notices &middot; texts &middot; isolation</dd></dl>
+        <dl class="docket-line"><dt>Key hierarchy</dt><dd>4 levels, per-matter</dd></dl>
+        <dl class="docket-line"><dt>Key custody</dt><dd>Firm-held available</dd></dl>
+        <dl class="docket-line"><dt>Residency</dt><dd>Canadian cell, always</dd></dl>
+        <dl class="docket-line"><dt>Destruction</dt><dd>Crypto-shred, certified</dd></dl>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">0</div><div class="l">Lines rewritten</div></div>
+      <div class="stat"><div class="n">4</div><div class="l">Key levels</div></div>
+      <div class="stat"><div class="n">3</div><div class="l">Custody models</div></div>
+      <div class="stat gate"><div class="n">1</div><div class="l">Cell for Canada</div></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">01</span>
+      <h2>The copyright question, settled</h2>
+    </div>
+    <p class="sec-note">The instinct to rewrite everything comes from a reasonable place &mdash; wanting to own the product outright. Here is what the law actually provides, and where ownership really lives.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">The licence is the permission</div>
+        <h3>Nothing needs recoding</h3>
+        <p>Apache-2.0, MIT, BSD and MPL are grants of copyright permission &mdash; written precisely so a commercial product can use, modify, combine and sell the software. That is their entire function. PostgreSQL in your product is not a copyright problem; it is the licence working as intended. Every major legal-tech platform ships this way.</p>
+      </div>
+      <div class="card">
+        <div class="from">The trap avoided</div>
+        <h3>A rewrite adds risk, not safety</h3>
+        <p>Re-implementing a project while working from its code produces a <em>derivative work</em> &mdash; the exact thing copyright restricts &mdash; while using it under licence is unambiguous and clean. A rewrite of thirty years of PostgreSQL or a decade of Tesseract would also simply be worse software: the battle-testing is the value. The compliant path is also the cheaper, safer, better one.</p>
+      </div>
+      <div class="card">
+        <div class="from">The actual obligations</div>
+        <h3>Four small duties</h3>
+        <p>Keep copyright notices intact. Ship the licence texts (an &ldquo;Open Source Notices&rdquo; screen in-app, like every product you own). Run AGPL components as isolated, unmodified services &mdash; already Rule 2 of the Build Sheet. Never use their names or logos to brand ours. That is the entire compliance burden, and CI enforces it: an SBOM per release via Syft, licences scanned by ScanCode, both open source themselves.</p>
+      </div>
+      <div class="card">
+        <div class="from">Where ownership lives</div>
+        <h3>What is 100% ours</h3>
+        <p>Everything differentiating: the 64-jurisdiction rules data, the citation gate, the trust ledger, the kernel schemas, every room's logic, the templates, the UI, the brand. That is the code we write, the copyright the company owns, and the asset a buyer would pay for. &ldquo;Better than the original&rdquo; happens here &mdash; in the layer the originals never had &mdash; not by re-typing engines.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">02</span>
+      <h2>One product, assembled</h2>
+    </div>
+    <p class="sec-note">&ldquo;Pull it all into one software&rdquo; is exactly right &mdash; and it is packaging, not rewriting. The user sees one application; the components run inside it the way an engine block holds parts from forty suppliers.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">Assembly</div>
+        <h3>Pinned, built, sealed</h3>
+        <p>Every component builds from a pinned, hash-verified source into our container images. No runtime downloads, no phoning home, no telemetry out. A release is a sealed set of images that installs as one product &mdash; cloud cell or the on-premise bundle, identical bits.</p>
+      </div>
+      <div class="card">
+        <div class="from">Surface</div>
+        <h3>One face, ours</h3>
+        <p>The 28 rooms are one interface, one login, one design language. Collabora edits inside our chrome; OpenSearch answers behind our API; nothing third-party-branded ever faces a lawyer or a client. The notices screen credits the components; the product is ours.</p>
+      </div>
+      <div class="card">
+        <div class="from">Improvement</div>
+        <h3>Better, where better counts</h3>
+        <p>Genuine improvements to a component &mdash; a faster OCR path, a fixed edge case &mdash; are contributed upstream where strategic and patched locally where not. What we never do is fork thirty projects into private copies we then maintain alone forever; that is how platforms die.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">03</span>
+      <h2>The threat model</h2>
+    </div>
+    <p class="sec-note">Encryption is a means; this is what it must actually defeat. Each threat maps to its control and the mechanism that enforces it &mdash; because &ldquo;highly encrypted&rdquo; is a property you demonstrate, not a word on a brochure.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Threat</th><th>Control</th><th>Mechanism</th></tr></thead>
+        <tbody>
+          <tr><td class="threat">Intercepted traffic</td><td class="ctrl">Everything in transit encrypted, externally and service-to-service; no plaintext hop exists anywhere.</td><td class="mech">TLS 1.3 · mTLS · HSTS</td></tr>
+          <tr><td class="threat">Stolen disk, snapshot, or backup</td><td class="ctrl">Volumes encrypted; privileged content additionally sealed at the application layer, so a raw dump yields ciphertext twice over. Backup keys live apart from backups.</td><td class="mech">AES-256-GCM · LUKS · envelope keys</td></tr>
+          <tr><td class="threat">Cloud provider compelled or breached</td><td class="ctrl">Matter content is unreadable without keys the provider never holds; with firm-held custody, without keys <em>we</em> never hold either.</td><td class="mech">Envelope encryption · BYOK</td></tr>
+          <tr><td class="threat">Rogue or careless insider</td><td class="ctrl">Walls enforced twice (application and row level); every key unwrap and every read logged to the tamper-evident chain; no standing admin access to content &mdash; break-glass only, alarmed.</td><td class="mech">OpenFGA · RLS · audit chain</td></tr>
+          <tr><td class="threat">Compromised staff account</td><td class="ctrl">Phishing-resistant sign-in only, short sessions, per-device binding, anomaly alerts on unusual matter access.</td><td class="mech">Passkeys / WebAuthn · Keycloak</td></tr>
+          <tr><td class="threat">Lost laptop or phone</td><td class="ctrl">No matter content at rest on endpoints beyond an encrypted, remotely revocable cache; the Today PWA holds a day, not a practice.</td><td class="mech">Device-bound tokens · revocation</td></tr>
+          <tr><td class="threat">Opposing forensics after production</td><td class="ctrl">Every outbound document flattened and scrubbed &mdash; redactions burned in, metadata stripped, bad redactions machine-checked.</td><td class="mech">pikepdf · X-Ray gate</td></tr>
+          <tr><td class="threat">&ldquo;Deleted&rdquo; data that survives</td><td class="ctrl">Per-matter keys mean destroying the key destroys the content everywhere at once &mdash; replicas and backups included &mdash; on the retention schedule, with a certificate.</td><td class="mech">Crypto-shredding · Closing Room</td></tr>
+          <tr><td class="threat">Model training on client data</td><td class="ctrl">Client content never trains any shared model, contractually and architecturally; the model gateway enforces the matter's data-handling policy per request.</td><td class="mech">Gateway policy · local inference</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">04</span>
+      <h2>The key hierarchy</h2>
+    </div>
+    <p class="sec-note">Four levels, so that keys can be held by the right party, rotated without re-encrypting the world, and destroyed matter by matter. Standard, audited primitives only &mdash; AES-256-GCM and XChaCha20-Poly1305 via libsodium &mdash; never home-rolled cryptography, for the same reason we don't rewrite PostgreSQL.</p>
+    <div class="pleading">
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Root to row</h3>
+          <span class="range">Levels K1&ndash;K4</span>
+          <span class="role">Each level wraps the one below it; unwraps are logged; nothing decrypts silently.</span>
+        </div>
+        <article class="mod">
+          <div class="num">K1</div>
+          <div>
+            <h4>Root of trust <span class="tag gate">Ceremony</span></h4>
+            <div class="tagline">OpenBao per cell, hardware-backed</div>
+            <p class="job">Each residency cell runs its own OpenBao (MPL-2.0) with the unseal material split five ways, three required &mdash; no single person can open it. The root never leaves the cell, never crosses the border, and every operation it performs lands in the audit chain.</p>
+            <div class="facts">
+              <div class="fact"><dt>Rotation</dt><dd>Annual ceremony, or on any officer departure</dd></div>
+            </div>
+          </div>
+        </article>
+        <article class="mod">
+          <div class="num">K2</div>
+          <div>
+            <h4>Tenant key <span class="tag spine">Custody choice</span></h4>
+            <div class="tagline">One KEK per firm &mdash; and the firm can hold it</div>
+            <p class="job">Every firm gets its own key-encryption key. In the default model we custody it inside the cell's vault; under BYOK the firm's own vault holds it and our platform requests unwraps per session &mdash; which means the firm can revoke our access to their entire practice, unilaterally, at any moment. That is the custody a managing partner can describe to a client without hedging.</p>
+            <div class="facts">
+              <div class="fact"><dt>Rotation</dt><dd>Re-wrap of matter keys only &mdash; minutes, not a re-encryption of content</dd></div>
+            </div>
+          </div>
+        </article>
+        <article class="mod">
+          <div class="num">K3</div>
+          <div>
+            <h4>Matter key</h4>
+            <div class="tagline">One DEK per matter &mdash; the wall and the shredder</div>
+            <p class="job">Each matter's content encrypts under its own key, wrapped by the tenant KEK. An ethical screen is therefore cryptographic as well as logical: a screened lawyer's sessions can never obtain the unwrap. And when the retention schedule says destroy, destroying this one key renders the matter unreadable in the database, the object store, every replica and every backup simultaneously &mdash; the Closing Room's destruction certificate describes a mathematical fact.</p>
+            <div class="facts">
+              <div class="fact"><dt>Scope</dt><dd>Documents, facts, narratives, transcripts, embeddings &mdash; all matter content</dd></div>
+            </div>
+          </div>
+        </article>
+        <article class="mod">
+          <div class="num">K4</div>
+          <div>
+            <h4>Working keys</h4>
+            <div class="tagline">Per-object, per-field, per-message</div>
+            <p class="job">Beneath the matter key: a unique data key per blob in the object store (envelope encryption); authenticated field-level sealing on the most sensitive columns &mdash; privileged narratives, trust ledger detail &mdash; via libsodium; and end-to-end sealed messaging in the client portal, where the client&ndash;lawyer channel encrypts on the devices and the server relays what it cannot read.</p>
+            <div class="facts">
+              <div class="fact"><dt>In transit</dt><dd>TLS 1.3 outside, mTLS between every internal service; WireGuard for the on-premise site link</dd></div>
+              <div class="fact"><dt>At rest</dt><dd>Encrypted volumes underneath everything, as the floor, not the story</dd></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">05</span>
+      <h2>Who holds the keys</h2>
+    </div>
+    <p class="sec-note">Three custody models on one codebase. The honest engineering tradeoff, stated plainly: content the server can never read is also content the server cannot search, cite-check, or run models over. So the design encrypts everything, and lets the firm choose who custodies the keys &mdash; rather than pretending full zero-knowledge and a working Research Desk can coexist.</p>
+    <div class="tiers">
+      <div class="tier">
+        <h3>Platform custody</h3>
+        <div class="who">Default</div>
+        <p>Keys live in the cell's vault, hardware-backed, unwrap-logged, staff-inaccessible by policy and by break-glass alarm. All 28 rooms fully functional. The right answer for most firms.</p>
+        <div class="count">Full functionality · our custody</div>
+      </div>
+      <div class="tier">
+        <h3>Firm-held keys <span class="tag spine">For the partner</span></h3>
+        <div class="who">BYOK</div>
+        <p>The firm's tenant key sits in the firm's own vault &mdash; their OpenBao, their KMS. We request unwraps; they can watch every request and cut us off entirely, at will. Full functionality while trust holds; provable custody the day it's questioned. The model to offer a top Toronto litigator.</p>
+        <div class="count">Full functionality · firm custody</div>
+      </div>
+      <div class="tier">
+        <h3>Dedicated cell</h3>
+        <div class="who">On-premise</div>
+        <p>The entire platform &mdash; database, vault, models on local inference &mdash; on hardware the firm controls, deployed from the same sealed images via the Kamal bundle. Nothing leaves the building, including the AI. The answer for the client who requires that sentence literally.</p>
+        <div class="count">Full functionality · firm premises</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">06</span>
+      <h2>Built for Ontario</h2>
+    </div>
+    <p class="sec-note">The partner practises where solicitor-client privilege is guarded as jealously as anywhere in the common-law world, and where the regulator has opinions about technology. The architecture answers each obligation specifically.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">Residency</div>
+        <h3>The Canadian cell</h3>
+        <p>A Canadian matter's rows, blobs, embeddings, keys, logs and backups live and stay in the Canadian cell &mdash; storage, processing, and inference included. No US transit, no cross-border replication, no exception for convenience. For clients under public-sector or health rules where residency is mandatory, this is the difference between eligible and not.</p>
+      </div>
+      <div class="card">
+        <div class="from">The regulator</div>
+        <h3>LSO obligations, answered</h3>
+        <p>The Law Society expects technological competence, supervised delegation, and confidentiality that survives the tools a firm chooses. The platform gives the firm its answers in writing: the encryption architecture, the audit chain, the provenance record on every generated document, and the human-signature gate that keeps the lawyer &mdash; not the software &mdash; as the professional actor.</p>
+      </div>
+      <div class="card">
+        <div class="from">Breach duties</div>
+        <h3>Evidence before apology</h3>
+        <p>PIPEDA's real-risk-of-significant-harm reporting turns on knowing what was actually exposed. Because access is key-mediated and unwrap-logged, a suspected incident produces a precise blast radius &mdash; which matters, which documents, which minutes &mdash; instead of a letter that says &ldquo;may have included.&rdquo;</p>
+      </div>
+      <div class="card">
+        <div class="from">Honesty</div>
+        <h3>What encryption cannot do</h3>
+        <p>Privilege is a legal doctrine; encryption protects the confidentiality that privilege presumes, and no vendor should claim more. Encryption also does not stop an authorised user misusing what they may lawfully see &mdash; that is walls, audit and supervision &mdash; and it does not defend an unlocked endpoint. The vault is one wall of the practice, built properly; it is not the practice.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Companion to The 28-Room Firm and The 28-Room Build Sheet. Product and security architecture, not legal advice &mdash; licence compliance and regulatory positions should be confirmed with counsel (conveniently available). Cryptographic mechanisms named are current best practice and should be reviewed against NIST and CCCS guidance at implementation, with an external penetration test and cryptographic review before the first client matter loads.</p>
+  </footer>
+
+</div>
