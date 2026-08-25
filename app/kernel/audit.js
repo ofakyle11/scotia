@@ -15,7 +15,16 @@ class Audit {
       if (lines.length) this.prev = JSON.parse(lines[lines.length - 1]).hash;
     }
   }
+  // Re-sync to the file's true tail before appending, so two writers (the
+  // server plus a console tool) extend one chain instead of forking it.
+  // Tamper evidence is unaffected: verify() still walks every link.
+  _syncPrev() {
+    if (!fs.existsSync(this.file)) { this.prev = 'genesis'; return; }
+    const lines = fs.readFileSync(this.file, 'utf8').trim().split('\n').filter(Boolean);
+    this.prev = lines.length ? JSON.parse(lines[lines.length - 1]).hash : 'genesis';
+  }
   log(actor, action, object) {
+    this._syncPrev();
     const entry = { ts: new Date().toISOString(), actor, action, object, prev: this.prev };
     entry.hash = sha256(this.prev + JSON.stringify([entry.ts, actor, action, object]));
     fs.appendFileSync(this.file, JSON.stringify(entry) + '\n');
