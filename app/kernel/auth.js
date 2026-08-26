@@ -34,13 +34,29 @@ class Auth {
   userByEmail(email) {
     return this.store.firm.list('user', (u) => u.email.toLowerCase() === String(email).toLowerCase() && u.active)[0];
   }
+  // True the FIRST time a bucket trips inside its window. The chain must record
+  // that throttling happened, but /login is public and unauthenticated, so an
+  // entry per attempt let anyone append to the tamper-evident log at will.
+  firstTrip(ip) {
+    const h = this.hits.get(ip);
+    if (!h || h.tripLogged) return false;
+    h.tripLogged = true;
+    return true;
+  }
   login(email, password, ip) {
-    if (this.rateLimited(ip)) { this.audit.log(String(email), 'login.ratelimited', ip); return null; }
+    // The actor is attacker-supplied and bounded only by MAX_BODY (25 MB), so it
+    // is truncated before it can reach the hash chain: the audit log is the one
+    // artifact that must stay small, readable and append-only forever.
+    const who = String(email == null ? '' : email).slice(0, 254);
+    if (this.rateLimited(ip)) {
+      if (this.firstTrip(ip)) this.audit.log(who, 'login.ratelimited', ip);
+      return null;
+    }
     const user = this.userByEmail(email);
     // verifyPassword runs the full scrypt either way: unknown account and
     // wrong password are indistinguishable in response and in time.
     const ok = verifyPassword(password, user ? user.pw : undefined);
-    if (!user || !ok) { this.audit.log(String(email), 'login.denied', ip); return null; }
+    if (!user || !ok) { this.audit.log(who, 'login.denied', ip); return null; }
     if (user.totp) {
       const t = token(24);
       this.pending.set(sha256(t), { uid: user.id, exp: Date.now() + 5 * 60 * 1000 });

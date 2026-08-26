@@ -104,15 +104,39 @@ app.route('GET', '/', (req, res, ctx) => {
   if (user) { redirect(res, '/r/desk'); return; }
   html(res, ui.loginPage(ctx.query.get('d') === '1'));
 });
+// The client address used for rate limiting AND for audit attribution.
+//
+// The shipped deployment terminates TLS in Caddy and proxies to loopback, so
+// req.socket.remoteAddress is 127.0.0.1 for EVERY real user. Keying the limiter
+// on it gave the whole firm one shared 20-attempt bucket: 21 anonymous posts to
+// the public /login locked out both seats for 15 minutes, from anywhere on the
+// internet, repeatable. It also made every audit entry read 127.0.0.1.
+//
+// X-Forwarded-For is honoured ONLY when the immediate peer is a trusted proxy,
+// and only its RIGHT-MOST entry — that is the hop our own proxy appended, so
+// anything a client prepends to forge a different bucket is ignored. With no
+// trusted proxy in front, this is exactly the old behaviour.
+const TRUSTED_PROXIES = new Set(
+  (process.env.CHAMBERS_TRUSTED_PROXY || '127.0.0.1,::1,::ffff:127.0.0.1')
+    .split(',').map((s) => s.trim()).filter(Boolean));
+function clientIp(req) {
+  const peer = req.socket.remoteAddress || '?';
+  if (!TRUSTED_PROXIES.has(peer)) return peer;
+  const xff = req.headers['x-forwarded-for'];
+  if (!xff) return peer;
+  const hops = String(xff).split(',').map((s) => s.trim()).filter(Boolean);
+  return hops.length ? hops[hops.length - 1].slice(0, 64) : peer;
+}
+
 app.route('POST', '/login', (req, res, ctx) => {
-  const ip = req.socket.remoteAddress || '?';
+  const ip = clientIp(req);
   const out = auth.login(ctx.body.email || '', ctx.body.password || '', ip);
   if (!out) { redirect(res, '/?d=1'); return; }
   if (out.pending) { html(res, ui.totpPage(out.pending)); return; }
   redirect(res, '/r/desk', cookie('s', out.session, { maxAge: 8 * 3600 }));
 });
 app.route('POST', '/login/totp', (req, res, ctx) => {
-  const ip = req.socket.remoteAddress || '?';
+  const ip = clientIp(req);
   const session = auth.verifyTotp(ctx.body.pending, ctx.body.code, ip);
   if (!session) { redirect(res, '/?d=1'); return; }
   redirect(res, '/r/desk', cookie('s', session, { maxAge: 8 * 3600 }));
