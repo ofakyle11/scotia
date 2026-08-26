@@ -99,6 +99,22 @@ proofs are promoted into `app/test/` so they run in every future gate.
 
 ---
 
+## Pending final step (user instruction, 2026-08-26)
+
+**Link `ofakyle11/MattDanLaw` to the Netlify site `chambers-demo-tour` and push.**
+To be done AFTER T5 completes. Implementation: commit a `netlify.toml` plus a
+repo-resident tour generator so Netlify's *build step* boots Chambers, crawls all
+36 rooms, and publishes the static tour — every push then refreshes the demo site
+automatically (it currently serves a frozen 25 Aug snapshot). Netlify hosts the
+DEMO only; the live application still requires a Node host (Toronto droplet), since
+Netlify cannot run a stateful encrypted server.
+Two notes for the user at that point: (a) linking a repo to a Netlify site is most
+reliably done from the Netlify UI ("Link repository" — it handles the GitHub
+install/deploy-key handshake); (b) the API token pasted in chat should be rotated
+before or after use, as it has been in plaintext in a transcript.
+
+---
+
 ## Completions
 
 | Wave | What | Evidence | Commit |
