@@ -61,6 +61,27 @@ The plugin is account-enabled but absent from this container. Rather than
 paraphrase, the real skill text was downloaded and is applied verbatim to the wave
 protocol. Cost if wrong: none.
 
+**R5 — T1 is redirected from "rebuild the files" to "fix the defects the contract
+sheet proved."**
+Why: T0's adversarial assembler verified 17 real cross-room defects in the current
+code, several malpractice-grade: (a) `27-desk` detects limitation deadlines via
+`ruleId`, which only `21-calendar` writes — so the limitation bar created at intake
+**never shows the LIMITATION flag or the dual-diary tick** in the firm-wide diary;
+(b) drafts registered in `08-citations` carry no `status`, so they can **never** be
+filed by `22-filing`; (c) `regate()` returns `clear` for a draft with zero detected
+citations, so an unscannable draft passes the citation gate; (d) `21-calendar`
+deletes every `anchor:'trial'` deadline on recompute, destroying other rooms' rows;
+(e) citation_instances minted by `07-research` carry no `draftId` and are
+permanently unverifiable; (f) three incompatible `authority` shapes render blank
+rows with invented weights; (g) `engagementSigned` and `closingChecklist` are
+write-only/dead-read; (h) `cite-resolve.js` and `trust.js` remain orphaned while
+rooms 08 and 28 re-implement their logic by hand.
+Rebuilding these files in isolation would neither find nor fix cross-room defects —
+each file passes its own harness today. Fixing proven defects serves the user's
+stated intent (Opus quality over the Fable work) far better than re-typing code.
+Cost if wrong: the files keep their current structure rather than being re-derived;
+every proven defect is still eliminated and every seam verified.
+
 ---
 
 ## Completions
@@ -71,4 +92,4 @@ protocol. Cost if wrong: none.
 | P2 | 10 improved files, malpractice seams | suite green + `improve.test.js` handshakes | `e4d81d2` |
 | P3 | 4 new rooms + 2 kernel engines, 36 rooms | 36-room harness + 9 test files green | `fc55abf` |
 | Plan | 10-agent Fable-5 panel → approved blueprint | `PLAN-PANEL.json`, plan approved | — |
-| T0 | Contract sheet (4 Opus-5 agents) | *in flight* | — |
+| T0 | Contract sheet — 954 lines, 17 cross-room defects proved | `docs/CONTRACT-SHEET.md` on disk, 64KB | pending |
