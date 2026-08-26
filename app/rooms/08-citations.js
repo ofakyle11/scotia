@@ -59,30 +59,68 @@ const isStale = (d, at) => !!d.scannedAt && !!at && String(d.updatedAt || '') > 
 // verified — the same condition regate calls 'clear'. Nothing certifies a
 // blocked, unscanned, or edited-since-scan draft.
 const isClear = (d, inst, stale) => !!d.scannedAt && !stale && inst.every((i) => i.status === 'verified');
-// A draft's text lives in .text (this room's registered drafts) or in the
-// Brief Writer's .sections — read BOTH, or section drafts would extract as
-// empty and sail through the gate unchecked.
-const draftText = (d) => String(d.text || d.body || (d.sections && typeof d.sections === 'object' ? Object.values(d.sections).filter(Boolean).join('\n\n') : '') || '');
+// A draft's text lives in THREE places and all three must be read or a draft
+// extracts as empty and sails through the gate unchecked:
+//   .text     — this room's registered drafts (POST /draft)
+//   .body     — a pleading record's body (10-pleadings' shape); reading it here
+//               is what lets a pleading be scanned once it is registered as a
+//               draft, without minting a parallel type
+//   .sections — the Brief Writer's six-section object (18-briefs)
+const draftText = (d) => String(
+  (d && d.text) || (d && d.body) ||
+  (d && d.sections && typeof d.sections === 'object'
+    ? Object.values(d.sections).filter(Boolean).map((v) => String(v)).join('\n\n')
+    : '') || '');
+
+// The zero-citation hole. `inst.every(...)` on an empty array is `true`, so a
+// scanned draft with no detected citations regates to 'clear'. That stays
+// allowed — a genuinely citation-free document exists — but a SILENT clear is
+// indistinguishable from an extractor that quietly failed, and that is the
+// defect. Every such draft is stamped noCitationsFound and every place this
+// room shows its gate status carries the warning below.
+const NO_CITE_WARN = 'no citations detected — confirm extraction did not silently fail';
+// Robust to rows written before the flag existed: the stored flag OR the live
+// fact (scanned, and nothing in the queue). Never relies on the flag alone.
+const noCitesFound = (d, inst) => d.noCitationsFound === true || (!!d.scannedAt && inst.length === 0);
 
 // Recompute the gate for one draft and write citeStatus back onto the draft
 // record. Verified-all (and only that) opens the gate.
 function regate(s, draftId) {
   const draft = s.get('draft', draftId);
   if (!draft) return null;
+  // Every instance carrying this draftId counts — including one minted by
+  // Research (07), which now sends its citations with a draftId. An
+  // unverified cite from any room blocks this draft like any other.
   const inst = s.list('citation_instance', (i) => i.draftId === draftId);
   const citeStatus = inst.every((i) => i.status === 'verified') ? 'clear' : 'blocked';
   // Write citeStatus last, then stamp the gate to that write's own updatedAt —
   // so a subsequent content edit (a later updatedAt) reads as stale.
-  const rec = s.put('draft', { ...draft, citeStatus });
+  const rec = s.put('draft', { ...draft, citeStatus, noCitationsFound: inst.length === 0 });
   s.put('gateStamp', { id: draftId, at: rec.updatedAt });
   return citeStatus;
+}
+
+// Automated citation resolution, wired ONLY through the kernel facade — a room
+// may require nothing but html.js/http.js, so kernel/cite-resolve.js can never
+// be required here. It is optional: when the facade does not expose it the
+// action is simply not offered and every flow below is unchanged.
+// The underlying helper is resolve(kernel, cite); a facade that has already
+// bound the kernel exposes the one-argument form, so arity tells them apart.
+function citeResolver(k) {
+  const c = k && (k.citeResolve || k.cite || null);
+  if (!c) return null;
+  const fn = typeof c === 'function' ? c : (c && typeof c.resolve === 'function' ? c.resolve : null);
+  if (typeof fn !== 'function') return null;
+  return (cite) => Promise.resolve(fn.length >= 2 ? fn(k, cite) : fn(cite));
 }
 
 // Extract, mint unverified instances for anything new, mark scanned, regate.
 // Shared by the manual Extract button and by auto-extract-on-open.
 function runScan(s, draft) {
   const cites = extractCites(draftText(draft));
-  const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => i.cite.toLowerCase()));
+  // String() guard: this list now also holds instances written by Research
+  // (07), so nothing here may assume a field this room wrote itself.
+  const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => String(i.cite || '').toLowerCase()));
   let created = 0;
   for (const cite of cites) {
     if (have.has(cite.toLowerCase())) continue;
@@ -95,11 +133,14 @@ function runScan(s, draft) {
 }
 
 function gateTag(d, inst, stale) {
-  if (!inst.length && !d.scannedAt) return d.citeStatus === 'clear' ? tag('clear', 'ok') : tag('unchecked');
+  // A clear gate reached with nothing in the queue always carries the
+  // zero-citation warning beside it — never a bare 'clear'.
+  const clear = () => tag('clear', 'ok') + (noCitesFound(d, inst) ? ' ' + tag(NO_CITE_WARN, 'gate') : '');
+  if (!inst.length && !d.scannedAt) return d.citeStatus === 'clear' ? clear() : tag('unchecked');
   if (inst.some((i) => i.status === 'failed')) return tag('blocked — failed cites', 'gate');
   if (inst.some((i) => i.status === 'unverified')) return tag('blocked — unverified', 'gate');
   if (stale) return tag('blocked — edited since scan', 'gate');
-  return tag('clear', 'ok');
+  return clear();
 }
 
 const CHECKS = [
@@ -110,17 +151,44 @@ const CHECKS = [
 const checkboxes = () => CHECKS.map(([n, l]) =>
   `<label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13px;color:var(--ink-soft)"><input type="checkbox" name="${n}" value="1" style="width:auto"> ${esc(l)}</label>`).join('');
 
-function verifyCard(inst) {
+// Provenance chip — an instance sent over from Research (07) reads differently
+// from one this room's extractor minted, and the verifier should see which.
+const provenance = (i) => (i.source === 'research' ? ' ' + tag('from Research (07)', 'navy') : '');
+
+// What a connector reported, rendered as a FINDING and never as a check.
+// It pre-fills the source-URL box and states what was seen; it ticks nothing,
+// verifies nothing, and the four confirmations below it remain entirely human.
+function lookupBlock(l) {
+  if (!l || typeof l !== 'object') return '';
+  const link = /^https?:\/\//i.test(String(l.url || '')) ? `<br><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.url)} ↗</a>` : '';
+  return `<div style="border-left:2px solid var(--rule);padding:2px 0 2px 10px;margin:10px 0;color:var(--ink-soft);font-size:13px">
+    ${l.resolved ? tag('connector found a match', 'navy') : tag('connector found no match', '')}
+    ${l.source ? ' ' + tag(String(l.source), '') : ''}
+    <span class="note" style="margin-left:6px">looked up by ${esc(l.by || '')} ${esc(l.at || '')}</span>
+    ${l.title ? `<br><b>${esc(l.title)}</b>` : ''}
+    ${l.note ? `<br>${esc(l.note)}` : ''}${link}
+    <br><span class="note">This is a machine lookup, not a verification. Open it, read it, and confirm all four points yourself.</span>
+  </div>`;
+}
+
+function verifyCard(inst, canResolve) {
   // Citation deep link into CanLII's search — the kind of linking room 29's
   // note records CanLII permits. No fetching, no fabricated resolution: the
   // human follows it, looks, and confirms.
   const lookup = 'https://www.canlii.org/en/#search/text=' + encodeURIComponent(inst.cite);
+  const found = inst.lookup && typeof inst.lookup === 'object' ? inst.lookup : null;
+  const prefillUrl = found && /^https?:\/\//i.test(String(found.url || '')) ? String(found.url) : '';
   return `<div style="border:1px solid var(--rule);padding:12px 14px;margin-bottom:10px;background:var(--ground)">
-    <b class="num">${esc(inst.cite)}</b> &nbsp; <a href="${esc(lookup)}" target="_blank" rel="noopener noreferrer">Look up on CanLII ↗</a>
+    <b class="num">${esc(inst.cite)}</b>${provenance(inst)} &nbsp; <a href="${esc(lookup)}" target="_blank" rel="noopener noreferrer">Look up on CanLII ↗</a>
+    ${canResolve ? `<form method="POST" action="/r/citations/resolve" style="display:inline;margin-left:8px">
+      <input type="hidden" name="id" value="${esc(inst.id)}">
+      <button class="quiet">Resolve via connectors</button>
+    </form>` : ''}
+    ${lookupBlock(found)}
     <form method="POST" action="/r/citations/verify">
       <input type="hidden" name="id" value="${esc(inst.id)}">
       ${input('pinpoint', 'Pinpoint relied on (para / page)', { required: true, placeholder: 'e.g. para 27 — or “none: cited generally”' })}
-      ${input('resolvedUrl', 'Source URL / neutral citation seen (optional)', { placeholder: 'e.g. https://www.canlii.org/en/ca/scc/doc/2016/2016scc27/2016scc27.html' })}
+      ${input('resolvedUrl', 'Source URL / neutral citation seen (optional)', { value: prefillUrl, placeholder: 'e.g. https://www.canlii.org/en/ca/scc/doc/2016/2016scc27/2016scc27.html' })}
       ${checkboxes()}
       <button>Mark verified — all four confirmed</button>
     </form>
@@ -141,15 +209,35 @@ function register(app) {
       return;
     }
     const s = k.scope(ctx.matter.id);
+    // Present only when the kernel facade exposes cite-resolve; absent, the
+    // room degrades to exactly the manual flow it has always had.
+    const canResolve = !!citeResolver(k);
     // Auto-extract on open: a draft sent from Brief Writer arrives as
     // 'cite-check' with no instances and no scan — run the pass now so the
     // queue reliably appears without a second click. Guarded by !scannedAt, it
     // runs once per draft.
+    // Guarded by !scannedAt alone (runScan dedupes by cite), so a draft that
+    // already carries an instance sent from Research (07) still gets its own
+    // extraction pass instead of silently never being scanned.
     for (const d of s.list('draft')) {
-      if (d.status === 'cite-check' && !d.scannedAt && !s.list('citation_instance', (i) => i.draftId === d.id).length) {
+      if (d.status === 'cite-check' && !d.scannedAt) {
         const r = runScan(s, d);
         k.audit('citation.autoscan', ctx.matter.id + ':' + d.id + ':' + r.created);
       }
+    }
+    // Re-gate defensively, in the BLOCKING DIRECTION ONLY. Another room may
+    // mint a citation_instance against a draft that already read 'clear'
+    // (Research sends its citations here with a draftId) without calling
+    // regate; without this the stale 'clear' would let 22-filing file a draft
+    // carrying an unverified cite. Never the reverse: a draft is never
+    // re-opened to 'clear' from here, so 18-briefs' edit-resets-the-gate
+    // control and the gateStamp staleness test are left untouched.
+    for (const d of s.list('draft')) {
+      if (d.citeStatus !== 'clear') continue;
+      const inst = s.list('citation_instance', (i) => i.draftId === d.id);
+      if (inst.every((i) => i.status === 'verified')) continue;
+      regate(s, d.id);
+      k.audit('citation.regate.tightened', ctx.matter.id + ':' + d.id);
     }
     const drafts = s.list('draft').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const all = s.list('citation_instance');
@@ -179,6 +267,7 @@ function register(app) {
     const selBlock = sel ? `
     <h2 class="sec">Queue — ${esc(sel.title || '(untitled draft)')} ${gateTag(sel, selInst, selStale)}</h2>
     ${selStale ? `<div class="flash err">This draft was edited after its citations were verified — those verifications are stale. Re-extract and re-verify before certifying.</div>` : ''}
+    ${noCitesFound(sel, selInst) ? `<div class="flash err">Gate cleared with an empty queue: ${esc(NO_CITE_WARN)}. The extractor ran over <span class="num">${draftText(sel).length}</span> characters and matched nothing. Confirm the draft really cites no authority — if it does, the text may not have reached this room, and any missed cite must be added by hand below before this draft is filed.</div>` : ''}
     <div class="card">
       ${kv([
         ['Draft', esc(sel.title || '(untitled draft)')],
@@ -198,10 +287,12 @@ function register(app) {
       </form>
       <p class="note">Nothing files unlisted — if the pass missed a case or statute, add it here so it must be verified too. The draft stays blocked until it is.</p>
     </div>
-    ${queue.length ? `<h2 class="sec">Awaiting verification — ${queue.length}</h2>` + queue.map(verifyCard).join('')
+    ${queue.length ? `<h2 class="sec">Awaiting verification — ${queue.length}</h2>`
+      + (canResolve ? `<p class="note">“Resolve via connectors” runs this citation through the CanLII / CourtListener connectors and records what came back. It pre-fills the source URL and nothing else: no box is ticked for you and no row is ever promoted by a machine. All four confirmations remain yours.</p>` : '')
+      + queue.map((i) => verifyCard(i, canResolve)).join('')
       : (selInst.length ? '' : empty('No citation instances yet — run the extractor.'))}
     ${decided.length ? `<h2 class="sec">Decided</h2>` + table(['Cite', 'Status', 'Pinpoint', 'Quote', 'Treatment', 'By', ''], decided.map((i) => [
-      `<span class="num">${esc(i.cite)}</span>`,
+      `<span class="num">${esc(i.cite)}</span>` + provenance(i),
       i.status === 'verified' ? tag('verified', 'ok') : tag('failed' + (i.failReason ? ': ' + i.failReason : ''), 'gate'),
       esc(i.pinpoint || '—'),
       i.quoteOk === true ? tag('match', 'ok') : i.quoteOk === false ? tag('mismatch', 'gate') : '—',
@@ -215,7 +306,7 @@ function register(app) {
       <div class="card">
         <h2 class="sec" style="margin-top:0">Draft gate board — ${esc(ctx.matter.title)}</h2>
         ${board}
-        <p class="note">A draft is <b>blocked</b> while any citation instance is unverified or failed. Only verified-all opens the gate (citeStatus: clear) — the Filing Room reads that flag.</p>
+        <p class="note">A draft is <b>blocked</b> while any citation instance is unverified or failed — including a citation sent over from Research (07), which counts here like any other. Only verified-all opens the gate (citeStatus: clear) — the Filing Room reads that flag. A draft that clears with an <b>empty</b> queue is flagged “${esc(NO_CITE_WARN)}”: a citation-free document is possible, but so is an extraction that found nothing when it should have.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Register a draft for checking</h2>
@@ -237,7 +328,13 @@ function register(app) {
     const title = String(ctx.body.title || '').trim();
     const text = String(ctx.body.text || '').trim();
     if (!title || !text) { ctx.setFlash('A draft needs a title and its text.', 'err'); redirect(res, roomUrl()); return; }
-    const d = ctx.kernel.scope(ctx.matter.id).put('draft', { title, text, citeStatus: 'unchecked' });
+    // status:'draft' is not decoration. 22-filing's prepare gate reads
+    // `citeStatus==='clear' && status==='final'`, and 18-briefs' /status route
+    // is what promotes a draft to 'final'. A draft registered here without a
+    // status could never satisfy either test, so it could clear this gate and
+    // still never be filed — and 18-briefs rendered its status as blank.
+    // Registered drafts therefore carry BOTH shapes' fields.
+    const d = ctx.kernel.scope(ctx.matter.id).put('draft', { title, text, status: 'draft', citeStatus: 'unchecked' });
     ctx.setFlash('Draft registered — run the extractor, then verify each citation.');
     redirect(res, roomUrl(d.id));
   });
@@ -265,7 +362,7 @@ function register(app) {
     if (!draft) { ctx.setFlash('Pick a draft to add the citation to.', 'err'); redirect(res, roomUrl()); return; }
     const cite = String(ctx.body.cite || '').replace(/\s+/g, ' ').trim();
     if (!cite) { ctx.setFlash('Enter the citation text to add.', 'err'); redirect(res, roomUrl(draft.id)); return; }
-    const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => i.cite.toLowerCase()));
+    const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => String(i.cite || '').toLowerCase()));
     if (have.has(cite.toLowerCase())) { ctx.setFlash('That citation is already on this draft’s queue.', 'err'); redirect(res, roomUrl(draft.id)); return; }
     s.put('citation_instance', { cite, draftId: draft.id, status: 'unverified', pinpoint: '', quoteOk: null, treatmentCurrent: null, resolved: null });
     if (!draft.scannedAt) s.put('draft', { ...s.get('draft', draft.id), scannedAt: today() });
