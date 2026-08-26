@@ -111,6 +111,20 @@ Proven: `test/browser.test.js` drives Chromium through real enrollment and asser
 the app renders; it is now a permanent gate. Cost if wrong: none — the previous
 behaviour was a hard crash.
 
+**R9 — The room harness only ever proved EMPTY states; added a seeded harness.**
+`test/harness.js` creates one matter and two users and no room records, so
+`ALL PASS (36 rooms)` meant only that every room renders with nothing in it. A UI
+agent found `15-experts` hard-broken — it called three helper functions that were
+never written, so the room returned HTTP 500 for any matter with an expert — while
+the suite reported green. `test/seeded.test.js` now populates every major record
+type from the contract sheet (facts, deadlines, drafts, citations, documents,
+exhibits, time, experts, witnesses, undertakings, offers, waterfalls, judgments,
+causes, defences, pleadings, instruments, productions, invoices, client updates,
+decision memos, scenarios and more) and renders all 36 rooms plus /admin and
+/account, failing on any non-200, error page, or missing shell. Cost if wrong:
+none — it is additive and caught nothing outstanding on first run, meaning the
+T2b repairs hold.
+
 ---
 
 ## Pending final step (user instruction, 2026-08-26)
@@ -138,4 +152,5 @@ before or after use, as it has been in plaintext in a transcript.
 | P3 | 4 new rooms + 2 kernel engines, 36 rooms | 36-room harness + 9 test files green | `fc55abf` |
 | Plan | 10-agent Fable-5 panel → approved blueprint | `PLAN-PANEL.json`, plan approved | — |
 | T0 | Contract sheet — 954 lines, 17 cross-room defects proved | `docs/CONTRACT-SHEET.md` on disk, 64KB | `a4553b8`… |
+| T2 | 22 Opus-5 agents streamlined the shell + all 36 rooms (2 waves) | 36-room + seeded + browser suites green | `59764fd` |
 | T1 | 13 Opus-5 agents fixed the proven defects + director closed 3 residual seams | 36-room harness + 8 suites green; new `seam.test.js` and `pleadcite.test.js` prove R-A/R-D and the pleading→gate path | this commit |
