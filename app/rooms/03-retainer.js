@@ -22,7 +22,7 @@ const CONTINGENCY_NOTE = 'Reference — contingency retainers: caps and written-
 // editors, the version history and the gate notices all drop out, and the
 // letter itself sets in a serif face at a size that survives a client's desk.
 const PRINT = `<style>@media print{
-.side,.topbar,.flash,.noprint,form,button{display:none!important}
+.side,.topbar,.flash,.no-print,form,button{display:none!important}
 .shell{display:block;min-height:0}.main{padding:0}
 .grid2,.grid3{display:block}
 h1.room,.roomsub,h2.sec{display:none!important}
@@ -236,7 +236,7 @@ function register(app) {
       const signBlocked = next && next[0] === 'signed' && !clearance;
       body = `
       ${PRINT}
-      <div class="grid2 noprint">
+      <div class="grid2 no-print">
         <div class="card">
           <h2 class="sec" style="margin-top:0">Current engagement — ${esc(ctx.matter.title)}</h2>
           ${cur ? `
@@ -265,10 +265,10 @@ function register(app) {
       </div>
       ${cur ? `
       <h2 class="sec">Engagement letter — v${esc(String(cur.version))} ${tag('generated from the record')}</h2>
-      <p class="note noprint"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; Printing yields the letter alone — the chrome and the version history drop out.</p>
+      <p class="note no-print"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; Printing yields the letter alone — the chrome and the version history drop out.</p>
       <div class="card letter-sheet"><pre style="white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;line-height:1.7;margin:0">${esc(cur.letter || '')}</pre></div>
       ` : ''}
-      <div class="noprint">
+      <div class="no-print">
       <h2 class="sec">Versions</h2>
       ${table(['Version', 'Status', 'Fee', 'Drafted', 'Sent', 'Signed', 'Superseded', 'Scope in'],
         all.map((e) => [

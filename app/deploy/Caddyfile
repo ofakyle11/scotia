@@ -1,13 +1,46 @@
 # Chambers reverse proxy — automatic HTTPS via Let's Encrypt.
 # Replace chambers.example.com with your domain (install.sh does this for you).
+#
+# The app itself sets Content-Security-Policy, X-Frame-Options, nosniff,
+# Referrer-Policy and X-Robots-Tag per response (kernel/http.js). Caddy must
+# NOT restate them here — a `header` line overwrites, and a stale copy of a
+# security header is worse than none. Caddy adds only what the app cannot:
+# HSTS, which is a property of the TLS edge.
 chambers.example.com {
-	reverse_proxy localhost:8028
+	# 127.0.0.1, never "localhost": the app binds loopback IPv4 (CHAMBERS_HOST),
+	# and on a dual-stack box "localhost" resolves to ::1 first, which nothing is
+	# listening on — that shows up as intermittent 502s under load.
+	reverse_proxy 127.0.0.1:8028
+
+	# Matches MAX_BODY in kernel/http.js. Oversize uploads are refused at the
+	# edge instead of streaming 25MB+ into the app to be dropped.
+	request_body {
+		max_size 25MB
+	}
+
+	encode zstd gzip
+
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
 	}
+
+	# /healthz is for this box, not for the internet. The health check and the
+	# systemd readiness gate both probe 127.0.0.1:8028 directly and are
+	# unaffected. Delete these three lines if an external uptime monitor needs it.
+	@external_health {
+		path /healthz
+		not remote_ip 127.0.0.1/32 ::1
+	}
+	respond @external_health 404
+
 	log {
 		output file /var/log/caddy/chambers-access.log
 		format json
 	}
 }
+
+# Optional: if the firm ever wants ACME notices by email, add
+#   tls partners@yourfirm.ca
+# inside the site block. Nothing else belongs here — this file must never hold
+# a key, a token, or a password.

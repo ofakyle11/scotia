@@ -1,0 +1,44 @@
+# Netlify — the Chambers demo tour (chambers-demo-tour).
+#
+# This site is the PUBLIC PREVIEW only: a static rendering of every room, built
+# from this repository on every push. The application itself is not deployed
+# here and cannot be — Chambers is a stateful, encrypted Node server holding
+# client matters, and it runs on the firm's own host (see app/deploy/RUNBOOK.md).
+#
+# The build boots the real app on a throwaway temp data directory, seeds one
+# fictional demonstration matter, crawls all 36 rooms in kernel/registry.js plus
+# /admin and /account as a signed-in seat, rewrites internal links to flat .html
+# files, makes every form inert, and writes the result to dist-tour. It refuses
+# to publish anything it cannot vouch for: the generator's leak scan exits
+# non-zero (and deletes dist-tour) if an invite path, a session or feed token, a
+# localhost URL, a CSP nonce or any other opaque secret reaches a page, so a
+# failed deploy — not a leak — is the failure mode.
+#
+# Zero dependencies, deliberately: the repository has no package.json, so
+# Netlify installs nothing and the build is `node` and the checkout alone.
+#
+# Optional: set TOUR_GATE_PASS in the Netlify UI (Site configuration →
+# Environment variables) to put a passphrase in front of the preview. Only its
+# SHA-256 is published, and it is a courtesy gate rather than security — never
+# commit the phrase to this repository.
+
+[build]
+  command = "node tools/build-tour.js dist-tour"
+  publish = "dist-tour"
+
+[build.environment]
+  # The app targets Node 22 (see app/README.md); the generator refuses < 20.
+  NODE_VERSION = "22"
+
+# Every page is a preview of fictional data and must never be indexed, framed,
+# sniffed, or used as a referrer source. Referrer-Policy is no-referrer here
+# because nothing on this site posts anywhere — do NOT copy that value into the
+# live application, where it makes Chromium send `Origin: null` on same-origin
+# form posts (BUILD-LEDGER R8); the app deliberately uses same-origin instead.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex, nofollow"

@@ -4,6 +4,13 @@ Authoritative cross-room reference for `/home/user/scotia/app`. Every claim belo
 verified by reading the actual source (rooms/, kernel/, server.js) — not inferred from
 names. **Read this before you touch any room.**
 
+**Last verified against commit `6e26289` on 2026-08-26** (plus the working-tree changes to
+`rooms/03-retainer.js` and `rooms/12-discovery.js` in flight at that moment). Waves T1 and T2
+changed real behaviour after this sheet was first written; §(b) `draft`, `pleading`,
+`citation_instance`, `authority`, `deadline`, `closingChecklist`, §(c) `engagementSigned`,
+§(d) the kernel facade and §(f) were re-derived from the current source at that commit. Line
+numbers cited below are from that commit and drift — trust the function/route names.
+
 ---
 
 ## (a) How to use this sheet
@@ -51,7 +58,7 @@ Never hand-set `id` except the three deliberate singletons: `gateStamp` (id = dr
 `POST /link`) · 14-depositions (list in `POST /pull` matching `f.actor` to witness name;
 `get` in `POST /digest` for `contraFactId`) · 26-closing (EXPORT_TYPES)
 **Invariants**
-- **GATE — SOURCE-OR-DROP.** `06-chronology.js:146` refuses with a flash when `source`
+- **GATE — SOURCE-OR-DROP.** `06-chronology.js` `POST /add` (l.183) refuses with a flash when `source`
   is empty. No fact enters without a pin. Also refuses empty `text` and any `date` not
   matching `/^\d{4}-\d{2}-\d{2}$/` that also parses.
 - Gap detection (>90 days between consecutive facts) is computed on the **full** timeline
@@ -79,37 +86,70 @@ authority. **GATE:** an element may only be linked to a real `fact` in this matt
 **Fields** `title` (required) · `ptype` (`'claim'|'defence'|'counterclaim'|'crossclaim'`,
 whitelist-coerced to `'claim'`) · **`body`** (the text — *not* `text`, *not* `sections`)
 **Written by** 10-pleadings `POST /draft` · **Read by** 10-pleadings only
-**CONFLICT/GAP** — a `pleading` is **not** a `draft`: 08-citations never scans it,
-22-filing never sees it, 26-closing never exports it. (08-citations' `draftText()` does
-fall back to `d.body`, so a pleading *would* extract correctly if registered as a `draft`.)
+**A pleading is still not a `draft` — but it can now be REGISTERED as one.**
+`10-pleadings POST /tocite` (l.461) mints a companion `draft`
+`{title, type: p.ptype || 'pleading', text: p.body, status:'draft', citeStatus:'unchecked',
+pleadingId: p.id}` — the R-B shape, so 08-citations scans it, 18-briefs can take it to
+`final` and 22-filing can then file it. The link is one-way: `pleadingId` lives on the
+**draft**, never on the pleading, and 10-pleadings reads the gate back with
+`s.list('draft', (d) => !!d.pleadingId)` keyed by `d.pleadingId` (l.151).
+**Invariants**
+- **RE-SEND RESETS THE GATE.** A second `/tocite` on the same pleading updates the existing
+  companion draft (`text`, `title`) and forces `citeStatus:'unchecked'`, `scannedAt:null`,
+  and `'final'→'draft'` — the same counter-current 18-briefs applies to a section edit.
+  Never re-send without expecting the clearance to drop.
+- 26-closing exports `draft` and `citation_instance`, **not** `pleading` — the pleading text
+  reaches a transfer bundle only through its companion draft.
+- **GOTCHA** — `POST /deldraft` deletes the `pleading` and leaves the companion `draft`
+  standing (with a `pleadingId` pointing at nothing). It still sits on 08's gate board and in
+  18-briefs. Delete it there if it is genuinely dead.
 
 ### The citation gate
 
-#### `draft` — briefs and registered drafts. **TWO INCOMPATIBLE CREATION SHAPES.**
-| | 18-briefs `POST /new` | 08-citations `POST /draft` |
-|---|---|---|
-| `title` | yes | yes |
-| `type` | `'motion'\|'factum'\|'brief'\|'letter'` | — |
-| `sections` | `{}` at creation; keys `conclusion, rule, explanation, application, counter, closing` | — |
-| `text` | — | the pasted body |
-| `status` | `'draft'\|'cite-check'\|'final'` | **absent** |
-| `citeStatus` | `'none'` | `'unchecked'` |
-| `court`, `wordLimit` | `''` | — |
+#### `draft` — briefs and registered drafts. **THREE CREATION SHAPES, ONE COMPATIBLE CORE.**
+| | 18-briefs `POST /new` | 08-citations `POST /draft` | 10-pleadings `POST /tocite` |
+|---|---|---|---|
+| `title` | yes | yes | the pleading's title |
+| `type` | `'motion'\|'factum'\|'brief'\|'letter'` (unknown → `'brief'`) | — | `pleading.ptype` or `'pleading'` |
+| `sections` | `{}` at creation; keys `conclusion, rule, explanation, application, counter, closing` | — | — |
+| `text` | — | the pasted body | `pleading.body` |
+| `status` | `'draft'` | **`'draft'`** | **`'draft'`** |
+| `citeStatus` | `'none'` | `'unchecked'` | `'unchecked'` |
+| `court`, `wordLimit` | `''` | — | — |
+| `pleadingId` | — | — | the `pleading` id |
 
-Added later by 08-citations: `scannedAt` (date-only, from `runScan`), `citeStatus`
-overwritten to `'clear'|'blocked'` by `regate()`.
+`status` values in use: `'draft' | 'cite-check' | 'final'` — set at creation by all three
+writers and moved only by 18-briefs `POST /status` (and reset by 18-briefs `/save` and
+10-pleadings `/tocite`).
+Added later by 08-citations: `scannedAt` (date-only from `runScan`, or `null` when
+10-pleadings re-sends), `citeStatus` overwritten to `'clear'|'blocked'` and
+**`noCitationsFound` (bool)** stamped by `regate()`.
 **Written by** 18-briefs (`/new`, `/save`, `/status`) · 08-citations (`/draft`, `runScan`,
-`regate()`, `/add`)
+`regate()`, `/add`) · 10-pleadings (`/tocite`) · 07-research (`/send`, **blocking direction
+only** — see `citation_instance`)
 **Read by** 18-briefs (list/get) · 08-citations (list/get; **auto-extracts on GET** for
-any draft with `status==='cite-check' && !scannedAt` and no instances) · 19-moot (list/get;
-`POST /ai-oppose` reads `d.sections` only) · 22-filing (list filtered
-`citeStatus==='clear' && status==='final'`; `get` in `POST /prepare`) · 26-closing
+any draft with `status==='cite-check' && !scannedAt`, and **re-gates defensively in the
+blocking direction only** for any draft reading `'clear'` whose instances are not all
+verified) · 19-moot (list/get; `POST /ai-oppose` reads `d.sections` only) · 22-filing (list
+filtered `citeStatus==='clear' && status==='final'`; `get` in `POST /prepare`) ·
+07-research (list — the draft selector on the send-to-gate form) · 10-pleadings (list
+filtered `!!d.pleadingId`) · 26-closing (EXPORT_TYPES)
 **Invariants**
-- **THE GATE.** `08-citations.js:73` — `regate()` sets `citeStatus='clear'` iff **every**
+- **THE GATE.** `08-citations.js` `regate()` (l.90) sets `citeStatus='clear'` iff **every**
   `citation_instance` with that `draftId` has `status==='verified'`, else `'blocked'`.
   Observed values across the codebase: `'none'`, `'unchecked'`, `'clear'`, `'blocked'`.
-- **Empty-set caveat:** `inst.every(...)` on zero instances is `true`, so a scanned draft
-  with no detected citations regates to `'clear'`. Intended ("nothing to verify") but know it.
+- **Empty-set caveat, now STAMPED.** `inst.every(...)` on zero instances is `true`, so a
+  scanned draft with no detected citations regates to `'clear'`. That is still allowed (a
+  citation-free document exists) but it is no longer silent: `regate()` writes
+  `noCitationsFound: inst.length === 0` onto the draft, and every surface that shows the gate
+  carries the warning — 08's board/queue/certificate (`noCitesFound(d, inst) = d.noCitationsFound
+  === true || (!!d.scannedAt && inst.length === 0)`, robust to rows predating the flag),
+  18-briefs' `clear — none found` tag, and 22-filing's `[no citations detected]` draft label.
+  **A new reader of a `'clear'` draft must check `noCitationsFound` before treating the
+  clearance as meaningful.**
+- **A registered draft has no `sections`.** 19-moot `POST /ai-oppose` reads `d.sections` only
+  and refuses an 08- or 10-registered draft with "no content to attack yet". 18-briefs and
+  08-citations both fall back to `text`/`body`; 19-moot does not.
 - 22-filing `POST /prepare` refuses unless `citeStatus==='clear'` **AND** `status==='final'`.
 - 18-briefs `POST /status status=final` refuses unless `citeStatus==='clear'`.
 - **EDIT RESETS THE GATE.** 18-briefs `POST /save` diffs the six section strings; if any
@@ -121,10 +161,13 @@ any draft with `status==='cite-check' && !scannedAt` and no instances) · 19-moo
   draft is refused a certificate even when every instance reads verified.
 - `draftText(d) = d.text || d.body || Object.values(d.sections).filter(Boolean).join('\n\n')`.
   It **must** read all three or a Brief-Writer sections-draft extracts as empty and sails
-  through the gate.
-- **CONFLICT** — an 08-registered draft has no `status`, so it can never satisfy
-  22-filing's `status==='final'` test and can never be filed. New writers of `draft`
-  should set **both** shapes' fields.
+  through the gate. 18-briefs mirrors it with `wordsOf(d) = words(sectionText(d) ||
+  d.text || d.body)` so a registered draft prints and counts its real body.
+- **RESOLVED (was a CONFLICT): every writer now sets `status`.** 08-citations `/draft` and
+  10-pleadings `/tocite` both stamp `status:'draft'`, so a registered draft can reach
+  `'final'` through 18-briefs and be filed. **A new writer of `draft` must set `status` and
+  `citeStatus`** — a draft with neither is invisible to 22-filing and renders `no status` in
+  18-briefs.
 
 #### `gateStamp` — the anti-loophole stamp
 **Fields** `id` (**set explicitly to the draftId**) · `at` (draft's `updatedAt` at the
@@ -133,19 +176,20 @@ moment `regate()` ran)
 One stamp per draft; `put` overwrites in place. Its whole purpose is closing the
 verify → edit → certify loophole.
 
-#### `citation_instance` — **TWO SHAPES.**
+#### `citation_instance` — **TWO WRITERS, ONE GATE-COMPATIBLE SHAPE.**
 | | 08-citations (draft-gate) | 07-research `POST /send` |
 |---|---|---|
 | `cite` | yes | yes |
-| `draftId` | yes | **absent** |
+| `draftId` | yes | **yes — REQUIRED, the route refuses without it** |
 | `status` | `'unverified'\|'verified'\|'failed'` | `'unverified'` |
 | `source` | — | `'research'` |
-| `pinpoint`,`quoteOk`,`treatmentCurrent`,`resolved` | `''`/`null` at mint | absent |
-| on verify | `+resolvedUrl, failReason:null, checkedBy, checkedAt` | — |
-| on fail | `+failReason, checkedBy, checkedAt` | — |
+| `pinpoint`,`quoteOk`,`treatmentCurrent`,`resolved` | `''`/`null` at mint | same, `''`/`null` at mint |
+| on verify | `+resolvedUrl, failReason:null, checkedBy, checkedAt` | (verified in 08 like any other) |
+| on fail | `+failReason, checkedBy, checkedAt` | (failed in 08 like any other) |
 | `court`,`year`,`memoId`,`authorityId` | — | yes |
+| `lookup` | `{resolved, source, title, url, note, at, by}` from `POST /resolve` | — |
 
-**Written by** 08-citations (`runScan`, `/add`, `/verify`, `/fail`, `/reopen`) ·
+**Written by** 08-citations (`runScan`, `/add`, `/verify`, `/fail`, `/reopen`, `/resolve`) ·
 07-research (`POST /send`)
 **Read by** 08-citations · 18-briefs (filtered `c.draftId === d.id` → table of
 authorities) · 07-research (filtered `c.source==='research' && c.status==='unverified'`
@@ -378,10 +422,22 @@ and are **not** stored.
 (`'outbound'|'inbound'`) · `party` · `served` (ISO, required) · `due` (rule-computed, else
 the typed fallback, else null) · `dueCite` (rule citation or null) · `status`
 (`'open'|'responded'`), `respondedAt` · `items` (`[{n, text, answered:boolean}]`) ·
-`objections` (`[{basis, boilerplate:boolean, at}]`)
+`objections` (`[{basis, boilerplate:boolean, at}]`) · `deadlineId` (id of the companion
+`deadline`, or explicit `null` when no due date was set; **absent** on rows written before the
+field existed)
 **Invariants** `due` is computed from the jurisdiction's rule via `k.rules.compute` where one
 matches; only if no rule matches is the typed `due` used. A non-null `due` also mints a
-companion `deadline`. **BOILERPLATE FLAG:** an objection matching the BOILER regex and under
+companion `deadline`, **whose id is stored back on the instrument as `deadlineId`** — the
+deadline is minted first at `POST /new` so the id exists before the instrument is written
+(same discipline as `expert.deadlineId`). `POST /respond` closes **that** deadline
+(`status:'done'`) as it marks the instrument responded, so an answered instrument never leaves
+its response date standing open in 21-calendar, 27-desk and the 36-portal client pack. A
+legacy instrument with no `deadlineId` has one **adopted** only where the match is unambiguous
+in both directions — exactly one still-open, unclaimed deadline carrying this room's exact
+`desc`/`trigger`/`due` signature, and no other unlinked instrument sharing that signature;
+adoption heals the row by storing the id. Otherwise nothing is guessed: the instrument is
+still marked responded and the room says the diary entry must be closed by hand.
+**BOILERPLATE FLAG:** an objection matching the BOILER regex and under
 90 chars is stored `boilerplate:true` and flashed back — recorded, not blocked. Interrogatory
 counts checked against the FRCP 33(a)(1) cap of 25 incl. discrete subparts, explicitly marked
 informational on Ontario-seated matters.

@@ -1,7 +1,11 @@
 [Unit]
 Description=Chambers — private legal practice platform
+Documentation=file:/opt/chambers/app/deploy/RUNBOOK.md
 After=network-online.target
 Wants=network-online.target
+# Stop flapping after 5 failed starts in 5 minutes instead of restarting forever.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -9,25 +13,71 @@ User=chambers
 Group=chambers
 WorkingDirectory=/opt/chambers/app
 ExecStart=/usr/bin/node server.js
-Restart=on-failure
+# Readiness gate: the unit is not "active" until the app answers its own
+# GET /healthz. A process that starts and then fails to serve is a failed
+# start here, not a silently dead service. Raise --wait if the box is slow.
+ExecStartPost=/opt/chambers/app/deploy/healthcheck.sh --wait 30 --quiet
+Restart=always
 RestartSec=3
+TimeoutStartSec=90
+TimeoutStopSec=20
+SyslogIdentifier=chambers
+
 Environment=PORT=8028
 Environment=CHAMBERS_DATA=/var/lib/chambers
+# Loopback only — the internet reaches Chambers through Caddy, never directly.
+Environment=CHAMBERS_HOST=127.0.0.1
 
-# Hardening: the service can write its data dir and nothing else.
+# ---------------------------------------------------------------------------
+# Hardening. Rule: the service may write its own data directory and NOTHING
+# else. Every directive below was checked against what the app actually does
+# (append-only encrypted logs + blobs under CHAMBERS_DATA, outbound HTTPS to
+# CanLII / CourtListener / the model gateway, no shelling out, no npm).
+# ---------------------------------------------------------------------------
+# StateDirectory creates /var/lib/chambers, owns it to chambers:chambers and
+# fixes its mode on every start — so the sandbox can never end up locking the
+# app out of its own store, however the directory was created.
+StateDirectory=chambers
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/chambers
+UMask=0077
+
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/chambers
 PrivateTmp=true
 PrivateDevices=true
+PrivateMounts=true
+ProtectClock=true
+ProtectHostname=true
 ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
+ProtectProc=invisible
 RestrictSUIDSGID=true
-MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RemoveIPC=true
 CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
+# AF_NETLINK is required: glibc's getaddrinfo opens a netlink socket for source
+# address selection, so dropping it breaks every outbound lookup (and curl in
+# the health check) with "temporary failure in name resolution".
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# DELIBERATELY ABSENT: MemoryDenyWriteExecute.
+#   It blocks mprotect(PROT_EXEC), which is exactly what V8's JIT does when it
+#   commits generated code — with it set, node dies on startup on some kernels
+#   and mid-run on others. The only way to keep it would be to run node
+#   --jitless, which is a large, unmeasured performance cost for one directive.
+#   If you want it back, prove the app starts AND serves under it first.
+# DELIBERATELY ABSENT: ProcSubset=pid — V8 sizes its heap from /proc/meminfo.
+# DELIBERATELY ABSENT: DynamicUser — the data directory must outlive the unit.
 
 [Install]
 WantedBy=multi-user.target

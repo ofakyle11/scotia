@@ -1,0 +1,186 @@
+name: CI
+
+# Chambers is a ZERO-dependency Node 22 app: there is no package.json, no lockfile
+# and no `npm install` anywhere in the `suite` job. CI therefore only needs Node
+# itself. The `browser` job installs Playwright OUTSIDE app/ (in the runner temp
+# dir) purely to drive a real Chromium; nothing it installs ever enters app/.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A branch that is pushed while an older run is still going cancels the older run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ---------------------------------------------------------------- job 1 of 2
+  # Syntax check + the full zero-dependency suite, in order, stopping at the
+  # first red step.
+  suite:
+    name: Suite (Node 22, no npm install)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          # No `cache:` — there is no package.json to key a cache on, by design.
+
+      - name: Assert the app is still zero-dependency
+        run: |
+          node --version
+          if [ -e app/package.json ]; then
+            echo "FAIL: app/package.json exists — the app must stay zero-dependency."; exit 1
+          fi
+          if [ -e app/package-lock.json ] || [ -d app/node_modules ]; then
+            echo "FAIL: npm artifacts under app/ — the app must stay zero-dependency."; exit 1
+          fi
+          echo "OK: no package.json, no lockfile, no node_modules under app/"
+
+      - name: Syntax check every .js under app/
+        run: |
+          n=0
+          while IFS= read -r f; do
+            node --check "$f"   # -e aborts the job on the first file that fails
+            n=$((n + 1))
+          done < <(find app -type f -name '*.js' | sort)
+          if [ "$n" -eq 0 ]; then echo "FAIL: no .js files found under app/"; exit 1; fi
+          echo "syntax OK: $n files"
+
+      # ---- the gate, in order ----
+      - name: Rooms — empty state (test/harness.js)
+        working-directory: app
+        run: node test/harness.js
+
+      - name: Rooms — seeded with real records (test/seeded.test.js)
+        working-directory: app
+        run: node test/seeded.test.js
+
+      - name: Encryption proofs (test/crypto.test.js)
+        working-directory: app
+        run: node test/crypto.test.js
+
+      - name: Citation gate chain (test/gate.test.js)
+        working-directory: app
+        run: node test/gate.test.js
+
+      - name: TOTP replay (test/replay.test.js)
+        working-directory: app
+        run: node test/replay.test.js
+
+      - name: Two-seat lock (test/seats.test.js)
+        working-directory: app
+        run: node test/seats.test.js
+
+      - name: Audit hash chain (test/audit.test.js)
+        working-directory: app
+        run: node test/audit.test.js
+
+      - name: TOTP RFC 6238 (test/totp.test.js)
+        working-directory: app
+        run: node test/totp.test.js
+
+      - name: CanLII parser (test/canlii.test.js)
+        working-directory: app
+        run: node test/canlii.test.js
+
+      - name: Phase-2 handshakes (test/improve.test.js)
+        working-directory: app
+        run: node test/improve.test.js
+
+      - name: Cross-room seams (test/seam.test.js)
+        working-directory: app
+        run: node test/seam.test.js
+
+      - name: Pleading to citation gate (test/pleadcite.test.js)
+        working-directory: app
+        run: node test/pleadcite.test.js
+
+  # ---------------------------------------------------------------- job 2 of 2
+  # The real-browser regression. Every fetch()-based test sends an explicit
+  # Origin header, so only a real browser can catch a defect like the one that
+  # returned HTTP 500 on every form POST. Runs in parallel with `suite`.
+  browser:
+    name: Real browser (Chromium enrollment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Pin so the browser cache key is stable and runs are reproducible.
+      PLAYWRIGHT_VERSION: '1.62.1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Playwright and its browsers live in the runner temp dir, never in app/.
+      - name: Resolve Playwright paths (outside app/)
+        run: |
+          echo "PW_DIR=$RUNNER_TEMP/pw" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/pw-browsers" >> "$GITHUB_ENV"
+
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pw-browsers
+          key: pw-${{ runner.os }}-chromium-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: Install Playwright + Chromium
+        run: |
+          mkdir -p "$PW_DIR"
+          cd "$PW_DIR"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund --loglevel=error "playwright@$PLAYWRIGHT_VERSION"
+          npx playwright install --with-deps chromium
+
+      # test/browser.test.js honours exactly two env vars:
+      #   PW_PATH     — a path require()d to get { chromium }
+      #   CHROME_PATH — the chromium executable, passed as executablePath
+      # It exits 0 ("skipped") if either is missing, so the job sets both from the
+      # install above and then proves they are real before running the test.
+      - name: Point the test at this Playwright (PW_PATH / CHROME_PATH)
+        run: |
+          PW="$PW_DIR/node_modules/playwright"
+          CHROME="$(node -e "process.stdout.write(require('$PW').chromium.executablePath())")"
+          echo "PW_PATH=$PW" >> "$GITHUB_ENV"
+          echo "CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
+          echo "PW_PATH=$PW"
+          echo "CHROME_PATH=$CHROME"
+
+      - name: Guard — the browser gate must not silently skip
+        run: |
+          if [ ! -d "$PW_PATH" ]; then echo "FAIL: playwright not at $PW_PATH"; exit 1; fi
+          if [ ! -x "$CHROME_PATH" ]; then echo "FAIL: chromium not at $CHROME_PATH"; exit 1; fi
+          "$CHROME_PATH" --version
+
+      - name: Real enrollment through Chromium (test/browser.test.js)
+        working-directory: app
+        run: |
+          set +e
+          out="$(node test/browser.test.js 2>&1)"
+          rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -ne 0 ]; then exit "$rc"; fi
+          # A skip is a false green here: the browser is installed, so it must run.
+          case "$out" in
+            *"BROWSER: ALL PASS"*) ;;
+            *) echo "FAIL: browser test did not actually run"; exit 1 ;;
+          esac

@@ -111,7 +111,7 @@ function register(app) {
         ];
       })) : empty('Nothing served either way yet — track the first request, interrogatory set or undertaking below; where a rule governs the response date it is computed and calendared for you.')}
 
-    ${openInst ? instrumentDetail(openInst, today) : ''}
+    ${openInst ? instrumentDetail(openInst, today, s) : ''}
 
     <div class="grid2">
       <div class="card">
@@ -129,7 +129,7 @@ function register(app) {
         </form>
         <p class="note">${autoRules.length
           ? 'Computed for this jurisdiction: ' + autoRules.map((x) => `${esc(x.l)} → ${x.rule.days}d (${esc(x.rule.cite)})`).join('; ') + '. Every other type takes the date you type.'
-          : 'No response-deadline rule on file for this jurisdiction — type the due date and it is calendared as a manual date.'}</p>
+          : 'No response-deadline rule on file for this jurisdiction — type the due date and it is calendared as a manual date.'} A due date also writes a diary entry in the <a href="/r/calendar">Trial Calendar</a>, and marking the instrument responded closes that same entry — it is never left standing open.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">ESI protocol ${esiDone === ESI_ITEMS.length ? tag('negotiated — collect', 'ok') : tag(esiDone + '/' + ESI_ITEMS.length + ' — before collection', 'gate')}</h2>
@@ -243,22 +243,32 @@ function register(app) {
     if (!due) { due = isoDate(ctx.body.due); dueCite = null; ruleId = null; } // manual fallback
     const items = String(ctx.body.items || '').split('\n').map((t) => t.trim()).filter(Boolean)
       .map((text, idx) => ({ n: idx + 1, text, answered: false }));
-    const inst = k.scope(ctx.matter.id).put('instrument', {
-      type, direction: ctx.body.direction === 'inbound' ? 'inbound' : 'outbound',
-      party: ctx.body.party || '', served, due, dueCite, status: 'open', items, objections: [],
-    });
+    const s = k.scope(ctx.matter.id);
+    // The diary entry is minted BEFORE the instrument so its id can be stored on
+    // the instrument. Without that back-link `/respond` has no way to tell which
+    // of a matter's diary rows belongs to this instrument, so the response date
+    // stays open forever in 21-calendar, 27-desk and the client pack (36-portal)
+    // after the instrument is answered. Same discipline as 15-experts.
+    let deadlineId = null;
     if (due) {
-      k.scope(ctx.matter.id).put('deadline', {
-        desc: `${typeLabel(type)} — responses due`, due, rule: dueCite || 'By agreement / manual',
+      deadlineId = s.put('deadline', {
+        desc: deadlineDesc(type), due, rule: dueCite || 'By agreement / manual',
         // The diary controls downstream (27-desk's limitation flag and dual-diary
         // tick, 09-jurisdiction's recompute list, the appeal watchdog) resolve the
         // deadline's source through `ruleId` — the rules.js id — not the citation
         // string. Carry it whenever a rule computed this date; write an explicit
         // null when counsel typed the date, so a reader can tell a deliberately
         // manual row from a legacy row that predates the field.
-        ruleId, trigger: 'Served ' + served, status: 'open',
-      });
+        ruleId, trigger: deadlineTrigger(served), status: 'open',
+      }).id;
     }
+    const inst = s.put('instrument', {
+      type, direction: ctx.body.direction === 'inbound' ? 'inbound' : 'outbound',
+      party: ctx.body.party || '', served, due, dueCite, status: 'open', items, objections: [],
+      // Explicit null when no date was set, so a reader can tell an instrument
+      // that was never calendared from a legacy row written before this field.
+      deadlineId,
+    });
     ctx.setFlash(`Tracked ${typeLabel(type)}${due ? ` — responses due ${due}${dueCite ? ` (${dueCite})` : ''}, calendared.` : ' — no due date set.'}`);
     redirect(res, '/r/discovery?i=' + encodeURIComponent(inst.id));
   });
@@ -269,8 +279,27 @@ function register(app) {
     const s = k.scope(ctx.matter.id);
     const inst = ctx.body.id ? s.get('instrument', ctx.body.id) : null;
     if (!inst) { ctx.setFlash('Instrument not found.', 'err'); redirect(res, '/r/discovery'); return; }
-    s.put('instrument', { ...inst, status: 'responded', respondedAt: new Date().toISOString().slice(0, 10) });
-    ctx.setFlash('Marked responded.');
+    // Answering the instrument must close its diary entry, or the response date
+    // sits open forever in the Trial Calendar, the firm-wide diary and the
+    // client's next-key-dates pack. The link is the id stored at /new; rows
+    // tracked before that field existed get one adopted only when the match is
+    // provably unambiguous (adoptLegacyDeadline), never guessed.
+    let deadlineId = inst.deadlineId || null;
+    let dl = deadlineId ? s.get('deadline', deadlineId) : null;
+    let adopted = false;
+    if (!deadlineId) {
+      const legacy = adoptLegacyDeadline(s, inst);
+      if (legacy) { dl = legacy; deadlineId = legacy.id; adopted = true; }
+    }
+    if (dl && dl.status !== 'done') s.put('deadline', { ...dl, status: 'done' });
+    s.put('instrument', {
+      ...inst, status: 'responded', respondedAt: new Date().toISOString().slice(0, 10), deadlineId,
+    });
+    ctx.setFlash(dl
+      ? `Marked responded — the ${dl.due ? dl.due + ' ' : ''}response date is closed in the diary${adopted ? ' (matched to this instrument and linked)' : ''}.`
+      : inst.due
+        ? 'Marked responded — no diary entry could be matched to this instrument, so close its response date by hand in the Trial Calendar (21).'
+        : 'Marked responded.');
     redirect(res, '/r/discovery?i=' + encodeURIComponent(inst.id));
   });
 
@@ -406,6 +435,36 @@ function register(app) {
 
 // ---- helpers ----
 function typeLabel(t) { const f = TYPES.find(([v]) => v === t); return f ? f[1] : (t || 'Instrument'); }
+// The exact strings /new writes onto the companion deadline. Kept in one place
+// because the legacy-adoption match below depends on them byte for byte.
+function deadlineDesc(type) { return `${typeLabel(type)} — responses due`; }
+function deadlineTrigger(served) { return 'Served ' + served; }
+
+// Instruments tracked before `deadlineId` existed carry no back-link, so their
+// diary entry cannot be closed by id. Rather than guess — closing the wrong
+// deadline is worse than leaving one open, because a missed date is invisible
+// once it reads "done" — a legacy row is adopted ONLY when the match is
+// provably unique in both directions:
+//   1. the deadline carries the exact desc/trigger/due signature this room
+//      writes (so it is one of ours, not intake's or the trial cascade's),
+//   2. exactly one such row is still open and unclaimed by any instrument, and
+//   3. no other unlinked instrument in the matter shares that signature and
+//      could equally claim it.
+// Anything short of that returns null and /respond says so rather than acting.
+function adoptLegacyDeadline(s, inst) {
+  if (!inst.due || !inst.served) return null;
+  const desc = deadlineDesc(inst.type);
+  const trigger = deadlineTrigger(inst.served);
+  const instruments = s.list('instrument');
+  const claimed = new Set(instruments.map((x) => x.deadlineId).filter(Boolean));
+  const cands = s.list('deadline', (d) => d.status !== 'done'
+    && d.desc === desc && d.trigger === trigger && d.due === inst.due && !claimed.has(d.id));
+  if (cands.length !== 1) return null;
+  const rivals = instruments.filter((x) => x.id !== inst.id && !x.deadlineId
+    && x.type === inst.type && x.served === inst.served && x.due === inst.due);
+  if (rivals.length) return null;
+  return cands[0];
+}
 function ruleFor(k, jur, type) { const id = (RULE_MAP[jur] || {})[type]; return id ? k.rules.rule(id) : null; }
 function isoDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : null; }
 function effStatus(inst, today) {
@@ -481,10 +540,19 @@ Framework: Ontario Rule 29.1 (discovery plan) and r.29.2 (proportionality); FRCP
 
 const check = (name, label, on) => `<label style="display:flex;gap:9px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13.5px;color:var(--ink-soft);margin:8px 0"><input type="checkbox" name="${name}" ${on ? 'checked' : ''} style="width:auto">${esc(label)}</label>`;
 
-function instrumentDetail(i, today) {
+function instrumentDetail(i, today, s) {
   const st = effStatus(i, today);
   const items = i.items || [];
   const unanswered = items.filter((it) => !it.answered).length;
+  // The state of the companion diary entry, shown where the response date is
+  // read: a row whose instrument is answered but whose diary entry is still
+  // open is the failure this back-link exists to prevent, so it is visible
+  // here rather than only in room 21.
+  let dl = null;
+  if (i.deadlineId && s) { try { dl = s.get('deadline', i.deadlineId) || null; } catch { dl = null; } }
+  const diary = !i.due ? ''
+    : dl ? (dl.status === 'done' ? ' ' + tag('diary entry closed', 'ok') : ' ' + tag('in the diary', 'navy'))
+      : ' ' + tag('no diary entry linked', st === 'responded' ? 'gate' : '');
   return `
   <h2 class="sec">${esc(typeLabel(i.type))}${i.party ? ' — ' + esc(i.party) : ''} <a href="/r/discovery" class="note" style="font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase">close</a></h2>
   <div class="grid2">
@@ -493,7 +561,7 @@ function instrumentDetail(i, today) {
         ['Direction', i.direction === 'inbound' ? tag('inbound — served on us', 'navy') : tag('outbound — served by us')],
         ['Party', esc(i.party || '—')],
         ['Served', date(i.served) || '—'],
-        ['Response due', i.due ? `${date(i.due)} <span class="note">${esc(i.dueCite || 'manual date')}</span>` : '—'],
+        ['Response due', i.due ? `${date(i.due)} <span class="note">${esc(i.dueCite || 'manual date')}</span>${diary}` : '—'],
         ['Status', st === 'responded' ? tag('responded', 'ok') : st === 'overdue' ? tag('overdue', 'gate') : tag('open')],
       ])}
       ${st !== 'responded' ? `<form method="POST" action="/r/discovery/respond" style="display:inline"><input type="hidden" name="id" value="${esc(i.id)}"><button>Mark responded</button></form>` : ''}
