@@ -4,8 +4,9 @@ Authoritative cross-room reference for `/home/user/scotia/app`. Every claim belo
 verified by reading the actual source (rooms/, kernel/, server.js) — not inferred from
 names. **Read this before you touch any room.**
 
-**Last verified against commit `6e26289` on 2026-08-26** (plus the working-tree changes to
-`rooms/03-retainer.js` and `rooms/12-discovery.js` in flight at that moment). Waves T1 and T2
+**Last verified against commit `aec1370` on 2026-08-26** — every claim below was re-read
+against `app/rooms/*.js`, `app/kernel/*.js` and `app/server.js` as they stand at that commit
+(`git status` clean for all three at the time of writing). Waves T1 and T2
 changed real behaviour after this sheet was first written; §(b) `draft`, `pleading`,
 `citation_instance`, `authority`, `deadline`, `closingChecklist`, §(c) `engagementSigned`,
 §(d) the kernel facade and §(f) were re-derived from the current source at that commit. Line
@@ -92,8 +93,8 @@ whitelist-coerced to `'claim'`) · **`body`** (the text — *not* `text`, *not* 
 **A pleading is still not a `draft` — but it can now be REGISTERED as one.**
 `10-pleadings POST /tocite` (l.461) mints a companion `draft`
 `{title, type: p.ptype || 'pleading', text: p.body, status:'draft', citeStatus:'unchecked',
-pleadingId: p.id}` — the R-B shape, so 08-citations scans it, 18-briefs can take it to
-`final` and 22-filing can then file it. The link is one-way: `pleadingId` lives on the
+pleadingId: p.id}` — the same shape 08-citations registers, so `draftText()` extracts it,
+18-briefs can take it to `final` and 22-filing can then file it. The link is one-way: `pleadingId` lives on the
 **draft**, never on the pleading, and 10-pleadings reads the gate back with
 `s.list('draft', (d) => !!d.pleadingId)` keyed by `d.pleadingId` (l.151).
 **Invariants**
@@ -196,7 +197,8 @@ verify → edit → certify loophole.
 07-research (`POST /send`)
 **Read by** 08-citations · 18-briefs (filtered `c.draftId === d.id` → table of
 authorities) · 07-research (filtered `c.source==='research' && c.status==='unverified'`
-→ the "awaiting citation check" count) · 26-closing
+→ the "awaiting citation check" count; and filtered by `(draftId, cite)` in `POST /send` to
+honour 08's duplicate guard from the other side) · 26-closing (EXPORT_TYPES)
 **Invariants**
 - **GATE — ALL FOUR OR NOTHING.** `POST /verify` refuses unless a non-empty `pinpoint`
   is supplied **and** `resolves==='1'` **and** `quoteOk==='1'` **and** `treatment==='1'`.
@@ -328,7 +330,7 @@ was universal.
   `category`, else its own `desc + cite`). `LIMITATION_RX` and `APPEAL_RX` are
   case-**insensitive** by necessity: 01-intake stores `desc:'Limitation period expires'` and
   cites such as `'Limitations Act, 2002, s. 4'`, which a case-sensitive `/limitation/` misses
-  entirely. 25-judgment's appeal watchdog does the same over `ruleId + rule + desc`.
+  entirely. (The appeal watchdogs differ room by room — see `judgment` below.)
 - 09-jurisdiction keeps its own three-way fallback (`staleLimitation` → `k.rules.rule(ruleId)`
   category → regex over `rule + desc`) — near-identical, but its regex is still
   case-**sensitive**, so a hand-written row with no resolvable `ruleId` and only
@@ -365,10 +367,20 @@ required) · `court` · `debtor` (required) · `recovered` (starts 0) · `satisf
 `accrued(j) = amount * rate/100 * days_since_entered/365` (simple). `satisfied` derived
 per payment: `owing = amount + accrued − recovered; satisfied = owing <= 0.005`. A recovery
 posts a balanced ledger entry **before** the judgment is updated.
-**APPEAL-CLOCK WATCHDOG (21 and 27 independently):** a matter with ≥1 judgment and no open
-deadline whose `ruleId` contains `'appeal'` raises an UNCALENDARED alarm. Rule ids that
-satisfy it: `on-appeal`, `usfed-appeal`, `usfed-appeal-usparty`, `ny-appeal`, `cafed-appeal`
-— all written only by 21-calendar `/compute`.
+**APPEAL-CLOCK WATCHDOG — THREE ROOMS, THREE TESTS, ONE MEANING.** A matter with ≥1 judgment
+and no open appeal deadline raises an UNCALENDARED alarm in 21-calendar (its own matter),
+25-judgment (its own matter) and 27-desk (cross-matter). What counts as "an appeal deadline"
+differs and the difference matters:
+- **27-desk** — `classify(k, d, /appeal/i, null)`: `ruleId` **or** `rule + desc` **or** the
+  rules.js record behind the id. The broadest, and the one to copy.
+- **25-judgment** — `/appeal/i` over `ruleId + rule + desc` (`25-judgment.js:58`), so a
+  hand-written `'Notice of appeal due'` counts.
+- **21-calendar** — still `String(d.ruleId || '').includes('appeal')` alone
+  (`21-calendar.js:104`), and case-sensitively. A hand-written appeal date with no `ruleId`
+  silences 25 and 27 but **not** 21, which keeps offering to compute one. Not a defect (it
+  errs toward calendaring), but know why the three cards disagree.
+Rule ids that satisfy all three: `on-appeal`, `usfed-appeal`, `usfed-appeal-usparty`,
+`ny-appeal`, `cafed-appeal` — written only by 21-calendar `/compute`.
 
 #### `enfStep` (25-judgment)
 **Fields** `judgmentId` · `step` (whitelist: demand letter · garnishment · writ of seizure /
@@ -1121,8 +1133,9 @@ is the only door, and a room must **check for presence and degrade** rather than
    (01/03); all-four citation verification and clear+final before filing (08/18/22); exact-name
    lawyer signature (22); dual diary by a different user (27); foundation + witness before
    admission (16); one open draft invoice, billed-once, lint-before-issue (34); stage-once and
-   trust-transfer-only fee withdrawal (24/28/kernel); banded valuations (04); admin-only shred
-   and export with exact title confirmation (26). You may add checks; you may not remove,
+   trust-transfer-only fee withdrawal (24/28/kernel); banded valuations (04); closing only on
+   a recorded checklist and a zeroed trust balance, admin-only shred and export with exact
+   title confirmation (26). You may add checks; you may not remove,
    short-circuit, or route around one — and do not add a new writer that produces records the
    existing gate cannot see (that is how the `ruleId` and `draftId` conflicts above happened).
 6. **Match the existing record shape or extend it additively.** Reuse the shared types
@@ -1138,5 +1151,8 @@ is the only door, and a room must **check for presence and degrade** rather than
    must be real; where an external corpus/API is needed, implement the workflow and render a
    clearly-marked integration note instead of faking output. A firm default must never be
    presented as statutory (see the trial cascade).
-9. **Definition of done:** `node test/harness.js <id>` prints ALL PASS, the page renders with
-   working forms, and the empty state is handled.
+9. **Definition of done:** `node test/harness.js <id>` prints ALL PASS **and**
+   `node test/seeded.test.js` renders all 36 rooms against real records of every major type
+   above. The harness alone only ever proves the EMPTY state — a room can be hard-broken for
+   any matter that actually holds data and still report green. The page must render with
+   working forms, and the empty state must be handled.
