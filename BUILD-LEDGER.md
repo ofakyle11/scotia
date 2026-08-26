@@ -125,6 +125,43 @@ decision memos, scenarios and more) and renders all 36 rooms plus /admin and
 none — it is additive and caught nothing outstanding on first run, meaning the
 T2b repairs hold.
 
+**R10 — Agent count is a cost, not a virtue, on a 4-CPU box.**
+The workflow concurrency cap is `min(16, cpus-2)` = **2** here, so the plan's
+~100 agents would have run 2-wide for many hours. T3 ran 12 deep auditors instead
+of 40 shallow ones. Evidence it was the right trade: 59 findings, 42 CONFIRMED,
+and the auditors themselves refuted and discarded 150 candidates before
+reporting. Cost if wrong: fewer eyes on the XSS/injection sweeps, which is why
+those domains still got dedicated auditors rather than being folded into others.
+
+**R11 — A container restart is a normal event; workflows must be resumable.**
+A restart killed the first T3 wave 9 minutes in. Four auditors had already
+persisted results to the workflow journal, so the wave was resumed from cache
+(`resumeFromRunId`) rather than re-run, and findings are now extracted to
+`docs/SECURITY-FINDINGS.{md,json}` and committed as they land. Cost if wrong:
+none — resume is strictly cheaper than re-running.
+
+**R12 — Fix the lie, or fix the code, but do not ship the mismatch.**
+The destruction certificate told clients their records were unrecoverable "in
+the live store, every replica, and every backup" while `backup.sh` kept 14
+nightly copies of the wrapped DEK and the ciphertext. Both halves were addressed:
+`shredMatter` now removes the ciphertext (a real strengthening) and the
+certificate states plainly that pre-destruction archives still hold the records
+until they age out. Where a promise and the code disagree, the *promise* is the
+defect — a client relies on it.
+
+**R13 — Two HIGH findings are deliberately NOT fixed, and named rather than
+quietly dropped.**
+(a) `api.js:41` — state is committed before its audit entry, so an audit-write
+failure leaves a persisted but unlogged mutation. Every plausible fix is a
+trade (log-before-mutate over-logs actions that then fail; write-ahead needs an
+id that does not exist yet) and it touches the write path of all 36 rooms. That
+is a design decision with real downside either way, and rushing it at this stage
+risks more than it fixes.
+(b) The matter's title and client survive destruction in the firm scope. The
+certificate must name the matter to be worth producing to a client, so this is a
+genuine trade-off. The narrative fields that are *not* needed for that (theory,
+ledger memos) carry By-Law 9 retention implications — that is the lawyers' call.
+
 ---
 
 ## Pending final step (user instruction, 2026-08-26)
@@ -154,3 +191,5 @@ before or after use, as it has been in plaintext in a transcript.
 | T0 | Contract sheet — 954 lines, 17 cross-room defects proved | `docs/CONTRACT-SHEET.md` on disk, 64KB | `a4553b8`… |
 | T2 | 22 Opus-5 agents streamlined the shell + all 36 rooms (2 waves) | 36-room + seeded + browser suites green | `59764fd` |
 | T1 | 13 Opus-5 agents fixed the proven defects + director closed 3 residual seams | 36-room harness + 8 suites green; new `seam.test.js` and `pleadcite.test.js` prove R-A/R-D and the pleading→gate path | this commit |
+| T3 audit | 12 Opus-5 auditors, 647 turns, all wire-verified `claude-opus-5` | 59 findings / 42 CONFIRMED / 150 refuted, in `docs/SECURITY-FINDINGS.md` | `51c8d68` |
+| T3 fix | 8 of 10 HIGH findings fixed, each red-green verified | gate 13 -> 18 suites, all green | `200ac6b`..`8dc1bb1` |
