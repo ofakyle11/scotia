@@ -82,6 +82,18 @@ function outcomeTag(o) {
   return tag('unresolved', 'navy');
 }
 
+// One rendering of a hit list, used by the run log, the re-screen diff and the
+// watchlist — three views of the same fact, so they must read the same.
+function hitLines(hits) {
+  return hits.length
+    ? hits.map((h) => `<b>${esc(h.name)}</b> <span class="note" style="display:inline">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
+    : '<span class="note">no hits</span>';
+}
+
+function decideButtons(runId) {
+  return OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(runId)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join('');
+}
+
 function waiverText({ client, other, desc, firmUser }) {
   return `Dear ${client}:
 
@@ -106,12 +118,12 @@ function register(app) {
     // provenance is a screened matter are dropped before display.
     const visibleMatters = new Set((ctx.matters || []).map((m) => m.id));
     const viewHits = (hits) => (hits || []).filter((h) => !h.mid || visibleMatters.has(h.mid));
-    const matterTitle = (id) => { const m = (ctx.matters || []).find((x) => x.id === id); return m ? m.title : null; };
+    const matterOf = (id) => (ctx.matters || []).find((x) => x.id === id) || null;
     const inquiryLabel = (id) => { const i = (k.firm.get('inquiry', id) || {}); return i.client || null; };
     // What a stored run is tied to, wall-aware: a run on a matter this viewer is
     // screened from shows no tie label rather than leaking the matter's title.
     const runTie = (r) => {
-      if (r.matterId) return visibleMatters.has(r.matterId) ? 'matter — ' + (matterTitle(r.matterId) || r.matterId) : null;
+      if (r.matterId) { const m = matterOf(r.matterId); return m ? 'matter — ' + (m.title || r.matterId) : null; }
       if (r.inquiryId) return 'inquiry — ' + (inquiryLabel(r.inquiryId) || r.inquiryId);
       return null;
     };
@@ -135,105 +147,109 @@ function register(app) {
       .concat(inquiries.filter((i) => i.status === 'screening').map((i) => ['i:' + i.id, 'Inquiry — ' + i.client]));
     const defaultTarget = ctx.matter ? 'm:' + ctx.matter.id : '';
 
+    // A run marked "waiver needed" hands its own particulars to the letter
+    // below rather than making counsel retype them. Wall-aware: the client name
+    // is carried over only from a matter this viewer can already see.
+    const wRun = k.firm.get('conflictRun', String(ctx.query.get('waiver') || '')) || null;
+    let wClient = '', wOther = '';
+    if (wRun) {
+      wOther = String(wRun.name || '');
+      if (wRun.matterId) { const m = matterOf(wRun.matterId); wClient = m ? String(m.client || '') : ''; }
+      else if (wRun.inquiryId) { const i = k.firm.get('inquiry', wRun.inquiryId); wClient = i ? String(i.client || '') : ''; }
+    }
+
+    // Unresolved runs first — an undecided hit is the outstanding work in this
+    // room; everything else is a log.
+    const pending = runs.filter((r) => r.outcome === 'pending');
+    const runRows = pending.concat(runs.filter((r) => r.outcome !== 'pending'));
+
     const body = `
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Run a conflict check</h2>
         <form method="POST" action="/r/conflicts/run">
           ${input('name', 'Name to clear', { required: true, placeholder: 'Person, company, insurer, witness…' })}
-          ${select('target', 'Clearing for — ties this run to the file the gate reads', targets, defaultTarget)}
+          ${select('target', 'Clearing for', targets, defaultTarget)}
           <button>Check against everything on file</button>
         </form>
-        <p class="note">Token match against ${mattersAll.length} matter(s), ${inquiries.length} inquiry(ies) and ${parties.length} recorded part${parties.length === 1 ? 'y' : 'ies'} — clients, adverse parties and aliases. Probabilistic record linkage (Splink) wires in here — Build Sheet L06; until it lands, matching is exact token overlap and nothing is fabricated.</p>
+        <p class="note">The file chosen above is what the intake and retainer gates read — a run tied to nothing clears nothing. Token match across ${mattersAll.length} matter(s), ${inquiries.length} inquiry(ies) and ${parties.length} recorded part${parties.length === 1 ? 'y' : 'ies'}: clients, adverse parties and aliases. Probabilistic record linkage (Splink) wires in here — Build Sheet L06; until it lands, matching is exact token overlap and nothing is fabricated.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Record a party</h2>
         <form method="POST" action="/r/conflicts/party">
           ${input('name', 'Name', { required: true })}
-          ${input('aliases', 'Aliases / former names (comma-separated)', { placeholder: 'Bob Smith, R. Smith Holdings' })}
+          ${input('aliases', 'Aliases / former names', { placeholder: 'Comma-separated — Bob Smith, R. Smith Holdings' })}
           <div class="grid2">
             <span>${select('role', 'Role', ROLES)}</span>
             <span>${select('target', 'Attached to', targets, defaultTarget)}</span>
           </div>
           <button>Add to the party graph</button>
         </form>
+        <p class="note">A recorded party joins the graph every later check runs against. It is listed as unscreened below until a check is run.</p>
       </div>
     </div>
 
-    <h2 class="sec">Awaiting re-check ${unscreened.length ? tag(String(unscreened.length) + ' unscreened', 'gate') : tag('graph screened', 'ok')}</h2>
-    ${unscreened.length ? table(['Added', 'Name', 'Role', 'Attached to', ''], unscreened.map((p) => [
-      date(p.createdAt), esc(p.name), esc(p.role || ''), esc(partyWhere(k, p)),
-      `<form method="POST" action="/r/conflicts/run" style="display:inline"><input type="hidden" name="name" value="${esc(p.name)}"><input type="hidden" name="target" value="${esc(p.matterId ? 'm:' + p.matterId : p.inquiryId ? 'i:' + p.inquiryId : '')}"><button class="quiet">Run check</button></form>`,
-    ])) : empty(lastRunAt ? 'No parties added since the last conflict run.' : 'No parties on file yet — record one above.')}
-    ${lastRunAt ? `<p class="note">Last conflict run: ${esc(String(lastRunAt).slice(0, 10))}.</p>` : ''}
-
-    <h2 class="sec">Conflict runs</h2>
-    ${runs.length ? table(['Date', 'Name checked', 'Hits — and the matter they came from', 'Outcome'], runs.map((r) => [
+    <h2 class="sec">Conflict runs ${pending.length ? tag(pending.length + ' awaiting a decision', 'gate') : (runs.length ? tag('all resolved', 'ok') : '')}</h2>
+    ${runs.length ? table(['Name checked', 'Ran', 'Hits — and the matter they came from', 'Outcome'], runRows.map((r) => [
+      `<b>${esc(r.name)}</b>` + (runTie(r) ? `<br><span class="note">${esc(runTie(r))}</span>` : ''),
       date(r.createdAt),
-      esc(r.name) + (runTie(r) ? `<br><span class="note">${esc(runTie(r))}</span>` : ''),
-      viewHits(r.hits).length
-        ? viewHits(r.hits).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
-        : '<span class="note">no hits</span>',
-      outcomeTag(r.outcome) + (r.outcome === 'pending'
-        ? '<br>' + OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(r.id)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join('')
-        : ''),
+      hitLines(viewHits(r.hits)),
+      outcomeTag(r.outcome)
+        + (r.outcome === 'pending' ? '<br>' + decideButtons(r.id) : '')
+        + (r.outcome === 'waiver' ? `<br><a href="${esc('/r/conflicts?waiver=' + encodeURIComponent(r.id) + '#waiver')}">Draft the waiver letter</a>` : ''),
     ])) : empty('No conflict runs yet — check a name above; every engagement starts there.')}
 
-    <div class="grid2">
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Re-screen everything</h2>
-        <form method="POST" action="/r/conflicts/rescan">
-          <button>Re-screen every stored run</button>
-        </form>
-        <p class="note">Re-runs every stored check against today&rsquo;s graph. No stored outcome changes by machine — runs with new hits are listed below for a human decision.</p>
-      </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Watchlist</h2>
-        <form method="POST" action="/r/conflicts/watch">
-          ${input('name', 'Name to watch', { required: true, placeholder: 'The adverse party you expect to meet again' })}
-          <button>Watch this name</button>
-        </form>
-        <p class="note">Watched names run through the conflict check on every page load — a new party anywhere in the graph lights them up below.</p>
-      </div>
-    </div>
+    <h2 class="sec">Awaiting re-check ${unscreened.length ? tag(unscreened.length + ' unscreened', 'gate') : tag('graph screened', 'ok')}</h2>
+    ${unscreened.length ? table(['Name', 'Role', 'Attached to', 'Added', ''], unscreened.map((p) => [
+      esc(p.name), esc(p.role || ''), esc(partyWhere(k, p)), date(p.createdAt),
+      `<form method="POST" action="/r/conflicts/run" style="display:inline"><input type="hidden" name="name" value="${esc(p.name)}"><input type="hidden" name="target" value="${esc(p.matterId ? 'm:' + p.matterId : p.inquiryId ? 'i:' + p.inquiryId : '')}"><button class="quiet">Run check</button></form>`,
+    ])) : empty(lastRunAt ? `No parties added since the last conflict run (${String(lastRunAt).slice(0, 10)}).` : 'No parties on file yet — record one above.')}
+    ${unscreened.length && lastRunAt ? `<p class="note">Added since the last conflict run on ${esc(String(lastRunAt).slice(0, 10))} — a name in the graph that no run has been put through is a name the firm has not screened.</p>` : ''}
 
-    <h2 class="sec">Latest re-screen ${latestRescan && (latestRescan.newHits || []).length ? tag(String((latestRescan.newHits || []).length) + ' run(s) with new hits', 'gate') : (latestRescan ? tag('graph quiet', 'ok') : '')}</h2>
-    ${latestRescan ? `<p class="note">Re-screened ${Number(latestRescan.checkedRuns || 0)} run(s) ${date(latestRescan.createdAt)} by ${esc(latestRescan.byName || '')}.</p>` : ''}
+    <h2 class="sec">Firm-wide re-screen ${latestRescan && (latestRescan.newHits || []).length ? tag((latestRescan.newHits || []).length + ' run(s) with new hits', 'gate') : (latestRescan ? tag('graph quiet', 'ok') : '')}</h2>
+    <form method="POST" action="/r/conflicts/rescan" style="display:inline"><button style="margin-top:0">Re-screen every stored run</button></form>
+    <p class="note">${latestRescan ? `Last re-screened ${Number(latestRescan.checkedRuns || 0)} run(s) on ${esc(String(latestRescan.createdAt || '').slice(0, 10))} by ${esc(latestRescan.byName || '')}. ` : ''}The conflicts duty outlives intake. No stored outcome changes by machine — runs with new hits are listed here for a human decision.</p>
     ${latestRescan
       ? ((latestRescan.newHits || []).length
         ? table(['Name checked', 'New hits — and the matter they came from', 'Re-resolve'], (latestRescan.newHits || []).map((e) => {
           const run = e.runId ? k.firm.get('conflictRun', e.runId) : null;
           return [
-            esc(e.name),
-            viewHits(e.hits).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>'),
-            (run ? outcomeTag(run.outcome) : '') + '<br>' + OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(e.runId)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join(''),
+            `<b>${esc(e.name)}</b>`,
+            hitLines(viewHits(e.hits)),
+            (run ? outcomeTag(run.outcome) : '') + '<br>' + decideButtons(e.runId),
           ];
         }))
         : empty('Latest re-screen found nothing new — the graph is quiet.'))
-      : empty('No firm-wide re-screen yet — run one above; the conflicts duty outlives intake.')}
+      : empty('No firm-wide re-screen yet — run one above.')}
 
     <h2 class="sec">Watched names</h2>
-    ${watches.length ? table(['Name', 'Added by', 'Current hits', ''], watches.map((w) => {
-      const { hits } = runCheck(k, w.name);
+    <form method="POST" action="/r/conflicts/watch" class="mselect">
+      <input name="name" type="text" required placeholder="Name to watch — the adverse party you expect to meet again" aria-label="Name to watch" style="max-width:420px">
+      <button style="margin-top:0">Watch</button>
+    </form>
+    <p class="note">A watched name runs through the conflict check on every page load, so a new party anywhere in the graph lights it up here without anyone re-running it.</p>
+    ${watches.length ? table(['Name', 'Current hits', 'Added by', ''], watches.map((w) => {
+      const hits = viewHits(runCheck(k, w.name).hits);
       return [
-        esc(w.name),
-        esc(w.addedBy || ''),
+        `<b>${esc(w.name)}</b>`,
         hits.length
-          ? hits.map((h) => `${tag(h.name, 'gate')} <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
+          ? hits.map((h) => `${tag(h.name, 'gate')} <span class="note" style="display:inline">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
           : '<span class="note">no hits</span>',
+        esc(w.addedBy || ''),
         `<form method="POST" action="/r/conflicts/watch-del" style="display:inline"><input type="hidden" name="id" value="${esc(w.id)}"><button class="quiet">Remove</button></form>`,
       ];
     })) : empty('No watched names. Watch the adverse party you expect to meet again.')}
 
     <div class="grid2">
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Waiver letter</h2>
+        <h2 class="sec" style="margin-top:0" id="waiver">Waiver letter</h2>
         <form method="POST" action="/r/conflicts/waiver">
-          ${input('client', 'Consenting client', { required: true })}
-          ${input('other', 'Conflicting party / other client', { required: true })}
+          ${input('client', 'Consenting client', { required: true, value: wClient })}
+          ${input('other', 'Conflicting party / other client', { required: true, value: wOther })}
           ${textarea('desc', 'Matter description', { placeholder: 'Proposed engagement: …', required: true })}
           <button>Generate waiver letter</button>
         </form>
+        <p class="note">Informed consent is the only thing that cures a consentable conflict — the letter records what the client was told, and it does not leave the building unsigned.</p>
         ${letters.length ? letters.slice(0, 3).map((l) => `<div style="border:1px solid var(--rule);padding:12px 14px;margin-top:12px;background:var(--ground)">
           ${kv([['To', esc(l.to)], ['Generated', date(l.createdAt)]])}
           <div class="note" style="white-space:pre-wrap">${esc(l.text)}</div>
@@ -241,14 +257,13 @@ function register(app) {
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Screens &amp; walls</h2>
-        <p class="note">Where a screen cures the conflict, the wall is raised in firm administration and enforced in the kernel before any key unwrap — a screened user cannot reach the matter&rsquo;s encryption key at all.</p>
-        ${k.isAdmin() ? '<a class="btn" href="/admin">Raise an ethical wall — /admin</a>' : '<p class="note">Raising a wall requires an administrator — ask one to provision it at /admin.</p>'}
         ${kv([
-          ['Matters on file', `<span class="num">${mattersAll.length}</span>`],
-          ['Parties in graph', `<span class="num">${parties.length}</span>`],
           ['Runs recorded', `<span class="num">${runs.length}</span>`],
-          ['Unresolved runs', `<span class="num">${runs.filter((r) => r.outcome === 'pending').length}</span>`],
+          ['Awaiting a decision', `<span class="num">${pending.length}</span>`],
+          ['Parties in graph', `<span class="num">${parties.length}</span>`],
         ])}
+        <p class="note">Where a screen cures the conflict, the wall is raised in firm administration and enforced in the kernel before any key unwrap — a screened user cannot reach the matter&rsquo;s encryption key at all.</p>
+        ${k.isAdmin() ? '<a class="btn" href="/admin">Raise an ethical wall</a>' : '<p class="note">Raising a wall requires an administrator — ask one to provision it at /admin.</p>'}
       </div>
     </div>
     `;
@@ -315,9 +330,12 @@ function register(app) {
     if (!outcome) { ctx.setFlash('Pick an outcome: clear, waiver needed, or declined.', 'err'); redirect(res, '/r/conflicts'); return; }
     k.firm.put('conflictRun', { ...run, outcome, decidedBy: ctx.user.name, decidedAt: new Date().toISOString() });
     k.audit('conflicts.outcome', run.id + ':' + outcome);
-    ctx.setFlash(outcome === 'waiver'
-      ? `Run for “${run.name}” marked waiver needed — generate the waiver letter below.`
-      : `Run for “${run.name}” marked ${outcome}.`);
+    if (outcome === 'waiver') {
+      // Straight to the letter, with the run's own particulars carried over.
+      ctx.setFlash(`Run for “${run.name}” marked waiver needed — draft the consent letter.`);
+      redirect(res, '/r/conflicts?waiver=' + encodeURIComponent(run.id) + '#waiver'); return;
+    }
+    ctx.setFlash(`Run for “${run.name}” marked ${outcome}.`);
     redirect(res, '/r/conflicts');
   });
 
@@ -327,7 +345,7 @@ function register(app) {
     const k = ctx.kernel;
     const runs = k.firm.list('conflictRun');
     if (!runs.length) {
-      ctx.setFlash('No conflict runs on file to re-screen.');
+      ctx.setFlash('No conflict runs on file to re-screen — check a name first.', 'err');
       redirect(res, '/r/conflicts'); return;
     }
     const newHits = [];

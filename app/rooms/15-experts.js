@@ -8,6 +8,9 @@ const ROOM = { num: 15, id: 'experts', title: 'Experts', phase: 'Discover' };
 
 const SIDES = [['ours', 'Ours'], ['theirs', 'Theirs']];
 const RATE_TYPES = [['hourly', 'Hourly'], ['daily', 'Daily']];
+const today = () => new Date().toISOString().slice(0, 10);
+// House summary styling for a disclosure fold (matches 07-research).
+const SUMMARY = 'cursor:pointer;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft)';
 // Pipeline: identified -> retained -> report served -> challenged -> qualified | excluded
 const ADVANCE = { identified: 'retained', retained: 'report served' };
 const OUTCOMES = ['qualified', 'excluded'];
@@ -62,26 +65,35 @@ function register(app) {
     let body;
     if (!ctx.matter) {
       body = `${empty('Open a matter to build its expert file.')}
-      <h2 class="sec">Qualification reference</h2>
+      <h2 class="sec">Qualification &amp; disclosure reference</h2>
       <div class="card">${referenceHtml()}</div>`;
     } else {
-      const experts = k.scope(ctx.matter.id).list('expert')
+      const sc = k.scope(ctx.matter.id);
+      const experts = sc.list('expert')
         .sort((a, b) => (a.side || '').localeCompare(b.side || '') || (a.createdAt || '').localeCompare(b.createdAt || ''));
+      // Deadlines are read (never written) here so each file can show the date
+      // it actually posted to the Trial Calendar rather than just asserting one.
+      const dls = new Map(sc.list('deadline').map((d) => [d.id, d]));
+      const now = today();
       const ours = experts.filter((x) => x.side !== 'theirs');
       const theirs = experts.filter((x) => x.side === 'theirs');
+      const late = experts.filter((x) => isLate(x, now)).length;
       body = `
       <div class="grid2">
         <div class="card">
-          <h2 class="sec" style="margin-top:0">Roster — ${esc(ctx.matter.title)}</h2>
-          ${experts.length ? table(['Expert', 'Discipline', 'Side', 'Rate', 'Status', 'Report due', 'Checklist'],
+          <h2 class="sec" style="margin-top:0">Roster — ${esc(ctx.matter.title)} ${late ? tag(`${late} report${late === 1 ? '' : 's'} overdue`, 'gate') : ''}</h2>
+          ${experts.length ? table(['Expert', 'Discipline', 'Side', 'Rate', 'Status', 'Report due', 'Prongs', 'Form 53'],
             experts.map((x) => [
-              esc(x.name), esc(x.discipline || '—'),
+              `<a href="#x-${esc(x.id)}"><b>${esc(x.name)}</b></a>`,
+              esc(x.discipline || '—'),
               x.side === 'theirs' ? tag('theirs') : tag('ours', 'navy'),
               x.rate ? `${money(x.rate)}<span class="note" style="display:inline"> / ${x.rateType === 'daily' ? 'day' : 'hr'}</span>` : '—',
-              statusTag(x.status), x.reportDue ? date(x.reportDue) : '—',
+              statusTag(x.status),
+              dueCell(x, now),
               `<span class="num">${checkCount(x)}/${CHECKLIST.length}</span>`,
-            ])) : empty('No experts on this matter yet — open the first expert file with the form.')}
-          <p class="note">Ours: ${ours.length} · Theirs: ${theirs.length}. The checklist column counts reference items ticked across both regimes.</p>
+              form53Tag(x),
+            ])) : empty('No experts on this matter yet — open the first file with the form beside this.')}
+          <p class="note">Ours ${ours.length} · theirs ${theirs.length}. Prongs counts admissibility items ticked across both regimes — it records work done, never a ruling.</p>
         </div>
         <div class="card">
           <h2 class="sec" style="margin-top:0">Add expert</h2>
@@ -97,12 +109,14 @@ function register(app) {
             ${textarea('scope', 'Scope of retainer / opinion sought', { placeholder: 'Questions the expert is asked to answer — nothing broader.' })}
             <button>Open expert file</button>
           </form>
-          <p class="note">A report due date is also inserted as a deadline record, so the Trial Calendar (room 21) sees it.</p>
+          <p class="note">A report due date also writes a deadline record, so the <a href="/r/calendar">Trial Calendar</a> carries it. Re-setting the date moves that same record — it never leaves a duplicate behind.</p>
         </div>
       </div>
-      ${experts.length
-        ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x, ctx.matter)).join('')}`
-        : `<h2 class="sec">Qualification reference</h2><div class="card">${referenceHtml()}</div>`}`;
+      ${experts.length ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x, ctx.matter, now, dls)).join('')}` : ''}
+      <details style="margin-top:18px"${experts.length ? '' : ' open'}>
+        <summary style="${SUMMARY}">Qualification &amp; disclosure reference</summary>
+        <div class="card" style="margin-top:10px">${referenceHtml()}</div>
+      </details>`;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Retain, serve, survive the challenge', body }));
   });

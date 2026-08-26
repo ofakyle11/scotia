@@ -1,6 +1,11 @@
 'use strict';
 // Room 12 — Discovery Desk. Requests, responses, objections — specific and
 // proportional, with deadlines computed from rules where a rule exists.
+//
+// Page order follows the day: the instrument board, the instrument you are
+// working, then the control you reach for most (track a new instrument), then
+// the standing records — plan, conferences, and the deficiency letters, the
+// one artifact in this room that leaves the building and therefore prints.
 const { layout, esc, table, empty, tag, kv, input, textarea, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
@@ -38,6 +43,19 @@ const ESI_ITEMS = [
 // discovery, r.31), so the cap is inapplicable to ON-seated matters.
 const ROG_CAP = 25;
 
+const SUMMARY = 'cursor:pointer;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft)';
+const PRE = 'white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;color:var(--ink-soft);background:var(--ground);border:1px solid var(--rule);padding:12px 14px;margin:0';
+
+// Ctrl-P (or the button) yields the selected deficiency letter alone: board,
+// forms and history drop out and the letter sets in a serif face, because it
+// goes to opposing counsel over a signature.
+const PRINT = `<style>@media print{
+.noprint,.no-print{display:none!important}
+h1.room,.roomsub{display:none!important}
+.letter-sheet{border:0!important;background:#fff!important;padding:0!important;margin:0!important}
+.letter-sheet pre{color:#111!important;background:#fff!important;border:0!important;padding:0!important;font-family:Georgia,"Times New Roman",serif!important;font-size:11.5pt!important;line-height:1.5!important;white-space:pre-wrap}
+}</style>`;
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -58,10 +76,14 @@ function register(app) {
     const openId = ctx.query.get('i');
     const openInst = openId ? instruments.find((x) => x.id === openId) : null;
     const autoRules = TYPES.map(([v, l]) => ({ l, rule: ruleFor(k, jur, v) })).filter((x) => x.rule);
+    const overdue = instruments.filter((i) => effStatus(i, today) === 'overdue').length;
+    // The letter on the sheet: whichever row the user picked, else the newest.
+    const letterSel = letters.length ? (letters.find((l) => l.id === ctx.query.get('l')) || letters[0]) : null;
+    const keepI = openId ? 'i=' + encodeURIComponent(openId) + '&' : '';
 
-    const body = `
-    <h2 class="sec" style="margin-top:0">Instruments — ${esc(ctx.matter.title)}</h2>
-    ${instruments.length ? table(['Type', 'Direction', 'Party', 'Served', 'Response due', 'Status', 'Objections', 'Items', ''],
+    const desk = `
+    <h2 class="sec" style="margin-top:0">Instruments — ${esc(ctx.matter.title)} ${overdue ? tag(`${overdue} overdue`, 'gate') : ''}</h2>
+    ${instruments.length ? table(['Type', 'Direction', 'Party', 'Served', 'Response due', 'Status', 'Objections', 'Items answered', ''],
       instruments.map((i) => {
         const st = effStatus(i, today);
         const unans = (i.items || []).filter((it) => !it.answered).length;
@@ -73,65 +95,30 @@ function register(app) {
           i.due ? date(i.due) + (i.dueCite ? ` <span class="note">${esc(i.dueCite)}</span>` : ' <span class="note">manual</span>') : '—',
           st === 'responded' ? tag('responded', 'ok') : st === 'overdue' ? tag('overdue', 'gate') : tag('open'),
           `<span class="num">${(i.objections || []).length}</span>`,
-          `<span class="num">${(i.items || []).length - unans}/${(i.items || []).length}</span> answered`,
-          `<a href="/r/discovery?i=${esc(i.id)}">open →</a>`,
+          `<span class="num">${(i.items || []).length - unans}/${(i.items || []).length}</span>`,
+          i.id === openId ? tag('open', 'navy') : `<a href="/r/discovery?i=${encodeURIComponent(i.id)}">open →</a>`,
         ];
-      })) : empty('No discovery instruments tracked on this matter yet — track the first below.')}
+      })) : empty('Nothing served either way yet — track the first request, interrogatory set or undertaking below; where a rule governs the response date it is computed and calendared for you.')}
 
     ${openInst ? instrumentDetail(openInst, today) : ''}
 
-    <h2 class="sec">Discovery plan &amp; proportionality ${plan.createdAt ? tag('on file', 'ok') : tag('not yet agreed', 'gate')}</h2>
-    <div class="card">
-      <form method="POST" action="/r/discovery/plan">
-        ${textarea('scope', 'Scope of discovery', { value: plan.scope, placeholder: 'Documentary discovery limited to the 2022–24 supply relationship; no restoration of backup tapes absent good cause.' })}
-        ${textarea('custodians', 'Custodians / sources (one per line)', { value: plan.custodians, placeholder: 'J. Okafor (VP Ops)\nProcurement shared drive\nO365 mailboxes for 3 custodians' })}
-        <div class="grid2">
-          <span>${input('dateFrom', 'Date range — from', { type: 'date', value: plan.dateFrom })}</span>
-          <span>${input('dateTo', 'Date range — to', { type: 'date', value: plan.dateTo })}</span>
-        </div>
-        ${input('format', 'Production format', { value: plan.format, placeholder: 'TIFF + .dat/.opt load file; native for spreadsheets; de-dup by hash' })}
-        ${textarea('costNote', 'Proportionality note (cost / burden vs. amount in issue)', { value: plan.costNote, placeholder: 'Est. collection & review cost ~$18k against a $250k claim — proportionate; TAR proposed to contain review.' })}
-        ${textarea('agreedDates', 'Agreed dates / milestones', { value: plan.agreedDates, placeholder: 'Affidavits of documents: 2026-10-01\nSubstantial completion of production: 2026-11-15\nExaminations: Jan 2027' })}
-        <button>Save discovery plan</button>
-      </form>
-      ${plan.createdAt ? `<form method="POST" action="/r/discovery/plan-export" style="margin-top:10px"><button class="quiet" style="margin-top:0">Download plan (.txt)</button></form>` : ''}
-      <p class="note">Ontario r.29.1.03 requires the parties to agree to a discovery plan; r.29.2 governs proportionality in discovery. The US-federal equivalent is the FRCP 26(f) conference and discovery plan, with proportionality under FRCP 26(b)(1). Reference framework — not legal advice.</p>
-    </div>
-
-    ${rogs.length ? `<h2 class="sec">Interrogatory count — FRCP 33(a)(1) cap</h2>
-    <div class="card">
-      ${jur === 'on' ? '<p class="note">This matter is Ontario-seated: the Rules of Civil Procedure provide for examination for discovery (r.31), not written interrogatories, so the FRCP 33 numerical cap does not apply. Counts below are informational.</p>' : ''}
-      ${table(['Set', 'Party', `Count (incl. discrete subparts) / ${ROG_CAP}`, 'Direction'], rogs.map((i) => {
-        const c = rogCount(i.items);
-        const over = jur !== 'on' && c > ROG_CAP;
-        const near = jur !== 'on' && !over && c >= ROG_CAP - 3;
-        return [
-          `<a href="/r/discovery?i=${esc(i.id)}">${esc(typeLabel(i.type))}</a>`,
-          esc(i.party || '—'),
-          `<span class="num">${c}</span> / ${ROG_CAP} ${over ? tag('over cap — leave/stipulation required', 'gate') : near ? tag('near cap', 'navy') : ''}`,
-          i.direction === 'inbound' ? tag('inbound', 'navy') : tag('outbound'),
-        ];
-      }))}
-      <p class="note">FRCP 33(a)(1): a party may serve no more than 25 written interrogatories, including all discrete subparts, without leave or a stipulation. Subparts here are estimated from lettered/roman markers detected in each item — verify discrete-subpart counts manually. Reference — not legal advice.</p>
-    </div>` : ''}
-
     <div class="grid2">
       <div class="card">
-        <h2 class="sec" style="margin-top:0">New instrument</h2>
+        <h2 class="sec" style="margin-top:0">Track an instrument</h2>
         <form method="POST" action="/r/discovery/new">
           <div class="grid2">
             <span>${select('type', 'Type', TYPES)}</span>
             <span>${select('direction', 'Direction', DIRECTIONS)}</span>
-            <span>${input('served', 'Served date', { type: 'date', required: true })}</span>
-            <span>${input('due', 'Response due (if no rule matches)', { type: 'date' })}</span>
+            <span>${input('served', 'Served', { type: 'date', required: true })}</span>
+            <span>${input('due', 'Response due', { type: 'date', placeholder: 'only if no rule matches' })}</span>
           </div>
           ${input('party', 'Responding / serving party', { placeholder: 'Opposing party or counsel' })}
           ${textarea('items', 'Items / requests (one per line)', { placeholder: 'All documents concerning the 2024 supply agreement\nIdentify each person with knowledge of...' })}
           <button>Track instrument</button>
         </form>
         <p class="note">${autoRules.length
-          ? 'Response dates auto-computed for this jurisdiction: ' + autoRules.map((x) => `${esc(x.l)} → ${x.rule.days}d (${esc(x.rule.cite)})`).join('; ') + '. Other types take the manual date.'
-          : 'No response-deadline rule on file for this jurisdiction — enter the due date manually.'}</p>
+          ? 'Computed for this jurisdiction: ' + autoRules.map((x) => `${esc(x.l)} → ${x.rule.days}d (${esc(x.rule.cite)})`).join('; ') + '. Every other type takes the date you type.'
+          : 'No response-deadline rule on file for this jurisdiction — type the due date and it is calendared as a manual date.'}</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">ESI protocol ${esiDone === ESI_ITEMS.length ? tag('negotiated — collect', 'ok') : tag(esiDone + '/' + ESI_ITEMS.length + ' — before collection', 'gate')}</h2>
@@ -143,18 +130,47 @@ function register(app) {
       </div>
     </div>
 
+    ${rogs.length ? `<h2 class="sec">Interrogatory count — FRCP 33(a)(1) cap</h2>
+    <div class="card">
+      ${table(['Set', 'Party', `Count incl. discrete subparts / ${ROG_CAP}`, 'Direction'], rogs.map((i) => {
+        const c = rogCount(i.items);
+        const over = jur !== 'on' && c > ROG_CAP;
+        const near = jur !== 'on' && !over && c >= ROG_CAP - 3;
+        return [
+          `<a href="/r/discovery?i=${encodeURIComponent(i.id)}">${esc(typeLabel(i.type))}</a>`,
+          esc(i.party || '—'),
+          `<span class="num">${c}</span> / ${ROG_CAP} ${over ? tag('over cap — leave/stipulation required', 'gate') : near ? tag('near cap', 'navy') : ''}`,
+          i.direction === 'inbound' ? tag('inbound', 'navy') : tag('outbound'),
+        ];
+      }))}
+      <p class="note">${jur === 'on'
+        ? 'This matter is Ontario-seated: the Rules of Civil Procedure provide for examination for discovery (r.31), not written interrogatories, so the FRCP 33 cap does not apply and these counts are informational. '
+        : 'FRCP 33(a)(1): no more than 25 written interrogatories, including all discrete subparts, without leave or a stipulation. '}Subparts are estimated from lettered/roman markers in each item — verify discrete-subpart counts by hand. Reference, not legal advice.</p>
+    </div>` : ''}
+
+    <h2 class="sec">Discovery plan &amp; proportionality ${plan.createdAt ? tag('on file', 'ok') : tag('not yet agreed', 'gate')}</h2>
+    <div class="card">
+      ${plan.createdAt ? `${planView(plan)}
+      <form method="POST" action="/r/discovery/plan-export" style="display:inline"><button class="quiet" style="margin-top:12px">Download plan (.txt)</button></form>
+      <details style="margin-top:12px"><summary style="${SUMMARY}">Revise the plan</summary>${planForm(plan)}</details>`
+        : planForm(plan)}
+      <p class="note">Ontario r.29.1.03 requires the parties to agree to a discovery plan; r.29.2 governs proportionality. The US-federal equivalent is the FRCP 26(f) conference and plan, with proportionality under FRCP 26(b)(1). Reference framework — not legal advice.</p>
+    </div>
+
     <h2 class="sec">Meet-and-confer log</h2>
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Log a conference</h2>
         <form method="POST" action="/r/discovery/meet">
-          ${input('date', 'Date', { type: 'date', required: true })}
-          ${input('attendees', 'Attendees', { placeholder: 'Counsel of record for both parties' })}
+          <div class="grid2">
+            <span>${input('date', 'Date', { type: 'date', required: true })}</span>
+            <span>${input('attendees', 'Attendees', { placeholder: 'Counsel of record for both parties' })}</span>
+          </div>
           ${textarea('issues', 'Issues raised', { placeholder: 'Scope of custodian list; date range; native-format spreadsheets.' })}
           ${textarea('resolutions', 'Resolutions / next steps', { placeholder: 'Agreed 5 custodians; opposing to confirm date range by 2026-09-05.' })}
           <button>Log conference</button>
         </form>
-        <p class="note">A documented meet-and-confer record supports (and is often a precondition to) a motion to compel — FRCP 37(a)(1) requires a good-faith conferral certification; Ontario r.29.1.03 requires the parties to agree a discovery plan. Reference — not legal advice.</p>
+        <p class="note">FRCP 37(a)(1) requires a good-faith conferral certification before a motion to compel; Ontario r.29.1.03 requires the parties to agree a discovery plan. This log is the record that supports both.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">History</h2>
@@ -162,16 +178,32 @@ function register(app) {
             <b>${date(m.date)}</b> · ${esc(m.attendees || 'attendees not recorded')}
             ${m.issues ? `<div class="note"><b>Issues:</b> ${esc(m.issues)}</div>` : ''}
             ${m.resolutions ? `<div class="note"><b>Resolved:</b> ${esc(m.resolutions)}</div>` : ''}
-          </div>`).join('') : empty('No meet-and-confer conferences logged yet.')}
+          </div>`).join('') : empty('No conferences logged — log the first one here; a motion to compel needs this record behind it.')}
       </div>
-    </div>
+    </div>`;
 
-    ${letters.length ? `<h2 class="sec">Deficiency letters</h2>${letters.map((l) => `
-      <div class="card">
-        <b>${esc(typeLabel(l.type))}</b> · to ${esc(l.to || 'responding party')} · ${date(l.createdAt)}
-        <pre style="white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;color:var(--ink-soft);background:var(--ground);border:1px solid var(--rule);padding:12px 14px;margin-top:10px">${esc(l.text)}</pre>
-      </div>`).join('')}` : ''}
-    `;
+    // The deficiency letter is correspondence: listed compactly, read on a
+    // sheet, printed or downloaded from there.
+    const letterBlock = letterSel ? `
+    <div class="noprint">
+      <h2 class="sec">Deficiency letters</h2>
+      ${table(['Generated', 'Instrument', 'To', ''], letters.map((l) => [
+        date(l.createdAt),
+        esc(typeLabel(l.type)),
+        esc(l.to || '—'),
+        l.id === letterSel.id ? tag('on the sheet', 'navy') : `<a href="/r/discovery?${keepI}l=${encodeURIComponent(l.id)}">show →</a>`,
+      ]))}
+    </div>
+    <div class="card letter-sheet">
+      <div class="note no-print" style="margin:0 0 12px">
+        <a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a>
+        <form method="POST" action="/r/discovery/letter-export" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(letterSel.id)}"><button class="quiet">Download (.txt)</button></form>
+        <div style="margin-top:8px">Printing yields this letter alone — the board, the forms and the history drop out. Review and sign before it goes out; it forms part of the discovery record either way.</div>
+      </div>
+      <pre style="${PRE}">${esc(letterSel.text || '')}</pre>
+    </div>` : '';
+
+    const body = letterSel ? PRINT + `<div class="noprint">${desk}</div>` + letterBlock : desk;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Requests, responses, objections — specific and proportional', body }));
   });
 
@@ -273,9 +305,27 @@ function register(app) {
     const unanswered = (inst.items || []).filter((it) => !it.answered);
     if (!unanswered.length) { ctx.setFlash('Every item on that instrument is answered — nothing to chase.'); redirect(res, '/r/discovery?i=' + encodeURIComponent(inst.id)); return; }
     const text = deficiencyText(ctx.matter, inst, unanswered);
-    s.put('deficiencyLetter', { instrumentId: inst.id, type: inst.type, to: inst.party || '', text });
+    const rec = s.put('deficiencyLetter', { instrumentId: inst.id, type: inst.type, to: inst.party || '', text });
     ctx.setFlash(`Deficiency letter generated from ${unanswered.length} unanswered item(s) — review before it goes out.`);
-    redirect(res, '/r/discovery?i=' + encodeURIComponent(inst.id));
+    redirect(res, '/r/discovery?i=' + encodeURIComponent(inst.id) + '&l=' + encodeURIComponent(rec && rec.id ? rec.id : ''));
+  });
+
+  // Download one deficiency letter as a plain-text file for the correspondence
+  // file — the same record the sheet prints, byte for byte.
+  app.route('POST', `/r/${ROOM.id}/letter-export`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/discovery'); return; }
+    const s = k.scope(ctx.matter.id);
+    const l = ctx.body.id ? s.get('deficiencyLetter', String(ctx.body.id)) : null;
+    if (!l) { ctx.setFlash('Pick a deficiency letter to download.', 'err'); redirect(res, '/r/discovery'); return; }
+    k.audit('deficiencyLetter.export', ctx.matter.id + ':' + l.id);
+    const slug = String(ctx.matter.title || 'matter').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 40) || 'matter';
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Disposition': `attachment; filename="deficiency-letter-${slug}-${String(l.createdAt || '').slice(0, 10)}.txt"`,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(String(l.text || ''));
   });
 
   // Discovery plan + proportionality record — one per matter (Ont. r.29.1 / FRCP 26(f)).
@@ -358,6 +408,35 @@ function rogCount(items) {
   return total;
 }
 
+// The plan as a record you can read, rather than seven textareas you must
+// re-read. The form itself folds away once there is something to show.
+function planView(p) {
+  const pre = (v) => `<span style="white-space:pre-wrap">${esc(v)}</span>`;
+  const rows = [];
+  if (p.scope) rows.push(['Scope', pre(p.scope)]);
+  if (p.custodians) rows.push(['Custodians', pre(p.custodians)]);
+  if (p.dateFrom || p.dateTo) rows.push(['Date range', `${p.dateFrom ? date(p.dateFrom) : '<span class="note">open</span>'} — ${p.dateTo ? date(p.dateTo) : '<span class="note">open</span>'}`]);
+  if (p.format) rows.push(['Format', pre(p.format)]);
+  if (p.costNote) rows.push(['Proportionality', pre(p.costNote)]);
+  if (p.agreedDates) rows.push(['Agreed dates', pre(p.agreedDates)]);
+  return rows.length ? kv(rows) : '<p class="note">Saved, but every field is empty.</p>';
+}
+
+function planForm(plan) {
+  return `<form method="POST" action="/r/discovery/plan">
+    ${textarea('scope', 'Scope of discovery', { value: plan.scope, placeholder: 'Documentary discovery limited to the 2022–24 supply relationship; no restoration of backup tapes absent good cause.' })}
+    ${textarea('custodians', 'Custodians / sources (one per line)', { value: plan.custodians, placeholder: 'J. Okafor (VP Ops)\nProcurement shared drive\nO365 mailboxes for 3 custodians' })}
+    <div class="grid2">
+      <span>${input('dateFrom', 'Date range — from', { type: 'date', value: plan.dateFrom })}</span>
+      <span>${input('dateTo', 'Date range — to', { type: 'date', value: plan.dateTo })}</span>
+    </div>
+    ${input('format', 'Production format', { value: plan.format, placeholder: 'TIFF + .dat/.opt load file; native for spreadsheets; de-dup by hash' })}
+    ${textarea('costNote', 'Proportionality — cost and burden against the amount in issue', { value: plan.costNote, placeholder: 'Est. collection & review cost ~$18k against a $250k claim — proportionate; TAR proposed to contain review.' })}
+    ${textarea('agreedDates', 'Agreed dates / milestones', { value: plan.agreedDates, placeholder: 'Affidavits of documents: 2026-10-01\nSubstantial completion of production: 2026-11-15\nExaminations: Jan 2027' })}
+    <button>Save discovery plan</button>
+  </form>`;
+}
+
 function planText(matter, p) {
   const line = (v) => (v ? String(v) : '(not recorded)');
   return `Discovery Plan — ${matter.title}
@@ -388,9 +467,10 @@ const check = (name, label, on) => `<label style="display:flex;gap:9px;align-ite
 
 function instrumentDetail(i, today) {
   const st = effStatus(i, today);
-  const unanswered = (i.items || []).filter((it) => !it.answered).length;
+  const items = i.items || [];
+  const unanswered = items.filter((it) => !it.answered).length;
   return `
-  <h2 class="sec">${esc(typeLabel(i.type))} — detail</h2>
+  <h2 class="sec">${esc(typeLabel(i.type))}${i.party ? ' — ' + esc(i.party) : ''} <a href="/r/discovery" class="note" style="font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase">close</a></h2>
   <div class="grid2">
     <div class="card">
       ${kv([
@@ -401,15 +481,15 @@ function instrumentDetail(i, today) {
         ['Status', st === 'responded' ? tag('responded', 'ok') : st === 'overdue' ? tag('overdue', 'gate') : tag('open')],
       ])}
       ${st !== 'responded' ? `<form method="POST" action="/r/discovery/respond" style="display:inline"><input type="hidden" name="id" value="${esc(i.id)}"><button>Mark responded</button></form>` : ''}
-      <form method="POST" action="/r/discovery/letter" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(i.id)}"><button class="quiet" style="margin-top:14px">Generate deficiency letter (${unanswered} unanswered)</button></form>
-      <h2 class="sec">Items ${tag(`${(i.items || []).length - unanswered}/${(i.items || []).length} answered`, unanswered ? '' : 'ok')}</h2>
-      ${(i.items || []).length ? (i.items || []).map((it) => `
+      ${unanswered ? `<form method="POST" action="/r/discovery/letter" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(i.id)}"><button class="quiet" style="margin-top:14px">Deficiency letter — chase ${unanswered}</button></form>` : ''}
+      <h2 class="sec">Items ${items.length ? tag(`${items.length - unanswered}/${items.length} answered`, unanswered ? '' : 'ok') : ''}</h2>
+      ${items.length ? items.map((it) => `
         <form method="POST" action="/r/discovery/item" style="margin:0 0 6px;display:flex;gap:10px;align-items:baseline">
           <input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="n" value="${it.n}">
-          <button class="quiet" style="min-width:34px">${it.answered ? '✓' : '·'}</button>
+          <button class="quiet" style="min-width:34px" aria-label="${it.answered ? 'Mark unanswered' : 'Mark answered'}">${it.answered ? '✓' : '·'}</button>
           <span class="num">${it.n}.</span>
           <span style="${it.answered ? 'color:var(--ink-faint)' : ''}">${esc(it.text)}</span>
-        </form>`).join('') : empty('No items recorded on this instrument.')}
+        </form>`).join('') : empty('No items were pasted in when this instrument was tracked — chase it by hand or re-track it with the items listed.')}
     </div>
     <div class="card">
       <h2 class="sec" style="margin-top:0">Objections</h2>
@@ -417,10 +497,10 @@ function instrumentDetail(i, today) {
         <div style="border:1px solid var(--rule);padding:10px 12px;margin-bottom:8px;background:var(--ground)">
           ${esc(o.basis)} ${o.boilerplate ? tag('boilerplate — sanctions risk', 'gate') : ''}
           <div class="note">${date(o.at)}</div>
-        </div>`).join('') : empty('No objections recorded.')}
+        </div>`).join('') : empty('No objections on this instrument.')}
       <form method="POST" action="/r/discovery/objection">
         <input type="hidden" name="id" value="${esc(i.id)}">
-        ${textarea('basis', 'Objection basis (state with specificity)', { placeholder: 'Request 4 seeks documents outside the relevant period (2019–21); production limited to 2022–24 per the discovery plan.' })}
+        ${textarea('basis', 'Objection basis — state it with specificity', { placeholder: 'Request 4 seeks documents outside the relevant period (2019–21); production limited to 2022–24 per the discovery plan.' })}
         <button>Record objection</button>
       </form>
       <p class="note">Boilerplate objections draw sanctions, not shrugs — grounds must be stated with specificity, and an objection must say whether anything is being withheld under it (FRCP 33(b)(4), 34(b)(2)(B)–(C); Fischer v. Forrest, S.D.N.Y. 2017).</p>

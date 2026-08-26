@@ -266,42 +266,78 @@ function register(app) {
       ];
     })) : empty('No drafts on this matter yet — register one on the right, or send one from Brief Writer (18).');
 
-    const selBlock = sel ? `
-    <h2 class="sec">Queue — ${esc(sel.title || '(untitled draft)')} ${gateTag(sel, selInst, selStale)}</h2>
-    ${selStale ? `<div class="flash err">This draft was edited after its citations were verified — those verifications are stale. Re-extract and re-verify before certifying.</div>` : ''}
-    ${noCitesFound(sel, selInst) ? `<div class="flash err">Gate cleared with an empty queue: ${esc(NO_CITE_WARN)}. The extractor ran over <span class="num">${draftText(sel).length}</span> characters and matched nothing. Confirm the draft really cites no authority — if it does, the text may not have reached this room, and any missed cite must be added by hand below before this draft is filed.</div>` : ''}
-    <div class="card">
-      ${kv([
-        ['Draft', esc(sel.title || '(untitled draft)')],
-        ['Text', `<span class="num">${draftText(sel).length}</span> characters`],
-        ['Last extracted', sel.scannedAt ? date(sel.scannedAt) : '— not yet run'],
-        ['Gate', gateTag(sel, selInst, selStale)],
-      ])}
-      <form method="POST" action="/r/citations/scan"><input type="hidden" name="draftId" value="${esc(sel.id)}"><button>Extract citations from draft</button></form>
-      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral, volume, rule-book and statutory cites) that over-captures on purpose; a human clears every row. ${canResolve ? 'Resolution against the CanLII / CourtListener connectors is wired in per row below — it reports what it found and pre-fills the source URL, and promotes nothing.' : 'eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07).'} Treatment classification stays human-confirmed (Gap 2).</p>
-    </div>
-    <div class="card">
-      <h2 class="sec" style="margin-top:0">Add a citation the extractor missed</h2>
-      <form method="POST" action="/r/citations/add">
-        <input type="hidden" name="draftId" value="${esc(sel.id)}">
-        ${input('cite', 'Citation text', { required: true, placeholder: 'e.g. Limitations Act, 2002, s. 4' })}
-        <button>Add to queue</button>
+    // Secondary forms. They live at the FOOT of the page when a draft is open —
+    // the day's work is the verification queue, not registering another draft.
+    const registerCard = `<div class="card">
+      <h2 class="sec" style="margin-top:0">Register a draft for checking</h2>
+      <form method="POST" action="/r/citations/draft">
+        ${input('title', 'Draft title', { required: true, placeholder: 'Factum — motion to strike' })}
+        ${textarea('text', 'Draft text', { required: true, placeholder: 'Paste the draft. e.g. …as held in R. v. Jordan, 2016 SCC 27 at para 46…' })}
+        <button>Register draft</button>
       </form>
-      <p class="note">Nothing files unlisted — if the pass missed a case or statute, add it here so it must be verified too. The draft stays blocked until it is.</p>
-    </div>
-    ${queue.length ? `<h2 class="sec">Awaiting verification — ${queue.length}</h2>`
-      + (canResolve ? `<p class="note">“Resolve via connectors” runs this citation through the CanLII / CourtListener connectors and records what came back. It pre-fills the source URL and nothing else: no box is ticked for you and no row is ever promoted by a machine. All four confirmations remain yours.</p>` : '')
-      + queue.map((i) => verifyCard(i, canResolve)).join('')
-      : (selInst.length ? '' : empty('No citation instances yet — run the extractor.'))}
-    ${decided.length ? `<h2 class="sec">Decided</h2>` + table(['Cite', 'Status', 'Pinpoint', 'Quote', 'Treatment', 'By', ''], decided.map((i) => [
-      `<span class="num">${esc(i.cite)}</span>` + provenance(i),
-      i.status === 'verified' ? tag('verified', 'ok') : tag('failed' + (i.failReason ? ': ' + i.failReason : ''), 'gate'),
-      esc(i.pinpoint || '—'),
-      i.quoteOk === true ? tag('match', 'ok') : i.quoteOk === false ? tag('mismatch', 'gate') : '—',
-      i.treatmentCurrent === true ? tag('current', 'ok') : i.treatmentCurrent === false ? tag('bad', 'gate') : '—',
-      esc(i.checkedBy || ''),
-      i.status === 'failed' ? `<form method="POST" action="/r/citations/reopen" style="margin:0"><input type="hidden" name="id" value="${esc(i.id)}"><button class="quiet">Re-queue</button></form>` : '',
-    ])) : ''}` : '';
+      <p class="note">Drafts normally arrive from Brief Writer (18) — paste one here to gate any other document before filing.</p>
+    </div>`;
+
+    // The open draft, at a glance: gate, size, when it was last read, and the
+    // two things you do to it — extract, and (once clear) certify.
+    const canCert = sel && selInst.length && isClear(sel, selInst, selStale);
+    const draftCard = sel ? `<div class="card">
+      <h2 class="sec" style="margin-top:0">${esc(sel.title || '(untitled draft)')} ${gateTag(sel, selInst, selStale)}</h2>
+      ${kv([
+        ['Unverified', `<span class="num">${queue.length}</span>`],
+        ['Failed', `<span class="num">${selInst.filter((i) => i.status === 'failed').length}</span>`],
+        ['Verified', `<span class="num">${selInst.filter((i) => i.status === 'verified').length}</span>`],
+        ['Last extracted', sel.scannedAt ? date(sel.scannedAt) : '— not yet run'],
+        ['Draft text', `<span class="num">${draftText(sel).length}</span> characters`],
+      ])}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+        <form method="POST" action="/r/citations/scan" style="margin:0"><input type="hidden" name="draftId" value="${esc(sel.id)}"><button style="margin-top:0">${sel.scannedAt ? 'Re-extract citations' : 'Extract citations from draft'}</button></form>
+        ${canCert ? `<a class="btn" href="${esc(certUrl(sel.id))}" style="margin-top:0">Print certificate →</a>` : ''}
+      </div>
+      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral, volume, rule-book and statutory cites) that over-captures on purpose; a human clears every row. ${canResolve ? 'Connector resolution sits on each row below — it reports what it found and pre-fills the source URL, and promotes nothing.' : 'eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07).'} Treatment classification stays human-confirmed (Gap 2).</p>
+    </div>` : '';
+
+    const warnings = sel ? `
+    ${selStale ? `<div class="flash err">This draft was edited after its citations were verified — those verifications are stale. Re-extract and re-verify before certifying.</div>` : ''}
+    ${noCitesFound(sel, selInst) ? `<div class="flash err">Gate cleared with an empty queue: ${esc(NO_CITE_WARN)}. The extractor ran over <span class="num">${draftText(sel).length}</span> characters and matched nothing. Confirm the draft really cites no authority — if it does, the text may not have reached this room, and any missed cite must be added by hand below before this draft is filed.</div>` : ''}` : '';
+
+    const queueBlock = queue.length
+      ? `<h2 class="sec">Awaiting verification — ${queue.length}</h2>`
+        + (canResolve ? `<p class="note">“Resolve via connectors” runs this citation through the CanLII / CourtListener connectors and records what came back. It pre-fills the source URL and nothing else: no box is ticked for you and no row is ever promoted by a machine. All four confirmations remain yours.</p>` : '')
+        + queue.map((i) => verifyCard(i, canResolve)).join('')
+      // Only an UNSCANNED draft gets the "run the extractor" prompt. A scanned
+      // draft with an empty queue is the zero-citation case, already carrying
+      // its own warning above — repeating "run the extractor" there would read
+      // as though the pass had never happened.
+      : (sel && !selInst.length && !sel.scannedAt
+        ? empty('Nothing to verify yet — run “Extract citations from draft” above to pull this draft’s cites into the queue.')
+        : '');
+
+    const decidedBlock = decided.length
+      ? `<h2 class="sec">Decided — ${decided.length}</h2>` + table(['Cite', 'Status', 'Pinpoint', 'Quote', 'Treatment', 'By', ''], decided.map((i) => [
+        `<span class="num">${esc(i.cite)}</span>` + provenance(i),
+        i.status === 'verified' ? tag('verified', 'ok') : tag('failed' + (i.failReason ? ': ' + i.failReason : ''), 'gate'),
+        esc(i.pinpoint || '—'),
+        i.quoteOk === true ? tag('match', 'ok') : i.quoteOk === false ? tag('mismatch', 'gate') : '—',
+        i.treatmentCurrent === true ? tag('current', 'ok') : i.treatmentCurrent === false ? tag('bad', 'gate') : '—',
+        esc(i.checkedBy || ''),
+        i.status === 'failed' ? `<form method="POST" action="/r/citations/reopen" style="margin:0"><input type="hidden" name="id" value="${esc(i.id)}"><button class="quiet">Re-queue</button></form>` : '',
+      ]))
+      : '';
+
+    const footBlock = sel ? `
+    <div class="grid2">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Add a citation the extractor missed</h2>
+        <form method="POST" action="/r/citations/add">
+          <input type="hidden" name="draftId" value="${esc(sel.id)}">
+          ${input('cite', 'Citation text', { required: true, placeholder: 'e.g. Limitations Act, 2002, s. 4' })}
+          <button>Add to queue</button>
+        </form>
+        <p class="note">Nothing files unlisted — if the pass missed a case or statute, add it here so it must be verified too. The draft stays blocked until it is.</p>
+      </div>
+      ${registerCard}
+    </div>` : '';
 
     const body = `
     <div class="grid2">
@@ -310,17 +346,12 @@ function register(app) {
         ${board}
         <p class="note">A draft is <b>blocked</b> while any citation instance is unverified or failed — including a citation sent over from Research (07), which counts here like any other. Only verified-all opens the gate (citeStatus: clear) — the Filing Room reads that flag. A draft that clears with an <b>empty</b> queue is flagged “${esc(NO_CITE_WARN)}”: a citation-free document is possible, but so is an extraction that found nothing when it should have.</p>
       </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Register a draft for checking</h2>
-        <form method="POST" action="/r/citations/draft">
-          ${input('title', 'Draft title', { required: true, placeholder: 'Factum — motion to strike' })}
-          ${textarea('text', 'Draft text', { required: true, placeholder: 'Paste the draft. e.g. …as held in R. v. Jordan, 2016 SCC 27 at para 46…' })}
-          <button>Register draft</button>
-        </form>
-        <p class="note">Drafts normally arrive from Brief Writer (18) — paste one here to gate any other document before filing.</p>
-      </div>
+      ${sel ? draftCard : registerCard}
     </div>
-    ${selBlock}`;
+    ${warnings}
+    ${queueBlock}
+    ${decidedBlock}
+    ${footBlock}`;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub, body }));
   });
 
@@ -504,21 +535,19 @@ function register(app) {
           source(i.resolvedUrl),
         ]))
       : `<p><b>No citation-like strings were detected on extraction</b> (run ${date(draft.scannedAt)}). The over-capturing extractor found no citation-like string in the <span class="num">${draftText(draft).length}</span> characters of this draft; there was nothing to verify. <b>${esc(NO_CITE_WARN)}</b> — this certificate attests that the pass found nothing, not that the draft was read and found to cite no authority.</p>`;
+    // The shared print base (kernel/html.js) already drops the chrome, repoints
+    // the palette to black-on-white and keeps a card off a page break. Only the
+    // certificate's own two needs are stated here.
     const body = `
     <style>@media print{
-      .side,.topbar,.roomsub,.flash,.no-print{display:none !important}
-      .shell{display:block !important}
-      .main{padding:0 !important;min-width:0}
-      body{background:#fff !important;color:#000 !important}
-      .card,table.t{background:#fff !important;border-color:#999 !important}
-      table.t th{background:#f2f2f2 !important;color:#222 !important;border-bottom-color:#999 !important}
-      table.t td{border-bottom-color:#ccc !important}
-      h1.room,h2.sec,.kv dt,.kv dd,td,th,p,b,span,.num{color:#000 !important}
-      h2.sec{border-bottom-color:#999 !important}
-      a{color:#000 !important;text-decoration:none !important}
+      .roomsub{display:none}
+      .sigblock{break-inside:avoid;page-break-inside:avoid}
     }</style>
     <p class="no-print" style="margin:0 0 16px"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; <a href="${esc(roomUrl(draft.id))}">← back to the gate</a></p>
-    ${noCitesFound(draft, inst) ? `<div class="flash err">${esc(NO_CITE_WARN)}. This draft cleared the gate with an empty queue — read the warning under “Authorities verified” before you sign or serve this certificate.</div>` : ''}
+    ${noCitesFound(draft, inst) ? `<div class="card" style="border-color:var(--oxide);background:var(--oxide-wash)">
+      ${tag(NO_CITE_WARN, 'gate')}
+      <p style="margin:8px 0 0">This draft cleared the gate with an <b>empty queue</b>. The certificate below attests that the extraction pass found nothing — not that the draft was read and found to cite no authority. This caveat prints with the certificate; do not sign or serve it without confirming the draft really cites nothing.</p>
+    </div>` : ''}
     <div class="card">
       ${kv([
         ['Matter', esc(ctx.matter.title)],
@@ -532,7 +561,7 @@ function register(app) {
     ${authorities}
     <h2 class="sec">Method</h2>
     <p>Citation extraction was a deliberately over-capturing reference-pattern pass over the draft text. Every confirmation above — that each citation resolves to a real case, that the pinpoint relied on is stated, that the quoted or paraphrased passage matches the source, and that its treatment is current — was made by the named human verifier; no machine verified anything, this room's founding rule. The firm's hash-chained audit trail holds the citation.verified event behind each row of this certificate.</p>
-    <div style="margin-top:36px">
+    <div class="sigblock" style="margin-top:36px">
       <p>Verified as above.</p>
       <p style="margin-top:40px">____________<br>Lawyer of record — <span class="num">${esc(gen)}</span></p>
     </div>`;

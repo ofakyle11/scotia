@@ -1,10 +1,25 @@
 'use strict';
 // Room 09 — Jurisdiction Desk. Firm-level reference: which rulebook governs,
 // what it says, and which days the courthouse is dark. Works with no matter open.
+//
+// Page order is the working order: the recompute alarm (a jurisdiction change
+// has already broken somebody's limitation math) comes before the reference
+// tables, and one compare control drives both the rulebook and the dark-day
+// calendar for the pair being read.
 const { layout, esc, table, empty, tag, kv, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 9, id: 'jurisdiction', title: 'Jurisdiction Desk', phase: 'Build' };
+const SUB = 'Which rulebook governs — and which days the court is dark';
+
+// Civil law is a hard boundary, not a footnote: common-law doctrine, precedent
+// structure and the deadline rules below do not cross it. Rendered beside the
+// tranche table, where the qc row actually appears.
+const QC_BOUNDARY = `<div style="border:1px solid var(--oxide);background:var(--oxide-wash);padding:12px 14px;margin-top:14px">
+  ${tag('civil law boundary', 'gate')}
+  <p style="margin:8px 0 0"><b>Québec is civil law.</b> Procedure and prescription there run under the Code of Civil Procedure and the Civil Code of Québec — do not carry common-law doctrine, precedent structure or the rules below across that line.</p>
+  <p class="note">Only extinctive prescription (art. 2925 CCQ) is loaded in this tranche; the rest of the Québec rulebook is not. Compute nothing else against qc here.</p>
+</div>`;
 
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
@@ -12,30 +27,30 @@ function register(app) {
     const jurs = k.rules.JURISDICTIONS; // [[code, label], ...]
     const label = (code) => { const j = jurs.find(([c]) => c === code); return j ? j[1] : code; };
     const validOr = (code, fallback) => jurs.some(([c]) => c === code) ? code : fallback;
-    const a = validOr(ctx.query.get('a'), validOr(ctx.matter ? ctx.matter.jurisdiction : null, 'on'));
+    const here = ctx.matter ? ctx.matter.jurisdiction : null;
+    const a = validOr(ctx.query.get('a'), validOr(here, 'on'));
     const b = validOr(ctx.query.get('b'), a === 'us-fed' ? 'on' : 'us-fed');
 
     // Deadlines computed under the matter's prior governing law, flagged stale
     // when the jurisdiction changed here (see the govern handler). A jurisdiction
-    // change is exactly when limitation math breaks — surface it as a control.
+    // change is exactly when limitation math breaks — surface it as a control,
+    // above everything else on the page.
     let stale = [];
     if (ctx.matter) {
       try { stale = k.scope(ctx.matter.id).list('deadline', (d) => d.stale && d.status !== 'done'); } catch { stale = []; }
     }
-    const staleReCard = recomputeCard(k, stale);
+
+    const tranche = table(['Code', 'Court', 'Rules', 'Holidays'], jurs.map(([code, name]) => [
+      `<span class="num">${esc(code)}</span>` + (code === here ? ' ' + tag('this matter', 'navy') : ''),
+      esc(name),
+      `<span class="num" style="display:block;text-align:right">${k.rules.rulesFor(code).length}</span>`,
+      k.rules.HOLIDAYS[code]
+        ? `<span class="num" style="display:block;text-align:right">${k.rules.HOLIDAYS[code].length}</span>`
+        : tag('falls back to us-fed'),
+    ]));
 
     const body = `
-    <div class="card" style="border-color:var(--oxide);background:var(--oxide-wash)">
-      ${tag('civil law boundary', 'gate')}
-      <p style="margin:10px 0 0"><b>Québec is civil law — common-law reasoning does not apply.</b>
-      Procedure and prescription there run under the Code of Civil Procedure and the Civil Code of Québec;
-      do not carry common-law doctrine, precedent structure, or these deadline rules across that line.
-      Québec is deliberately absent from this tranche until its own rulebook is loaded.</p>
-      <p class="note">The rules below are a <b>reference tranche</b> — real citations, deliberately small.
-      The production rulebook is versioned per court, effective-dated, and grows one court at a time.</p>
-    </div>
-
-    ${staleReCard}
+    ${recomputeCard(k, stale)}
 
     <div class="grid2">
       <div class="card">
@@ -44,57 +59,46 @@ function register(app) {
         ${kv([
           ['Matter', esc(ctx.matter.title)],
           ['Client', esc(ctx.matter.client || '—')],
-          ['Governing', `${esc(label(ctx.matter.jurisdiction))} <span class="num">${esc(ctx.matter.jurisdiction || '—')}</span>`],
+          ['Governing', `${esc(label(here))} <span class="num">${esc(here || '—')}</span>`],
           ['Posture', esc(ctx.matter.posture || '—')],
         ])}
         <form method="POST" action="/r/jurisdiction/govern">
-          ${select('jurisdiction', 'Set governing jurisdiction', jurs, ctx.matter.jurisdiction)}
+          ${select('jurisdiction', 'Set governing jurisdiction', jurs, here)}
           <button>Set governing law</button>
         </form>
-        <p class="note">Changing this changes which rulebook every deadline room computes against. Existing
-        computed deadlines are flagged stale for recompute — a jurisdiction change is exactly when limitation
-        math breaks. Rebuild each flagged date in <a href="/r/calendar">Trial Calendar</a>.</p>
-        ` : empty('Open a matter to set its governing jurisdiction. The reference tables here need no matter.')}
+        <p class="note">This picks the rulebook every deadline room computes against. Change it and every open computed deadline is flagged stale here for rebuild in <a href="/r/calendar">Trial Calendar</a> — a jurisdiction change is exactly where limitation math breaks.</p>
+        ` : empty('Open a matter to set its governing jurisdiction. The reference tables below need no matter.')}
       </div>
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Jurisdictions in the tranche</h2>
-        ${table(['Code', 'Jurisdiction', 'Rules', 'Holiday table'], jurs.map(([code, name]) => [
-          `<span class="num">${esc(code)}</span>`, esc(name),
-          `<span class="num">${k.rules.rulesFor(code).length}</span>`,
-          k.rules.HOLIDAYS[code] ? tag('loaded', 'ok') : tag('falls back to us-fed'),
-        ]))}
-        <p class="note">A jurisdiction without its own holiday table computes roll-forward dates against the
-        US federal table — replace before relying on business-day math for that court.</p>
+        <h2 class="sec" style="margin-top:0">Courts in the tranche</h2>
+        ${tranche}
+        <p class="note">Reference tranche — real citations, deliberately small; the production rulebook is versioned per court and effective-dated. A court with no holiday table of its own computes business days against the US federal table.</p>
+        ${QC_BOUNDARY}
       </div>
     </div>
 
-    <h2 class="sec">Rules — side by side</h2>
+    <h2 class="sec">Side by side — rules and dark days</h2>
     <div class="card">
       <form method="GET" action="/r/jurisdiction" class="grid3" style="align-items:end">
-        <span>${select('a', 'Jurisdiction A', jurs, a)}</span>
-        <span>${select('b', 'Jurisdiction B', jurs, b)}</span>
+        <span>${select('a', 'Court A', jurs, a)}</span>
+        <span>${select('b', 'Court B', jurs, b)}</span>
         <span><button style="margin-top:0">Compare</button></span>
       </form>
+      <p class="note">A defaults to the open matter&rsquo;s governing law. Changing the pair swaps both the rulebook and the holiday table below it.</p>
     </div>
     <div class="grid2">
       ${[a, b].map((j) => `<div class="card">
         <h2 class="sec" style="margin-top:0">${esc(label(j))} <span class="num">${esc(j)}</span></h2>
         ${rulesTable(k, j)}
+        <h2 class="sec">Court dark days — 2026</h2>
+        ${holidayTable(k, j)}
       </div>`).join('')}
     </div>
-    <p class="note">Jurisdiction A defaults to the open matter&rsquo;s governing law — pick any pair above to read the full reference tranche for those courts.</p>
-
-    <h2 class="sec">Court holidays — 2026 tranche</h2>
-    <div class="grid2">
-      ${Object.keys(k.rules.HOLIDAYS).map((code) => `<div class="card">
-        <h2 class="sec" style="margin-top:0">${esc(label(code))} <span class="num">${esc(code)}</span></h2>
-        ${table(['Date', 'Day'], k.rules.HOLIDAYS[code].map((d) => [date(d), esc(weekday(d))]))}
-      </div>`).join('')}
-    </div>
-    <p class="note">Deadlines landing on a weekend or listed holiday roll forward to the next business day —
-    the common default; court-specific variations live in the versioned rulebook, not in code.</p>
+    <p class="note"><b>Procedural</b> deadlines landing on a weekend or a listed holiday roll forward to the next business day.
+    A <b>limitation bar</b> does not roll — its statutory expiry stands on the day it falls, and counsel is warned rather than
+    handed a later, false-safe date. Court-specific variations live in the versioned rulebook, not in code.</p>
     `;
-    html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Which rulebook governs — and which days the court is dark', body }));
+    html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
   });
 
   app.route('POST', `/r/${ROOM.id}/govern`, (req, res, ctx) => {
@@ -175,20 +179,30 @@ function recomputeCard(k, stale) {
   });
   return `<div class="card" style="border-color:var(--oxide);background:var(--oxide-wash)">
     <h2 class="sec" style="margin-top:0">Recompute needed ${tag(ordered.length + ' stale', 'gate')}${limN ? ' ' + tag(limN + ' limitation', 'gate') : ''}</h2>
-    <p style="margin:6px 0 0">The governing law changed, so these already-computed deadlines were rolled against a rulebook that no longer governs${limN ? ' — including a limitation/prescription bar, exactly where a jurisdiction change breaks the math' : ''}. Recompute each from the current rules in <a href="/r/calendar">Trial Calendar</a>, then clear its flag here.</p>
+    <p style="margin:6px 0 0">The governing law changed, so these already-computed deadlines were rolled against a rulebook that no longer governs${limN ? ' — including a limitation/prescription bar, exactly where a jurisdiction change breaks the math' : ''}. Rebuild each from the current rules in <a href="/r/calendar">Trial Calendar</a>, mark the superseded entry done, then clear its flag here.</p>
     ${table(['Was due', 'Deadline', 'Kind', 'Computed under', ''], rows)}
-    <p class="note">Clearing a flag only acknowledges it — it does not recompute the date. Rebuild the date in <a href="/r/calendar">Trial Calendar</a> (nothing there is typed by hand) and mark the superseded entry done.</p>
+    <p class="note">Clearing a flag acknowledges it — it does not recompute the date.</p>
   </div>`;
 }
 
+// Kind first-class: a limitation bar and a filing deadline are not the same
+// animal and only one of them rolls off a dark day.
 function rulesTable(k, jur) {
   const rows = k.rules.rulesFor(jur).map((r) => [
     esc(r.trigger),
     esc(r.desc),
-    `<span class="num">${r.days} ${esc(r.method)}</span>`,
+    k.rules.isLimitation(r) ? tag('limitation bar', 'gate') : tag('procedural'),
+    `<span class="num" style="display:block;text-align:right">${Number(r.days) || 0} ${esc(r.method === 'business' ? 'bus.' : 'cal.')}</span>`,
     `<span class="num">${esc(r.cite)}</span>`,
   ]);
-  return table(['Trigger', 'Deadline', 'Days', 'Citation'], rows) || empty('No rules in the reference tranche for this jurisdiction yet.');
+  return table(['Trigger', 'Deadline', 'Kind', 'Days', 'Citation'], rows)
+    || empty('No rules loaded for this court — compute nothing against it here; work from the court’s own rulebook.');
+}
+
+function holidayTable(k, jur) {
+  const hs = k.rules.HOLIDAYS[jur];
+  if (!hs || !hs.length) return `<p class="note">No holiday table for this court — business-day math falls back to the US federal table. Load its own table before relying on a rolled date.</p>`;
+  return table(['Date', 'Day'], hs.map((d) => [date(d), esc(weekday(d))]));
 }
 
 function weekday(iso) {

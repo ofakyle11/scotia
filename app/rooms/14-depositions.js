@@ -21,6 +21,16 @@ const uKind = (u) => u.kind || 'undertaking'; // records predating kinds read as
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Printing this page yields the refusals chart alone — the tabular chart the
+// Toronto Region consolidated practice direction expects on a refusals motion.
+// Everything else is marked .no-print and the shared print base in
+// kernel/html.js drops the chrome and re-points the palette, so the chart
+// paginates properly instead of being clipped to one absolutely-placed page.
+const PRINT = `<style>@media print{
+h1.room,.roomsub{display:none}
+.grid2,.grid3{display:block}
+}</style>`;
+
 function actorMatch(actor, name) {
   const a = String(actor || '').trim().toLowerCase();
   const n = String(name || '').trim().toLowerCase();
@@ -132,16 +142,16 @@ function register(app) {
     const uRule = undertakingRule(k, ctx.matter.jurisdiction);
     const now = today();
 
-    const bench = table(['Witness', 'Side', 'Role', 'Examination', 'Outline', 'Digest', ''],
+    const bench = table(['Witness', 'Side', 'Role', 'Examination', 'Topics', 'Digest', ''],
       witnesses.map((x) => [
         `<a href="/r/depositions?w=${encodeURIComponent(x.id)}"><b>${esc(x.name)}</b></a>`,
         sideTag(x.side),
         esc(x.role || '—'),
         x.examDate ? date(x.examDate) : '<span class="note">not scheduled</span>',
-        `<span class="num">${allTopics.filter((t) => t.witnessId === x.id).length} topics</span>`,
-        `<span class="num">${allDigests.filter((d) => d.witnessId === x.id).length} entries</span>`,
+        `<span class="num">${allTopics.filter((t) => t.witnessId === x.id).length}</span>`,
+        `<span class="num">${allDigests.filter((d) => d.witnessId === x.id).length}</span>`,
         w && w.id === x.id ? tag('open', 'navy') : `<a href="/r/depositions?w=${encodeURIComponent(x.id)}">open</a>`,
-      ])) || empty('No witnesses yet. Add the people to be examined.');
+      ])) || empty('No witnesses yet — add the first person to be examined.');
 
     let workspace = '';
     if (w) {
@@ -199,6 +209,7 @@ function register(app) {
       });
 
       workspace = `
+      <div class="no-print">
       <h2 class="sec">Examination workspace — ${esc(w.name)} ${sideTag(w.side)}</h2>
       ${kv([
         ['Role', esc(w.role || '—')],
@@ -208,51 +219,62 @@ function register(app) {
       <div class="grid2" style="margin-top:14px">
         <div class="card">
           <h2 class="sec" style="margin-top:0">Outline — ${topics.length} numbered topic${topics.length === 1 ? '' : 's'}</h2>
-          ${outlineRows.length ? table(['#', 'Topic', 'Source pin', 'Origin', ''], outlineRows) : empty('No topics yet. Pull from the chronology or add one by hand.')}
-          <form method="POST" action="/r/depositions/pull" style="display:inline">
+          ${outlineRows.length ? table(['#', 'Topic', 'Source pin', 'Origin', ''], outlineRows)
+            : empty(facts.length ? 'No topics yet — pull the chronology facts this witness figures in, or add one by hand.' : 'No topics yet — add one by hand, or build the timeline first in Chronology.')}
+          ${fresh ? `<form method="POST" action="/r/depositions/pull" style="display:inline">
             <input type="hidden" name="witnessId" value="${esc(w.id)}">
-            <button ${fresh ? '' : 'class="quiet"'}>Pull ${fresh} new fact${fresh === 1 ? '' : 's'} from chronology</button>
+            <button>Pull ${fresh} new fact${fresh === 1 ? '' : 's'} from chronology</button>
           </form>
-          <p class="note">Pulling imports every chronology fact whose actor matches this witness — each lands as a numbered topic carrying the fact&rsquo;s source pin, so the document is in hand when the question is asked. Already-pulled facts are skipped.</p>
+          <p class="note">Each pulled fact lands as a numbered topic carrying the fact&rsquo;s source pin — the document is in hand when the question is asked. Already-pulled facts are skipped.</p>`
+            : `<p class="note" style="margin-top:14px">${matching.length
+              ? 'Every chronology fact naming this witness is already in the outline.'
+              : `No chronology fact names ${esc(w.name)} as actor — build the timeline in <a href="/r/chronology">Chronology</a> and pulled topics arrive with their source pins.`}</p>`}
           <form method="POST" action="/r/depositions/topic">
             <input type="hidden" name="witnessId" value="${esc(w.id)}">
             ${input('topic', 'Manual topic', { required: true, placeholder: 'Walk through the March 4 board minutes' })}
-            ${input('source', 'Source pin (optional)', { placeholder: 'Ex. 12 · doc id · prior affidavit para 8' })}
+            ${input('source', 'Source pin', { placeholder: 'Ex. 12 · doc id · prior affidavit para 8' })}
             <button>Add topic</button>
           </form>
         </div>
         <div class="card">
-          <h2 class="sec" style="margin-top:0">Transcript digest</h2>
+          <h2 class="sec" style="margin-top:0">Transcript digest — ${digests.length} entr${digests.length === 1 ? 'y' : 'ies'}</h2>
           ${digestRows.length ? table(['Page:line', 'Quote', 'Kind', ''], digests.map((d, i) => digestRows[i].concat(
             `<form method="POST" action="/r/depositions/digest-del" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><input type="hidden" name="witnessId" value="${esc(w.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:0">drop</button></form>`
-          ))) : empty('No digest entries yet. When the transcript lands, index it here.')}
+          ))) : empty('No digest entries yet — when the transcript lands, index it page:line by page:line.')}
           <form method="POST" action="/r/depositions/digest">
             <input type="hidden" name="witnessId" value="${esc(w.id)}">
-            ${input('pl', 'Page:line', { required: true, placeholder: '41:12' })}
-            ${textarea('quote', 'Quote (verbatim from the transcript)', { required: true, placeholder: 'Q. ... A. ...' })}
-            ${select('kind', 'Kind', KINDS)}
-            ${select('contraFactId', 'Contradicting chronology fact (for impeachment candidates)', factOpts)}
+            <div class="grid2">
+              <span>${input('pl', 'Page:line', { required: true, placeholder: '41:12' })}</span>
+              <span>${select('kind', 'Kind', KINDS)}</span>
+            </div>
+            ${textarea('quote', 'Quote — verbatim', { required: true, placeholder: 'Q. ... A. ...' })}
+            ${select('contraFactId', 'Contradicting fact — impeachment candidates', factOpts)}
             <button>Log entry</button>
           </form>
+          ${facts.length ? '' : '<p class="note">No chronology facts on this matter yet, so there is nothing to pair an impeachment candidate against.</p>'}
         </div>
       </div>
       <h2 class="sec">Impeachment table — ${esc(w.name)}</h2>
       ${impeachRows.length
         ? table(['Transcript at', 'What the witness said', 'Contradicting fact (chronology)', 'Fact source pin'], impeachRows)
-        : empty('No impeachment candidates flagged for this witness yet.')}
-      <p class="note">Every digest entry flagged as an impeachment candidate is set against the prior statement or sourced fact it contradicts — page:line on one side, the pin on the other, ready for the Trial Book.</p>
+        : empty('Nothing flagged yet — log a digest entry as an impeachment candidate and pair it with the fact it contradicts.')}
+      <p class="note">Page:line on one side, the sourced fact on the other — the pairing is what makes the confrontation usable in the Trial Book.</p>
+      </div>
       <div id="refusals-chart">
-        <style>@media print{body{background:#fff!important}body *{visibility:hidden}#refusals-chart,#refusals-chart *{visibility:visible}#refusals-chart{position:absolute;left:0;top:0;width:100%;background:#fff;color:#000;padding:0}#refusals-chart h2.sec{color:#000;border-color:#000}#refusals-chart .note{color:#000}#refusals-chart table.t{background:#fff;color:#000;border:1px solid #000}#refusals-chart table.t th{background:#fff;color:#000;border-bottom:1px solid #000}#refusals-chart table.t td{color:#000;border-bottom:1px solid #888}#refusals-chart .num{color:#000}#refusals-chart .empty{background:#fff;color:#000;border-color:#000}}</style>
-        <h2 class="sec">Refusals chart — motion-ready</h2>
-        <p class="note">${esc(ctx.matter.title)} · refusals &amp; under-advisements of ${esc(w.name)}${w.examDate ? `, examined ${esc(w.examDate)}` : ''} · generated ${esc(now)}</p>
+        <div class="print-only" style="margin-bottom:12px">
+          <b>${esc(ctx.matter.title)}</b><br>
+          Refusals and under-advisements — ${esc(w.name)}${w.examDate ? `, examined ${esc(w.examDate)}` : ''}<br>
+          <span class="num">${esc(now)}</span>
+        </div>
+        <h2 class="sec no-print">Refusals chart — motion-ready ${chartRows.length ? tag(`${chartRows.length} on the chart`, 'navy') : ''}</h2>
         ${chartRows.length
           ? table(['Q#', 'Page:line', 'Question as put', 'Ground of refusal', 'Answer sought', 'Status'], chartRows)
-          : empty('No refusals or under-advisements logged for this witness.')}
+          : empty('Nothing refused or taken under advisement by this witness — the chart builds itself from the register below.')}
       </div>
-      <p class="note">Print this page and only the chart files — the inline print style strips the chrome, so the tabular undertakings/refusals chart the Toronto Region consolidated practice direction expects comes straight off the record instead of being rebuilt in Word. Move on refusals before the discovery cutoff: r. 31.07 bars leading the withheld information at trial without leave.</p>
+      <p class="note no-print">Print the page and the chart is what comes out, in the tabular form the Toronto Region consolidated practice direction expects — no rebuilding it in Word. Move on refusals before the discovery cutoff: r. 31.07 bars leading the withheld information at trial without leave.</p>
       `;
     } else if (witnesses.length) {
-      workspace = `<p class="note">Select a witness from the bench above to build the outline, digest the transcript, and work the impeachment table.</p>`;
+      workspace = `<p class="note no-print">Open a witness on the bench above to build the outline, digest the transcript, and work the impeachment table.</p>`;
     }
 
     const wName = new Map(witnesses.map((x) => [x.id, x.name]));
@@ -277,7 +299,8 @@ function register(app) {
     });
 
     const body = `
-    <div class="grid2">
+    ${PRINT}
+    <div class="grid2 no-print">
       <div class="card">
         <h2 class="sec" style="margin-top:0">The bench — ${esc(ctx.matter.title)}</h2>
         ${bench}
@@ -293,40 +316,44 @@ function register(app) {
           ${input('role', 'Role', { placeholder: 'CFO · eyewitness · corporate representative' })}
           <button>Add to the bench</button>
         </form>
-        <p class="note">Reference on scope: a US deposition is limited to one day of seven hours (FRCP 30(d)(1)); an Ontario examination for discovery runs to seven hours total per examining party (r. 31.05.1) and runs on undertakings (r. 31.07).</p>
+        <p class="note">Scope on the record: a US deposition is limited to one day of seven hours (FRCP 30(d)(1)); an Ontario examination for discovery runs to seven hours per examining party (r. 31.05.1) and runs on undertakings (r. 31.07).</p>
       </div>
     </div>
     ${workspace}
+    <div class="no-print">
     <h2 class="sec">Undertakings, refusals &amp; under-advisements ${openU.length ? tag(`${openU.length} open`, overdueN ? '' : 'navy') : ''} ${overdueN ? tag(`${overdueN} overdue`, 'gate') : ''}</h2>
     <div class="grid2">
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Track an undertaking · refusal · under-advisement</h2>
+        <h2 class="sec" style="margin-top:0">The register</h2>
+        ${uRows.length ? table(['Witness', 'Kind', 'Q#', 'Page:line', 'Text', 'Given', 'Due', 'Status', ''], uRows)
+          : empty('Nothing tracked on this matter — record the first promise made on the record.')}
+        <p class="note">Answers on a Canadian examination are promised on the record and forgotten off it; the register is what keeps the promise. Overdue means the due date passed with no answer recorded. Refusals ride the same register so nothing is moved on late.</p>
+      </div>
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Track one</h2>
         ${witnesses.length ? `
         <form method="POST" action="/r/depositions/undertaking">
           <div class="grid2">
             <span>${select('witnessId', 'Witness', witnesses.map((x) => [x.id, x.name]), w ? w.id : undefined)}</span>
             <span>${select('kind', 'Kind', UKINDS)}</span>
           </div>
-          ${textarea('text', 'As given — the undertaking, or the question refused / taken under advisement', { required: true, placeholder: 'To produce the 2024 maintenance invoices for the plant.' })}
+          ${textarea('text', 'As given — the undertaking, or the question refused', { required: true, placeholder: 'To produce the 2024 maintenance invoices for the plant.' })}
           <div class="grid2">
-            <span>${input('qnum', 'Question number (optional)', { placeholder: '417' })}</span>
-            <span>${input('pl', 'Page:line (optional)', { placeholder: '41:12' })}</span>
-            <span>${input('ground', 'Ground (refusals / u-a)', { placeholder: 'relevance · privilege · proportionality' })}</span>
-            <span>${input('sought', 'Answer sought (refusals / u-a)', { placeholder: 'Production of the 2019 audit file.' })}</span>
-            <span>${input('given', 'Given (blank = today)', { type: 'date' })}</span>
-            <span>${input('due', 'Due (blank = rule default)', { type: 'date' })}</span>
+            <span>${input('qnum', 'Question no.', { placeholder: '417' })}</span>
+            <span>${input('pl', 'Page:line', { placeholder: '41:12' })}</span>
+            <span>${input('ground', 'Ground — refusals only', { placeholder: 'relevance · privilege · proportionality' })}</span>
+            <span>${input('sought', 'Answer sought — refusals only', { placeholder: 'Production of the 2019 audit file.' })}</span>
+            <span>${input('given', 'Given', { type: 'date' })}</span>
+            <span>${input('due', 'Due', { type: 'date' })}</span>
           </div>
           <button>Track it</button>
-        </form>` : empty('Add a witness first — undertakings attach to an examination.')}
-        <p class="note">A blank due date computes from the date given: ${uRule ? `${uRule.days} days per ${esc(uRule.cite)}, rolled forward off weekends and court holidays` : 'a 60-day house default (no undertakings rule on file for this jurisdiction — the practice is Canadian)'}.</p>
-      </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">The register</h2>
-        ${uRows.length ? table(['Witness', 'Kind', 'Q#', 'Page:line', 'Text', 'Given', 'Due', 'Status', ''], uRows) : empty('No undertakings tracked on this matter.')}
-        <p class="note">Answers on Canadian examinations are promised on the record and forgotten off it — the register is what keeps the promise. Overdue means due date passed with no answer recorded. Refusals ride the same register so nothing is moved on late.</p>
+        </form>
+        <p class="note">Blank given reads as today. A blank due date computes from the date given: ${uRule ? `${uRule.days} days per ${esc(uRule.cite)}, rolled forward off weekends and court holidays` : 'a 60-day house default — no undertakings rule is on file for this jurisdiction, and the practice is Canadian'}. Whichever applies is recorded on the row.</p>`
+          : empty('Add a witness first — an undertaking attaches to the examination it was given in.')}
       </div>
     </div>
     ${crossBoard(k, ctx.matters, now)}
+    </div>
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
   });

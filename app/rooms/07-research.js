@@ -47,16 +47,16 @@ function checkCell(a, drafts) {
     return tag('in citation check', 'ok') +
       (a.draftId ? ` <a href="${esc(gateUrl(a.draftId))}">open the gate →</a>` : '');
   }
-  if (!drafts.length) {
-    return `<span class="note">No draft on this matter yet — register one in Citation Check (08), or send one from Brief Writer (18), then this authority can be attached to it.</span>`;
-  }
+  // No draft on the matter: say it ONCE, on the desk-state card, not in every
+  // row of every table. The row just states the fact.
+  if (!drafts.length) return tag('no draft to cite it in');
   return `<form method="POST" action="/r/research/send" class="mselect">
     <input type="hidden" name="id" value="${esc(a.id)}">
     <select name="draftId" aria-label="Draft this authority is cited in">
       <option value="">— which draft cites it? —</option>
       ${drafts.map((d) => `<option value="${esc(d.id)}">${esc(draftLabel(d))}</option>`).join('')}
     </select>
-    <button class="quiet">send to Citation Check</button>
+    <button class="quiet">send</button>
   </form>`;
 }
 
@@ -76,15 +76,17 @@ function authorityRow(a, drafts) {
 function memoCard(m, auths, drafts) {
   const mine = auths.filter((a) => a.memoId === m.id).sort(byAdverseFirst);
   const adverseCount = mine.filter((a) => a.adverse).length;
-  return `<div class="card">
+  const open = !String(m.conclusion || '').trim();
+  // An unresolved memo is unfinished work — it reads as such down the page.
+  return `<div class="card"${open ? ' style="border-left:2px solid var(--oxide)"' : ''}>
     ${kv([
       ['Issue', `<b style="color:var(--ink)">${esc(m.issue)}</b>`],
-      ['Conclusion', m.conclusion ? esc(m.conclusion) : tag('unresolved', 'gate')],
+      ['Conclusion', open ? tag('unresolved', 'gate') : esc(m.conclusion)],
       ['Framed', date(m.createdAt) || '—'],
       ['Authorities', `${tag(`${mine.length} cited`)} ${adverseCount ? tag(`${adverseCount} adverse`, 'gate') : ''}`],
     ])}
     ${mine.length
-      ? table(['Citation', 'Court', 'Year', 'Weight', 'Cuts', 'Proposition', ''], mine.map((a) => authorityRow(a, drafts)))
+      ? table(['Citation', 'Court', 'Year', 'Weight', 'Cuts', 'Proposition', 'Citation check'], mine.map((a) => authorityRow(a, drafts)))
       : empty('No authorities on this memo yet — cite the first one below.')}
     <details style="margin-top:12px" ${mine.length ? '' : 'open'}>
       <summary style="cursor:pointer;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft)">Add authority</summary>
@@ -122,7 +124,11 @@ function register(app) {
       return;
     }
     const s = k.scope(ctx.matter.id);
-    const memos = s.list('memo').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Unresolved memos first, then newest — the same layout-as-a-rule idea the
+    // adverse block uses: the page opens on the work that is not finished.
+    const memos = s.list('memo').sort((a, b) =>
+      ((String(a.conclusion || '').trim() ? 1 : 0) - (String(b.conclusion || '').trim() ? 1 : 0)) ||
+      (b.createdAt || '').localeCompare(a.createdAt || ''));
     // Filtered, not unfiltered: connector rows are counted below and left to
     // their own rooms rather than rendered here with a blank proposition.
     const auths = s.list('authority', isOurs);
@@ -131,6 +137,7 @@ function register(app) {
     // 18-briefs drafts both live in the same type; either can be cited into.
     const drafts = s.list('draft').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const memoById = Object.fromEntries(memos.map((m) => [m.id, m]));
+    const openMemos = memos.filter((m) => !String(m.conclusion || '').trim()).length;
     const adverse = auths.filter((a) => a.adverse).sort(byAdverseFirst);
     const pending = s.list('citation_instance', (c) => c.source === 'research' && c.status === 'unverified').length;
 
@@ -138,7 +145,7 @@ function register(app) {
     const adverseBlock = adverse.length ? `
     <div class="card" style="border-color:var(--oxide)">
       <h2 class="sec" style="margin-top:0;border-bottom-color:var(--oxide)">Adverse authority ${tag('candour duty', 'gate')}</h2>
-      ${table(['Citation', 'Court', 'Year', 'Weight', 'Against us on', 'Memo', ''], adverse.map((a) => {
+      ${table(['Citation', 'Court', 'Year', 'Weight', 'Against us on', 'Memo', 'Citation check'], adverse.map((a) => {
         const m = memoById[a.memoId];
         return [
           `<span class="num">${esc(a.cite)}</span>`,
@@ -168,16 +175,19 @@ function register(app) {
         <h2 class="sec" style="margin-top:0">Desk state — ${esc(ctx.matter.title)}</h2>
         <p>
           ${tag(`${memos.length} memo${memos.length === 1 ? '' : 's'}`)}
+          ${openMemos ? tag(`${openMemos} unresolved`, 'gate') : (memos.length ? tag('every memo concluded', 'ok') : '')}
           ${tag(`${auths.length} authorities`)}
           ${tag(`${auths.filter((a) => a.weight === 'binding').length} binding`, 'navy')}
           ${adverse.length ? tag(`${adverse.length} adverse`, 'gate') : tag('no adverse authority recorded', 'ok')}
-          ${pending ? tag(`${pending} awaiting citation check`, 'gate') : ''}
+          ${pending ? `<a href="/r/citations">${tag(`${pending} awaiting citation check`, 'gate')}</a>` : ''}
         </p>
-        <p class="note">Sending an authority to Citation Check records an <b>unverified</b> instance <b>against a named draft</b> — that draft is blocked from filing until the citation comes back verified, and nothing cited here is good law until it does. An instance with no draft could never be gated by Citation Check (08) or verified by anyone, so the draft is picked when you send it. Retrieval against CourtListener / CAP wires in here — Build Sheet L07; until it lands, authorities are entered by hand and this room fabricates no search results.</p>
-        ${connectorCount ? `<p class="note"><span class="num">${connectorCount}</span> further ${connectorCount === 1 ? 'authority' : 'authorities'} on this matter came from the CanLII (29) / CourtListener (30) connectors. They carry no memo, no proposition and no weight — nobody has weighed them — so they are not listed here as research. Open those rooms to see them, or re-enter one under a memo above with the proposition it actually stands for.</p>` : ''}
+        <p class="note">Sending an authority to Citation Check records an <b>unverified</b> instance against a named draft: that draft is blocked from filing until the cite comes back verified. The draft is picked at send time because an instance with no draft can never be gated there, nor verified by anyone.</p>
+        ${drafts.length ? '' : `<p class="note">No draft on this matter yet, so nothing can be sent to the gate. Register one in <a href="/r/citations">Citation Check (08)</a>, or send one from <a href="/r/briefs">Brief Writer (18)</a>, then each authority can be attached to it.</p>`}
+        ${connectorCount ? `<p class="note"><span class="num">${connectorCount}</span> further ${connectorCount === 1 ? 'authority' : 'authorities'} on this matter came from the CanLII (29) / CourtListener (30) connectors. Nobody has weighed them — no memo, no proposition, no weight — so they are not listed here as research. Open those rooms, or re-enter one under a memo with the proposition it actually stands for.</p>` : ''}
+        <p class="note">Retrieval against CourtListener / CAP wires in here — Build Sheet L07. Until it lands every authority is entered by hand; this room fabricates no search results.</p>
       </div>
     </div>
-    <h2 class="sec">Memos</h2>
+    <h2 class="sec">Memos${openMemos ? ` ${tag(`${openMemos} unresolved — listed first`, 'gate')}` : ''}</h2>
     ${memos.length ? memos.map((m) => memoCard(m, auths, drafts)).join('') : empty('No memos yet — frame the first issue above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));

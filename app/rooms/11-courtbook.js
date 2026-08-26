@@ -1,6 +1,11 @@
 'use strict';
 // Room 11 — Court Book. Firm-level verified court directory: where you file,
 // how they want it, and when somebody last checked. No matter required.
+//
+// The daily use is a lookup seconds before a filing, so the directory reads
+// one line per court and the four standing notes fold away behind a summary.
+// The daily *action* is reverification, so anything past the staleness clock
+// is lifted into a queue at the top of the page with the stamp button on it.
 const { layout, esc, table, empty, tag, input, textarea, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
@@ -8,6 +13,7 @@ const ROOM = { num: 11, id: 'courtbook', title: 'Court Book', phase: 'Build' };
 
 const STALE_DAYS = 180;
 const LEVELS = ['Trial', 'Appellate', 'Final appellate', 'Tribunal', 'Other'];
+const SUMMARY = 'cursor:pointer;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)';
 
 // Reference tranche — seeded once, clearly labeled. Verified-on is set to the
 // seed date; the staleness clock starts running immediately, on purpose.
@@ -58,18 +64,26 @@ function staleDays(verifiedOn) {
   return Math.floor((Date.now() - t) / 86400000);
 }
 
+const isStale = (e) => { const d = staleDays(e.verifiedOn); return d === null || d > STALE_DAYS; };
+
 function verifiedCell(e) {
   const d = staleDays(e.verifiedOn);
   if (d === null) return tag('never verified', 'gate');
   return `${date(e.verifiedOn)} ${d > STALE_DAYS ? tag(`stale — ${d}d`, 'gate') : tag(`${d}d ago`, 'ok')}`;
 }
 
+const verifyBtn = (e, label) => `<form method="POST" action="/r/courtbook/verify" style="display:inline"><input type="hidden" name="id" value="${esc(e.id)}"><button class="quiet">${esc(label)}</button></form>`;
+
+// Four standing notes per court would make every row six lines tall, so they
+// fold behind a summary that names which of them are actually on file.
 function notesCell(e) {
   const rows = [
     ['Fees', e.feeNote], ['Limits', e.limitNote], ['Format', e.formatNote], ['Standing orders', e.standingNote],
   ].filter(([, v]) => v);
-  if (!rows.length) return '<span class="note">—</span>';
-  return rows.map(([k2, v]) => `<div class="note" style="margin-top:2px"><b>${esc(k2)}:</b> ${esc(v)}</div>`).join('');
+  if (!rows.length) return '<span class="note">none recorded</span>';
+  return `<details><summary style="${SUMMARY}">${rows.map(([k2]) => esc(k2.toLowerCase())).join(' · ')}</summary>`
+    + rows.map(([k2, v]) => `<div class="note" style="margin-top:4px"><b>${esc(k2)}:</b> ${esc(v)}</div>`).join('')
+    + '</details>';
 }
 
 function register(app) {
@@ -77,10 +91,41 @@ function register(app) {
     const k = ctx.kernel;
     seedOnce(k);
     const entries = k.firm.list('courtEntry').sort((a, b) => (a.court || '').localeCompare(b.court || ''));
-    const stale = entries.filter((e) => { const d = staleDays(e.verifiedOn); return d === null || d > STALE_DAYS; });
+    const stale = entries.filter(isStale);
     const editId = ctx.query.get('edit');
     const editing = editId ? k.firm.get('courtEntry', editId) : null;
     const e = editing || {};
+
+    // Only the block that renders first loses its top margin.
+    const top = (isFirst) => (isFirst && !editing ? ' style="margin-top:0"' : '');
+
+    // The action, first and only when there is one: courts whose fees, limits
+    // or standing orders nobody has reconfirmed inside the staleness window.
+    const staleCard = stale.length ? `
+    <h2 class="sec"${top(true)}>Reverify before you file ${tag(`${stale.length} of ${entries.length} stale`, 'gate')}</h2>
+    <div class="card">
+      ${table(['Court', 'Last verified', ''], stale.map((c) => [
+        `<b>${esc(c.court)}</b><div class="note">${esc(c.jurisdiction || '—')}</div>`,
+        verifiedCell(c),
+        verifyBtn(c, 'Verified today') + ` <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:8px">edit</a>`,
+      ]))}
+      <p class="note">Reconfirm against the court’s own site, then stamp it here. The stamp is the record that a human checked — nothing in this book is fetched.</p>
+    </div>` : '';
+
+    const dirSection = `
+    <h2 class="sec"${top(!stale.length)}>Directory — <span class="num">${entries.length}</span> ${!stale.length && entries.length ? tag('all verified inside ' + STALE_DAYS + 'd', 'ok') : ''}</h2>
+    ${entries.length ? table(['Court', 'Jurisdiction', 'Level', 'E-filing', 'Notes', 'Verified', ''], entries.map((c) => [
+      `<b>${esc(c.court)}</b>${c.reference ? ' ' + tag('reference', 'navy') : ''}`,
+      esc(c.jurisdiction || '—'),
+      esc(c.level || '—'),
+      esc(c.portal || '—'),
+      notesCell(c),
+      verifiedCell(c),
+      `${verifyBtn(c, 'Verified today')}
+       <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:6px">edit</a>
+       <form method="POST" action="/r/courtbook/del" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="margin-top:0;padding:4px 10px">Delete</button></form>`,
+    ])) : empty('No courts in the book yet — add the court you file in below: its name, its portal, and the date you last confirmed its rules.')}
+    <p class="note">Fees, page limits and standing orders drift constantly, so every entry carries the date a human last confirmed it against the court’s own site and anything older than ${STALE_DAYS} days is flagged until reverified. <span class="tag navy">reference</span> marks the seeded tranche — starting points, not gospel. Nothing here is fetched: Juriscraper / RECAP integration wires in per the Build Sheet.</p>`;
 
     const formCard = `
     <div class="card">
@@ -89,36 +134,24 @@ function register(app) {
         ${editing ? `<input type="hidden" name="id" value="${esc(editing.id)}">` : ''}
         <div class="grid2">
           <span>${input('court', 'Court name', { required: true, value: e.court, placeholder: 'Ontario Court of Appeal' })}</span>
+          <span>${input('verifiedOn', 'Verified on', { type: 'date', required: true, value: e.verifiedOn || new Date().toISOString().slice(0, 10) })}</span>
           <span>${input('jurisdiction', 'Jurisdiction', { value: e.jurisdiction, placeholder: 'Ontario, Canada' })}</span>
           <span>${select('level', 'Level', LEVELS, e.level || 'Trial')}</span>
-          <span>${input('portal', 'E-filing portal', { value: e.portal, placeholder: 'CM/ECF, Civil Claims Online…' })}</span>
           <span>${input('feeNote', 'Filing fee note', { value: e.feeNote })}</span>
           <span>${input('limitNote', 'Page / word limit note', { value: e.limitNote })}</span>
+        </div>
+        ${input('portal', 'E-filing portal', { value: e.portal, placeholder: 'CM/ECF, Civil Claims Online…' })}
+        <div class="grid2">
           <span>${textarea('formatNote', 'Formatting notes', { value: e.formatNote })}</span>
           <span>${textarea('standingNote', 'Standing-order notes', { value: e.standingNote })}</span>
         </div>
-        ${input('verifiedOn', 'Verified on (required)', { type: 'date', required: true, value: e.verifiedOn || new Date().toISOString().slice(0, 10) })}
         <button>${editing ? 'Save changes' : 'Add to court book'}</button>
         ${editing ? '<a class="btn" href="/r/courtbook" style="margin-left:8px">Cancel</a>' : ''}
       </form>
+      <p class="note">Verified-on is the date a human last confirmed this entry against the court’s own site — it is required, because an entry nobody has checked is worse than no entry. Editing an entry by hand drops its <span class="tag navy">reference</span> label.</p>
     </div>`;
 
-    const dirSection = `
-    <h2 class="sec" style="margin-top:0">Directory — <span class="num">${entries.length}</span> ${stale.length ? tag(stale.length + ' stale — reverify', 'gate') : entries.length ? tag('all verified inside ' + STALE_DAYS + 'd', 'ok') : ''}</h2>
-    ${entries.length ? table(['Court', 'Jurisdiction', 'Level', 'E-filing', 'Notes', 'Verified', ''], entries.map((c) => [
-      `<b>${esc(c.court)}</b>${c.reference ? ' ' + tag('reference', 'navy') : ''}`,
-      esc(c.jurisdiction || '—'),
-      esc(c.level || '—'),
-      esc(c.portal || '—'),
-      notesCell(c),
-      verifiedCell(c),
-      `<form method="POST" action="/r/courtbook/verify" style="display:inline"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet">Verified today</button></form>
-       <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:6px">edit</a>
-       <form method="POST" action="/r/courtbook/del" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="margin-top:0;padding:4px 10px">Delete</button></form>`,
-    ])) : empty('No courts in the book yet — add the first below.')}
-    <p class="note">Fees, page limits, and standing orders drift constantly — every entry carries the date a human last confirmed it against the court’s own site, and anything older than ${STALE_DAYS} days is flagged until reverified. <span class="tag navy">reference</span> marks the seeded tranche: starting points, not gospel. Nothing here is fetched — Juriscraper / RECAP integration wires in per the Build Sheet.</p>`;
-
-    const body = editing ? formCard + dirSection : dirSection + formCard;
+    const body = editing ? formCard + staleCard + dirSection : staleCard + dirSection + formCard;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Firm-wide verified court directory — fees, limits, portals, standing orders', body }));
   });
 
@@ -127,8 +160,10 @@ function register(app) {
     const court = String(ctx.body.court || '').trim();
     const verifiedOn = String(ctx.body.verifiedOn || '').trim();
     if (!court) { ctx.setFlash('Court name is required.', 'err'); redirect(res, '/r/courtbook'); return; }
-    if (!verifiedOn || Number.isNaN(Date.parse(verifiedOn))) {
-      ctx.setFlash('Verified-on date is required — an unverified entry is worse than no entry.', 'err');
+    // Round-trip the date: an ISO shape that Date accepts but that is not a real
+    // calendar day ('2026-02-31') must be refused, never rolled forward.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedOn) || new Date(verifiedOn + 'T00:00:00Z').toISOString().slice(0, 10) !== verifiedOn) {
+      ctx.setFlash('Verified-on must be a real date — an unverified entry is worse than no entry.', 'err');
       redirect(res, '/r/courtbook'); return;
     }
     const existing = ctx.body.id ? k.firm.get('courtEntry', ctx.body.id) : null;

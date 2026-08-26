@@ -18,6 +18,19 @@ const CONTINGENCY_NOTE = 'Reference — contingency retainers: caps and written-
   + 'fee agreement to be in writing, and O. Reg. 563/20 prescribes a mandatory standard form and client '
   + 'disclosure (in force July 1, 2021). Verify the current rules of the governing jurisdiction before sending.';
 
+// Ctrl-P (or the button) yields the engagement letter alone: the chrome, the
+// editors, the version history and the gate notices all drop out, and the
+// letter itself sets in a serif face at a size that survives a client's desk.
+const PRINT = `<style>@media print{
+.side,.topbar,.flash,.noprint,form,button{display:none!important}
+.shell{display:block;min-height:0}.main{padding:0}
+.grid2,.grid3{display:block}
+h1.room,.roomsub,h2.sec{display:none!important}
+body{background:#fff;color:#111}
+.letter-sheet{border:0!important;background:#fff!important;padding:0!important}
+.letter-sheet pre{color:#111!important;font-family:Georgia,"Times New Roman",serif!important;font-size:11.5pt!important;line-height:1.5!important}
+}</style>`;
+
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (n) => Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -82,13 +95,14 @@ function versionForm(action, cur) {
     ${textarea('scopeOut', 'Scope out — expressly excluded', { value: c.scopeOut || '', placeholder: 'e.g. Appeals; enforcement; tax advice; regulatory proceedings.' })}
     ${select('feeModel', 'Fee model', FEE_MODELS, c.feeModel || 'hourly')}
     <div class="grid3">
-      <span>${input('rate', 'Hourly rate', { type: 'number', value: c.rate || '', placeholder: '450' })}</span>
-      <span>${input('flatAmount', 'Flat fee', { type: 'number', value: c.flatAmount || '', placeholder: '7500' })}</span>
+      <span>${input('rate', 'Hourly rate $', { type: 'number', value: c.rate || '', placeholder: '450' })}</span>
+      <span>${input('flatAmount', 'Flat fee $', { type: 'number', value: c.flatAmount || '', placeholder: '7500' })}</span>
       <span>${input('contingencyPct', 'Contingency %', { type: 'number', value: c.contingencyPct || '', placeholder: '30' })}</span>
     </div>
+    <p class="note">Fill only the field matching the model chosen above; the other two are ignored.</p>
     <button>${cur ? 'Issue new version — supersede current' : 'Draft engagement v1'}</button>
   </form>
-  <p class="note">Fill only the fee field matching the chosen model. ${esc(CONTINGENCY_NOTE)}</p>`;
+  <p class="note">${esc(CONTINGENCY_NOTE)}</p>`;
 }
 
 function statusTag(s) {
@@ -98,23 +112,34 @@ function statusTag(s) {
   return tag('draft');
 }
 
-// Is THIS matter conflict-cleared? Per the shared conflictRun contract a run
-// may carry matterId / inquiryId / parties; room 02's runs are keyed by the
-// name checked. Any of those — outcome clear or waiver, on this matter or its
-// client — satisfies the gate. Mirrors intake's inquiryCleared for matters.
-function matterCleared(k, matter) {
-  if (!matter) return false;
+// Which conflict run clears THIS matter, if any? Per the shared conflictRun
+// contract a run may carry matterId / inquiryId / parties; room 02's runs are
+// keyed by the name checked. Any of those — outcome clear or waiver, on this
+// matter or its client — satisfies the gate. Mirrors intake's clearanceFor.
+// The gate below asks only whether one exists; the card shows counsel WHICH
+// one, so a refused signature is never a surprise.
+function clearanceFor(k, matter) {
+  if (!matter) return null;
   const client = String(matter.client || '').trim().toLowerCase();
   // The inquiry this matter was opened from, if any — its runs count too.
   const inq = k.firm.list('inquiry', (i) => i.matterId === matter.id)[0] || null;
-  return k.firm.list('conflictRun').some((r) => {
+  return k.firm.list('conflictRun').find((r) => {
     if (!r || (r.outcome !== 'clear' && r.outcome !== 'waiver')) return false;
     if (r.matterId && r.matterId === matter.id) return true;
     if (inq && r.inquiryId && r.inquiryId === inq.id) return true;
     if (client && Array.isArray(r.parties) && r.parties.some((p) => String(p).trim().toLowerCase() === client)) return true;
     if (client && r.name && String(r.name).trim().toLowerCase() === client) return true;
     return false;
-  });
+  }) || null;
+}
+
+function matterCleared(k, matter) {
+  return !!clearanceFor(k, matter);
+}
+
+function clearanceCell(run) {
+  if (!run) return `${tag('not cleared', 'gate')} <a href="/r/conflicts">run the check in room 02</a>`;
+  return `${tag(run.outcome === 'waiver' ? 'waiver on file' : 'cleared', run.outcome === 'waiver' ? 'navy' : 'ok')} <span class="note" style="display:inline">run ${esc(String(run.createdAt || '').slice(0, 10))}${run.ranBy ? ' · ' + esc(run.ranBy) : ''}</span>`;
 }
 
 // Dates are round-tripped through Date so an impossible calendar day such as
@@ -200,36 +225,38 @@ function register(app) {
     const k = ctx.kernel;
     let body;
     if (!ctx.matter) {
-      body = empty('Open a matter to record its engagement terms.');
+      body = empty('Open a matter to record its engagement terms — pick one from the matter list above, or accept an inquiry in Intake (room 01).');
     } else {
       const all = k.scope(ctx.matter.id).list('engagement').sort((a, b) => (b.version || 0) - (a.version || 0));
       // Repair any signed version that is missing its Trust & Books marker.
       backfillMarkers(k, ctx.matter.id, all);
       const cur = all.find((e) => e.status !== 'superseded') || null;
       const next = cur && cur.status === 'draft' ? ['sent', 'Record sent'] : cur && cur.status === 'sent' ? ['signed', 'Record signed'] : null;
-      const cleared = matterCleared(k, ctx.matter);
-      const signBlocked = next && next[0] === 'signed' && !cleared;
+      const clearance = clearanceFor(k, ctx.matter);
+      const signBlocked = next && next[0] === 'signed' && !clearance;
       body = `
-      <div class="grid2">
+      ${PRINT}
+      <div class="grid2 noprint">
         <div class="card">
           <h2 class="sec" style="margin-top:0">Current engagement — ${esc(ctx.matter.title)}</h2>
           ${cur ? `
           ${kv([
             ['Version', `<span class="num">v${esc(String(cur.version))}</span> ${statusTag(cur.status)}`],
+            ['Conflicts', clearanceCell(clearance)],
+            ['Fee', feeSummary(cur)],
             ['Scope in', esc(cur.scopeIn)],
             ['Scope out', esc(cur.scopeOut || '') || '—'],
-            ['Fee', feeSummary(cur)],
             ['Drafted', date(cur.drafted)],
             ['Sent', cur.sentAt ? date(cur.sentAt) : '—'],
             ['Signed', cur.signedAt ? `${date(cur.signedAt)}${cur.signedBy ? ` <span class="note" style="display:inline">recorded by ${esc(cur.signedBy)}</span>` : ''}` : '—'],
           ])}
-          ${next ? `${signBlocked ? `<p class="note">${tag('conflicts gate', 'gate')} No cleared conflict check on file for this matter. Run a clear or waiver in Ethics &amp; Conflicts (room 02) before the engagement can be signed.</p>` : ''}
+          ${next ? `${signBlocked ? `<p class="note">${tag('conflicts gate', 'gate')} Signing is refused until a clear or waiver for this matter is on file. Run it in Ethics &amp; Conflicts (room 02) — a fee agreement cannot execute for a client the firm has not screened.</p>` : ''}
           <form method="POST" action="/r/${ROOM.id}/status">
             <input type="hidden" name="id" value="${esc(cur.id)}"><input type="hidden" name="to" value="${next[0]}">
             ${input('on', `Date ${next[0]}`, { type: 'date', value: today() })}
             <button${signBlocked ? ' class="danger"' : ''}>${next[1]}</button>
-          </form>` : '<p class="note">Signed and in force. A scope change issues a new version below.</p>'}
-          ` : empty('No engagement yet — draft version 1 on the right.')}
+          </form>` : '<p class="note">Signed and in force — this is the version room 34 bills against. A scope change issues a new version alongside.</p>'}
+          ` : empty('No engagement on file — draft version 1 alongside. Nothing bills until it is signed.')}
         </div>
         <div class="card">
           <h2 class="sec" style="margin-top:0">${cur ? 'Scope change — new version' : 'Draft the engagement'}</h2>
@@ -237,16 +264,20 @@ function register(app) {
         </div>
       </div>
       ${cur ? `
-      <h2 class="sec">Engagement letter — v${esc(String(cur.version))} <span class="tag">generated from the record</span></h2>
-      <div class="card"><pre style="white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;line-height:1.7;margin:0">${esc(cur.letter || '')}</pre></div>
+      <h2 class="sec">Engagement letter — v${esc(String(cur.version))} ${tag('generated from the record')}</h2>
+      <p class="note noprint"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; Printing yields the letter alone — the chrome and the version history drop out.</p>
+      <div class="card letter-sheet"><pre style="white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;line-height:1.7;margin:0">${esc(cur.letter || '')}</pre></div>
       ` : ''}
+      <div class="noprint">
       <h2 class="sec">Versions</h2>
-      ${table(['Version', 'Drafted', 'Scope in', 'Fee', 'Status', 'Sent', 'Signed', 'Superseded'],
+      ${table(['Version', 'Status', 'Fee', 'Drafted', 'Sent', 'Signed', 'Superseded', 'Scope in'],
         all.map((e) => [
-          `<span class="num">v${esc(String(e.version))}</span>`, date(e.drafted), esc(e.scopeIn), feeSummary(e),
-          statusTag(e.status), e.sentAt ? date(e.sentAt) : '—', e.signedAt ? date(e.signedAt) : '—',
+          `<span class="num">v${esc(String(e.version))}</span>`, statusTag(e.status), feeSummary(e),
+          date(e.drafted), e.sentAt ? date(e.sentAt) : '—', e.signedAt ? date(e.signedAt) : '—',
           e.supersededAt ? `${date(e.supersededAt)} <span class="note" style="display:inline">by v${esc(String(e.supersededBy))}</span>` : '—',
-        ])) || empty('No versions yet — draft v1 above.')}
+          esc(e.scopeIn),
+        ])) || empty('No versions yet — draft v1 above. Every later change lands here as its own version; nothing is edited in place.')}
+      </div>
       `;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Scope in, scope out, fee terms — versioned, never edited', body }));

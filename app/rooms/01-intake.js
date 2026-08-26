@@ -6,11 +6,23 @@ const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 1, id: 'intake', title: 'Intake Desk', phase: 'Intake' };
 
+const CLAIM_TYPES = ['Commercial dispute', 'Personal injury', 'Employment', 'Estates', 'Real property', 'Other'];
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
     const inquiries = k.firm.list('inquiry').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    const open = inquiries.filter((i) => i.status === 'screening');
+    // Screening triage order: the closest limitation first — that is the file
+    // that can be lost. Inquiries with no date run stay at the back, newest first.
+    const open = inquiries.filter((i) => i.status === 'screening').sort((a, b) => {
+      const da = daysTo(a.limitation), db = daysTo(b.limitation);
+      if (da == null && db == null) return (b.createdAt || '').localeCompare(a.createdAt || '');
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da - db;
+    });
+    const disposed = inquiries.filter((i) => i.status !== 'screening');
+    const pressing = open.filter((i) => { const d = daysTo(i.limitation); return d != null && d <= 90; }).length;
     const jurs = k.rules.JURISDICTIONS;
     const body = `
     <div class="grid2">
@@ -18,28 +30,29 @@ function register(app) {
         <h2 class="sec" style="margin-top:0">New inquiry</h2>
         <form method="POST" action="/r/intake/new">
           ${input('client', 'Prospective client', { required: true })}
-          ${input('adverse', 'Adverse parties (comma-separated)')}
-          <div class="grid2">
+          ${input('adverse', 'Adverse parties', { placeholder: 'Comma-separated — every name is screened' })}
+          <div class="grid3">
             <span>${select('jurisdiction', 'Jurisdiction', jurs, 'on')}</span>
-            <span>${select('claimType', 'Claim type', ['Commercial dispute', 'Personal injury', 'Employment', 'Estates', 'Real property', 'Other'])}</span>
+            <span>${select('claimType', 'Claim type', CLAIM_TYPES)}</span>
+            <span>${input('discovered', 'Discovered', { type: 'date', required: true })}</span>
           </div>
-          ${input('discovered', 'Date claim discovered', { type: 'date', required: true })}
           ${textarea('summary', 'What happened', { placeholder: 'Facts as told. Dates matter.' })}
           <button>Open screening file</button>
         </form>
-        <p class="note">Opening a screening file starts the limitation clock check immediately — duties to a prospective client attach at the first conversation.</p>
+        <p class="note">Jurisdiction and claim type pick the limitation rule; the discovery date runs it. Duties to a prospective client attach at the first conversation — the clock starts here, not at the retainer.</p>
       </div>
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Screening</h2>
+        <h2 class="sec" style="margin-top:0">Screening ${open.length ? tag(open.length + ' open', pressing ? 'gate' : 'navy') : ''}</h2>
         ${open.length ? open.map((i) => screeningCard(k, i)).join('') : empty('Nothing in screening — take a new inquiry on the left.')}
       </div>
     </div>
     <h2 class="sec">Disposed inquiries</h2>
     ${table(['Client', 'Claim', 'Jurisdiction', 'Limitation', 'Outcome'],
-      inquiries.filter((i) => i.status !== 'screening').map((i) => [
-        esc(i.client), esc(i.claimType), esc(i.jurisdiction),
-        i.limitation ? date(i.limitation) : (i.limNote ? `<span class="note">${esc(i.limNote)}</span>` : '—'),
-        i.status === 'accepted' ? tag('accepted — matter opened', 'ok') : tag('declined — letter sent'),
+      disposed.map((i) => [
+        esc(i.client), esc(i.claimType), esc(i.jurisdiction), limitationCell(i),
+        i.status === 'accepted'
+          ? `${tag('accepted', 'ok')} <span class="note" style="display:inline">matter opened</span>`
+          : `${tag('declined')} <span class="note" style="display:inline">non-engagement letter on file</span>`,
       ])) || empty('No disposed inquiries yet — accept or decline a screening file above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Inquiry in — matter file out', body }));
@@ -81,7 +94,7 @@ function register(app) {
       limCite: limRule ? limRule.cite : null, limNote, status: 'screening',
     });
     ctx.setFlash('Screening file opened — ' + (limitation
-      ? `limitation runs ${limitation} (${limRule.cite}).`
+      ? `limitation runs ${limitation} (${limRule.cite}). Clear the conflict check next.`
       : limRule
         ? `enter the discovery date to run the ${limRule.cite} clock.`
         : `${NO_RULE} (${jur} / ${claimType}).`));
@@ -127,7 +140,7 @@ function register(app) {
         k.scope(m.id).put('deadline', dl);
       }
       k.audit('intake.accept', inq.id + ' -> ' + m.id);
-      ctx.setFlash(`Matter opened: ${m.title}. Its encryption key was minted on creation.`);
+      ctx.setFlash(`Matter opened: ${m.title}. Its encryption key was minted on creation. Draft the retainer in room 03.`);
     } else {
       k.firm.put('inquiry', { ...inq, status: 'declined' });
       k.firm.put('letter', {
@@ -149,6 +162,15 @@ function isRealDate(s) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(s + 'T00:00:00Z');
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+// Whole days from today to an ISO date; null when there is no usable date, so
+// a garbage stored value reads as "no clock", never as "expired today".
+function daysTo(iso) {
+  if (!iso) return null;
+  const t = Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z');
+  if (Number.isNaN(t)) return null;
+  return Math.round((t - Date.parse(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')) / 86400000);
 }
 
 // A rule is a limitation/prescription rule when it says so (category, per the
@@ -174,37 +196,60 @@ function limitationRuleFor(k, jur, claimType) {
   return rules[0];
 }
 
-// Has a conflict check cleared THIS inquiry's prospective client? Per the
+// Which conflict run cleared THIS inquiry's prospective client, if any? Per the
 // shared conflictRun contract a run may carry inquiryId / parties; room 02's
 // runs are keyed by the name checked. Any of those, outcome clear or waiver,
-// on the client, opens the gate.
-function inquiryCleared(k, inq) {
-  if (!inq) return false;
+// on the client, opens the gate. The gate below asks only whether one exists;
+// the screening card shows counsel WHICH one, so a refusal is never a surprise.
+function clearanceFor(k, inq) {
+  if (!inq) return null;
   const client = String(inq.client || '').trim().toLowerCase();
-  if (!client) return false;
-  return k.firm.list('conflictRun').some((r) => {
+  if (!client) return null;
+  return k.firm.list('conflictRun').find((r) => {
     if (!r || (r.outcome !== 'clear' && r.outcome !== 'waiver')) return false;
     if (r.inquiryId && r.inquiryId === inq.id) return true;
     if (Array.isArray(r.parties) && r.parties.some((p) => String(p).trim().toLowerCase() === client)) return true;
     if (r.name && String(r.name).trim().toLowerCase() === client) return true;
     return false;
-  });
+  }) || null;
+}
+
+function inquiryCleared(k, inq) {
+  return !!clearanceFor(k, inq);
+}
+
+// The limitation date as counsel needs to read it: the day, how close it is,
+// and the rule that produced it — or, where no clock ran, why not.
+function limitationCell(i) {
+  if (!i.limitation) {
+    return i.limNote
+      ? `${tag(i.limRuleId ? 'clock not run' : 'no rule', 'gate')} <span class="note" style="display:inline">${esc(i.limNote)}</span>`
+      : '—';
+  }
+  const d = daysTo(i.limitation);
+  const flag = d == null ? ''
+    : d < 0 ? tag('expired', 'gate')
+      : d <= 90 ? tag(d + ' days left', 'gate') : '';
+  return `${date(i.limitation)} ${flag} <span class="note" style="display:inline">${esc(i.limCite || '')}</span>`;
 }
 
 function screeningCard(k, i) {
-  const soon = i.limitation && (new Date(i.limitation) - Date.now()) < 90 * 24 * 3600 * 1000;
+  const cleared = clearanceFor(k, i);
+  const conflictCell = cleared
+    ? `${tag(cleared.outcome === 'waiver' ? 'waiver on file' : 'cleared', cleared.outcome === 'waiver' ? 'navy' : 'ok')} <span class="note" style="display:inline">run ${esc(String(cleared.createdAt || '').slice(0, 10))}${cleared.ranBy ? ' · ' + esc(cleared.ranBy) : ''}</span>`
+    : `${tag('not cleared', 'gate')} <a href="/r/conflicts">run the check in room 02</a>`;
   return `<div style="border:1px solid var(--rule);padding:12px 14px;margin-bottom:10px;background:var(--ground)">
     <b>${esc(i.client)}</b> · ${esc(i.claimType)} · ${esc(i.jurisdiction)}
     ${kv([
+      ['Limitation', limitationCell(i)],
+      ['Conflicts', conflictCell],
       ['Adverse', esc((i.adverse || []).join(', ') || '—')],
-      ['Discovered', date(i.discovered)],
-      ['Limitation', i.limitation
-        ? `${date(i.limitation)} ${soon ? tag('under 90 days', 'gate') : ''} <span class="note">${esc(i.limCite || '')}</span>`
-        : (i.limNote ? `${tag(i.limRuleId ? 'clock not run' : 'no rule', 'gate')} <span class="note">${esc(i.limNote)}</span>` : '—')],
-      ['Summary', esc(i.summary || '')],
+      ['Discovered', date(i.discovered) || '—'],
+      ['Summary', esc(i.summary || '') || '—'],
     ])}
-    <form method="POST" action="/r/intake/decide" style="display:inline"><input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="decision" value="accept"><button>Accept — open matter</button></form>
+    <form method="POST" action="/r/intake/decide" style="display:inline"><input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="decision" value="accept"><button${cleared ? '' : ' class="danger"'}>Accept — open matter</button></form>
     <form method="POST" action="/r/intake/decide" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="decision" value="decline"><button class="danger">Decline</button></form>
+    ${cleared ? '' : '<p class="note">Accept is refused until a clear or waiver for this client is on file — the firm does not open a file it has not screened.</p>'}
   </div>`;
 }
 
