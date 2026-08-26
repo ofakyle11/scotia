@@ -12,8 +12,15 @@ async function chat(cfg, messages, { maxTokens = 1500, temperature = 0.4 } = {})
   try {
     const headers = { 'content-type': 'application/json' };
     if (cfg.apiKey) headers.authorization = 'Bearer ' + cfg.apiKey;
+    // redirect:'error' is load-bearing, not defensive tidiness. fetch() defaults
+    // to following redirects, so an endpoint answering 307/308 had this entire
+    // request — privileged draft text in the body AND the Authorization header —
+    // re-POSTed to whatever host the Location named. The call was audited as one
+    // call to the CONFIGURED endpoint, so that egress was invisible in the very
+    // record that exists to show where client content went. The only door to a
+    // model must lead exactly where the administrator pointed it.
     const r = await fetch(String(cfg.endpoint).replace(/\/+$/, '') + '/chat/completions', {
-      method: 'POST', signal: ctl.signal, headers,
+      method: 'POST', signal: ctl.signal, headers, redirect: 'error',
       body: JSON.stringify({ model: cfg.model, messages, max_tokens: maxTokens, temperature }),
     });
     const body = await r.json().catch(() => null);
@@ -22,7 +29,14 @@ async function chat(cfg, messages, { maxTokens = 1500, temperature = 0.4 } = {})
     if (!text) return { ok: false, message: 'Model returned no content.' };
     return { ok: true, text, model: cfg.model };
   } catch (e) {
-    return { ok: false, message: e.name === 'AbortError' ? 'Model call timed out (90s).' : 'Network error reaching model endpoint: ' + e.message };
+    if (e.name === 'AbortError') return { ok: false, message: 'Model call timed out (90s).' };
+    // Node reports a refused redirect as a TypeError with 'redirect' in the
+    // cause; surface it plainly so an administrator fixes the endpoint rather
+    // than wondering about the network.
+    if (/redirect/i.test(String(e.message) + ' ' + String(e.cause && e.cause.message))) {
+      return { ok: false, message: 'Model endpoint attempted a redirect. Refused: privileged content is only ever sent to the endpoint configured at /admin. Point the setting at the final URL.' };
+    }
+    return { ok: false, message: 'Network error reaching model endpoint: ' + e.message };
   } finally { clearTimeout(timer); }
 }
 
