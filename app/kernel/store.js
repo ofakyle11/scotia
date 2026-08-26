@@ -77,7 +77,15 @@ class Store {
   shredMatter(matterId) {
     this._matterScopes.delete(matterId);
     this.keyring.destroyMatterKey(matterId);
-    // The sealed log and blobs remain on disk but are unreadable forever.
+    // Destroying the key is necessary but NOT sufficient. Leaving the ciphertext
+    // on disk meant a restored keyring — from any of the 14 nightly archives
+    // backup.sh keeps — could re-open a matter the firm had already certified as
+    // destroyed. Removing the sealed log and blobs as well means that even a
+    // full restore of an older keyring finds nothing on this box to decrypt.
+    // Backups still hold their own copies; that is a retention problem the
+    // runbook and the certificate now state plainly rather than deny.
+    try { fs.rmSync(path.join(this.dataDir, 'matters', matterId + '.log'), { force: true }); } catch (_) { /* already gone */ }
+    try { fs.rmSync(path.join(this.dataDir, 'blobs', matterId), { recursive: true, force: true }); } catch (_) { /* already gone */ }
   }
   // Encrypted blob storage under the matter DEK.
   putBlob(matterId, buf) {

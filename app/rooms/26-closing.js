@@ -56,7 +56,8 @@ function register(app) {
         ['Client', esc(m.client || '—')],
         ['Status', tag('destroyed', 'gate')],
         ['Destroyed', at ? esc(at) + (by ? ' by ' + esc(by) : '') : 'recorded in the audit chain'],
-        ['Effect', 'The matter’s encryption key was destroyed. Its records, documents and history are cryptographically unrecoverable — in the live store, every replica, and every backup.'],
+        ['Effect', 'The matter’s encryption key was destroyed and its sealed records and documents were removed from the live store. Its history is cryptographically unrecoverable here.'],
+        ['Backups', 'Archives taken before this date still contain the sealed records and the wrapped key. They age out on the firm’s retention schedule; until the last pre-destruction archive expires, destruction is not yet irreversible everywhere. See the runbook.'],
       ])}
       <p class="note print-only">Printed ${esc(today)}.</p></div>`;
       html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Destroyed', body: cert }));
@@ -113,7 +114,7 @@ function register(app) {
           <label style="${TICK_LABEL}"><input type="checkbox" name="confirm" style="width:auto" required>I understand destruction is cryptographic and irreversible.</label>
           <button class="danger">Destroy — shred the encryption key</button>
         </form>
-        <p class="note">Destruction deletes the matter’s key, not just the files: the encrypted history becomes unreadable everywhere at once, including backups. The audit chain keeps the certificate; the content is gone.</p>`
+        <p class="note">Destruction deletes the matter’s key <em>and</em> its sealed records from the live store, so nothing here can reopen it. Backups taken earlier still hold both, and remain readable until they age out under the retention schedule — plan the certificate date accordingly. The audit chain keeps the record of destruction; the matter’s title and client remain on the certificate so it can be produced to the client.</p>`
         : `<p class="note">${closed ? 'Only an administrator performs destruction.' : 'Close the matter before destruction becomes available.'}</p>`}
       </div>
     </div>

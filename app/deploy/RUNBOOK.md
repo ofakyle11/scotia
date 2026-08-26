@@ -212,6 +212,45 @@ In: `keyring.json` (every matter key, still sealed), `firm.log`,
 files. A stolen archive is 100% ciphertext except the audit chain, which is
 metadata only — no client content, ever.
 
+## Destroying a matter, and why backups decide when it is final
+
+The Closing room destroys a matter's encryption key and removes its sealed log
+and blobs from the live store, so nothing on this box can reopen it. That is not
+the whole story, and the certificate now says so.
+
+`backup.sh` archives `keyring.json` together with `matters/` and `blobs/`, and
+keeps `RETAIN` archives (14 by default). It deliberately hard-fails if the
+keyring is missing, because without it every matter is unrecoverable. So an
+archive taken BEFORE a destruction still contains that matter's wrapped key and
+its sealed records: restore that archive, add the escrowed root key, and the
+"destroyed" matter reads in full.
+
+Destruction therefore becomes irreversible everywhere only when the last
+pre-destruction archive has aged out.
+
+**When you destroy a matter:**
+
+1. Note the destruction date from the certificate (it is also in the audit chain).
+2. That date plus `RETAIN` days is when destruction becomes final. With the
+   default nightly schedule and `RETAIN=14`, that is 14 days.
+3. If the retention schedule or an undertaking to the client requires destruction
+   sooner, purge the pre-destruction archives explicitly:
+
+   ```bash
+   # List archives older than the destruction date, then remove them.
+   ls -l /var/backups/chambers/
+   sudo rm /var/backups/chambers/chambers-YYYY-MM-DD*.tar.gz
+   ```
+
+   Do this for every off-site copy as well — the rsync/restic target in
+   "Day-2" is a second set of archives with the same property.
+4. Record what you purged. The audit chain records the destruction; it cannot
+   know what you did with media it never sees.
+
+Do not shorten `RETAIN` to make destruction faster: the archives are the only
+thing standing between a disk failure and the loss of every live matter. Purge
+the specific archives that matter instead.
+
 ## Secrets discipline in this directory
 
 Nothing here prints, logs or stores a stored secret. Specifically:
