@@ -38,25 +38,17 @@ const RECITALS = [
   'I have never had in my possession, control or power any document relating to any matter in issue in this action other than those listed in Schedules A, B and C.',
 ];
 
-// Printing this page yields the affidavit alone: the recitals, the three
-// schedules and the jurat survive; the chrome, the editors and the Schedule C
-// tools drop out. Mirrors the print discipline in room 28.
-const PRINT = `<style>.print-only{display:none}@media print{
-.print-only{display:block}
-.side,.topbar,.flash,.noprint,form,button,h1.room,.roomsub{display:none!important}
-.shell{display:block;min-height:0}.main{padding:0}
+// Printing yields the affidavit alone — recitals, the three schedules and the
+// jurat. The shared base in kernel/html.js drops the chrome, every form and
+// everything marked .no-print and re-points the palette; only what it cannot
+// know is stated here: the room heading has no place on a document that will be
+// sworn before a commissioner, the desk's intake grids collapse, and the
+// affidavit itself must be allowed to break across pages — the base keeps a
+// card whole, which is right for a status card and wrong for the document.
+const PRINT = `<style>@media print{
+h1.room,.roomsub{display:none}
 .grid2,.grid3{display:block}
-body{background:#fff;color:#111}
-.card{background:#fff;border-color:#bbb;color:#111;break-inside:avoid}
-.empty{background:#fff;border-color:#bbb;color:#444}
-table.t{background:#fff;border-color:#bbb}
-table.t th{background:#eee;color:#333;border-color:#bbb}
-table.t td{color:#111;border-color:#ddd}
-h1.room,h2.sec{color:#111;border-color:#bbb}
-.roomsub,.note,.kv dt{color:#444}.num,.kv dd{color:#111}
-.tag{color:#111;border-color:#111;background:none}
-a{color:#111}
-.affiant{color:#111}
+.affidavit-doc{break-inside:auto;page-break-inside:auto}
 }</style>`;
 
 function partition(docs) {
@@ -82,8 +74,6 @@ function loadMeta(k, matterId) {
   const all = k.scope(matterId).list('affidavitMeta');
   return all.length ? all.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0] : null;
 }
-
-function schedRows(list, cols) { return table(cols, list); }
 
 function affidavitDoc(ctx, meta, schedA, schedB, schedC) {
   const m = ctx.matter;
@@ -118,7 +108,7 @@ function affidavitDoc(ctx, meta, schedA, schedB, schedC) {
   ]);
 
   return `
-  <div class="card">
+  <div class="card affidavit-doc">
     <div style="text-align:center;margin-bottom:14px">
       <div class="note" style="margin:0">Court File No. ${m.fileNo ? esc(m.fileNo) : '________________'}</div>
       <h2 class="sec" style="border:0;text-align:center;margin:6px 0 2px">${esc(m.title)}</h2>
@@ -131,15 +121,15 @@ function affidavitDoc(ctx, meta, schedA, schedB, schedC) {
 
     <h2 class="sec">Schedule A — documents produced ${schedA.length ? tag(schedA.length + ' listed', 'ok') : ''}</h2>
     <p class="note">Relevant documents in the party's possession, control or power, produced for inspection. Derived from Document Review coding: responsive and not privileged.</p>
-    ${schedRows(aRows, ['No.', 'Bates', 'Date', 'Description', 'Custodian']) || empty('No documents coded responsive and unprivileged in Document Review (room 13).')}
+    ${table(['No.', 'Bates', 'Date', 'Description', 'Custodian'], aRows) || empty('Nothing coded responsive and unprivileged yet — code the review set in Document Review (room 13) and Schedule A fills itself.')}
 
     <h2 class="sec">Schedule B — documents withheld on privilege ${schedB.length ? tag(schedB.length + ' listed', 'gate') : ''}</h2>
     <p class="note">Relevant documents withheld from production on a claim of privilege. Each states its grounds; the description discloses the subject only, never the content. Derived from Document Review privilege coding.</p>
-    ${schedRows(bRows, ['No.', 'Bates', 'Date', 'Description of subject', 'Author', 'Recipients', 'Grounds']) || empty('No documents coded privileged in Document Review (room 13).')}
+    ${table(['No.', 'Bates', 'Date', 'Description of subject', 'Author', 'Recipients', 'Grounds'], bRows) || empty('Nothing coded privileged yet — claim privilege in Document Review (room 13) and Schedule B fills itself.')}
 
     <h2 class="sec">Schedule C — documents no longer in possession ${schedC.length ? tag(schedC.length + ' listed', 'navy') : ''}</h2>
     <p class="note">Documents that were, but are no longer, in the party's possession, control or power — with when and how possession was lost and their present location. Captured here (no analogue in review coding).</p>
-    ${schedRows(cRows, ['No.', 'Date', 'Description', 'When &amp; how possession lost', 'Present location']) || empty('No Schedule C documents recorded.')}
+    ${table(['No.', 'Date', 'Description', 'When & how possession lost', 'Present location'], cRows) || empty('No Schedule C documents — add one on the desk above if a relevant document has left the party\'s hands.')}
 
     <div style="margin-top:26px" class="affiant">
       <p>Sworn (or Affirmed) before me at ${need(place, 'place required')}, this ${sworn ? esc(String(sworn).slice(0, 10)) : '________'} day.</p>
@@ -208,62 +198,81 @@ function register(app) {
     const meta = loadMeta(k, ctx.matter.id);
     const nonResp = docs.filter((d) => privOf(d) === 'none' && respOf(d) !== 'yes').length;
     const onOntario = (ctx.matter.jurisdiction || 'on') === 'on';
+    // What still stands between this draft and a swearable affidavit. The
+    // deponent's particulars are inserts the room refuses to invent, and r. 30.03
+    // requires Schedule B to describe the subject of each withheld document —
+    // a blank there is a defective claim of privilege, not a cosmetic gap.
+    const noDesc = schedB.filter((d) => !privDescOf(d)).length;
+    // The same three particulars the document itself leaves as blanks — listed
+    // up front so counsel knows before printing, never filled in on a guess.
+    const missing = [];
+    if (!meta || !meta.deponentName) missing.push('deponent name');
+    if (!meta || !meta.swornPlace) missing.push('place sworn');
+    if (!meta || !meta.swornDate) missing.push('date sworn');
 
     const body = `
     ${PRINT}
     <div class="print-only"><div class="note">Assembled ${new Date().toISOString().slice(0, 10)} — confirm against the current Form 30A before swearing.</div></div>
 
-    <div class="noprint">
+    <div class="no-print">
     ${onOntario ? '' : `<div class="flash err">This matter's jurisdiction is <b>${esc(ctx.matter.jurisdiction || '?')}</b>. Form 30A and r. 30.03 are the Ontario procedure; other jurisdictions use a different form and grounds — treat this as a working draft only.</div>`}
+
+    <div class="card">
+      <h2 class="sec" style="margin-top:0">Affidavit of documents — ${esc(ctx.matter.title)}</h2>
+      <div style="margin:0 0 4px">
+        <a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a>
+        <form method="POST" action="/r/${ROOM.id}/download" style="display:inline;margin-left:8px"><button style="margin-top:0">Download (.txt)</button></form>
+      </div>
+      ${kv([
+        ['Schedule A', `<span class="num">${schedA.length}</span> produced`],
+        ['Schedule B', `<span class="num">${schedB.length}</span> withheld on privilege ${noDesc ? tag(noDesc + ' without a subject description', 'gate') : ''}`],
+        ['Schedule C', `<span class="num">${schedC.length}</span> no longer held`],
+        ['Not listed', `<span class="num">${nonResp}</span> coded not responsive — excluded from the affidavit`],
+        ['Before swearing', missing.length
+          ? `${tag(missing.length + ' particular' + (missing.length === 1 ? '' : 's') + ' blank', 'gate')} <span class="note">${esc(missing.join(', '))} — set below, or leave blank to complete before the commissioner</span>`
+          : tag('particulars complete', 'ok')],
+      ])}
+      ${noDesc ? `<p class="note">${noDesc} withheld document${noDesc === 1 ? ' has' : 's have'} no subject description. r. 30.03 requires the grounds and enough description to identify what is withheld — add it in Document Review (room 13); never the content itself.</p>` : ''}
+      <p class="note">Schedules A and B are assembled live from Document Review coding — recode there (room 13) and the affidavit follows. Reference: Ontario Rules of Civil Procedure, r. 30.03 and Form 30A; confirm the wording against the current form before it is sworn.</p>
+    </div>
+
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Deponent &amp; swearing</h2>
         <form method="POST" action="/r/${ROOM.id}/deponent">
-          ${input('deponentName', 'Deponent (who swears the affidavit)', { value: meta ? meta.deponentName : '', required: true, placeholder: ctx.matter.client || 'Full legal name' })}
-          ${input('capacity', 'Capacity in the proceeding', { value: meta ? meta.capacity : '', placeholder: 'the Defendant / a director of the Defendant' })}
           <div class="grid2">
-            <span>${input('swornPlace', 'Place sworn (city/town)', { value: meta ? meta.swornPlace : '', placeholder: 'Toronto' })}</span>
+            <span>${input('deponentName', 'Deponent (who swears it)', { value: meta ? meta.deponentName : '', required: true, placeholder: ctx.matter.client || 'Full legal name' })}</span>
+            <span>${input('capacity', 'Capacity in the proceeding', { value: meta ? meta.capacity : '', placeholder: 'the Defendant' })}</span>
+          </div>
+          <div class="grid2">
+            <span>${input('swornPlace', 'Place sworn', { value: meta ? meta.swornPlace : '', placeholder: 'Toronto' })}</span>
             <span>${input('swornDate', 'Date sworn', { type: 'date', value: meta ? String(meta.swornDate || '').slice(0, 10) : '' })}</span>
           </div>
           <button>Save deponent</button>
         </form>
-        <p class="note">The affidavit is sworn by the party (or its authorised representative), not by counsel. It is printed here for the client to swear before a commissioner.</p>
+        <p class="note">The party swears it, not counsel. Anything left blank prints as a blank to complete in front of the commissioner — this room never invents a particular.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Add a Schedule C document</h2>
         <form method="POST" action="/r/${ROOM.id}/scheduleC">
           ${input('description', 'Description of the document', { required: true, placeholder: 'Original signed lease, executed 2019' })}
           ${input('docDate', 'Document date', { type: 'date' })}
-          ${input('lostWhenHow', 'When & how possession was lost', { placeholder: 'Delivered to landlord on closing, March 2021' })}
-          ${input('presentLocation', 'Present location', { placeholder: 'In the possession of the landlord' })}
+          <div class="grid2">
+            <span>${input('lostWhenHow', 'When & how possession was lost', { placeholder: 'Delivered to landlord on closing, March 2021' })}</span>
+            <span>${input('presentLocation', 'Present location', { placeholder: 'In the possession of the landlord' })}</span>
+          </div>
           <button>Add to Schedule C</button>
         </form>
-        <p class="note">Schedule C lists documents that were, but are no longer, in the party's possession — there is no coding value for this in Document Review, so add them here.</p>
+        <p class="note">Documents that were, but are no longer, in the party's possession. Document Review has no coding value for this, so Schedule C is the one schedule entered by hand.</p>
       </div>
     </div>
 
-    ${schedC.length ? `<h2 class="sec">Schedule C entries</h2>
-    ${table(['Date', 'Description', 'When & how lost', 'Present location', ''], schedC.map((c) => [
-      date(c.docDate) || '—', esc(c.description || ''), esc(c.lostWhenHow || '—'), esc(c.presentLocation || '—'),
+    ${schedC.length ? `<h2 class="sec">Schedule C entries recorded</h2>
+    ${table(['Date', 'Description', ''], schedC.map((c) => [
+      date(c.docDate) || '—', esc(c.description || ''),
       `<form method="POST" action="/r/${ROOM.id}/scheduleC/del" style="margin:0"><input type="hidden" name="id" value="${esc(c.id)}"><button class="danger quiet">Remove</button></form>`,
-    ]))}` : ''}
-
-    <div class="card">
-      <h2 class="sec" style="margin-top:0">Print &amp; download</h2>
-      ${kv([
-        ['Schedule A', `${schedA.length} produced`],
-        ['Schedule B', `${schedB.length} withheld on privilege`],
-        ['Schedule C', `${schedC.length} no longer held`],
-        ['Not listed', `${nonResp} coded not responsive (excluded from the affidavit)`],
-      ])}
-      <p style="margin-top:12px">
-        <a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a>
-        <form method="POST" action="/r/${ROOM.id}/download" style="display:inline;margin-left:8px">
-          <button style="margin-top:0">Download affidavit (.txt)</button>
-        </form>
-      </p>
-      <p class="note">Schedules A and B are assembled live from Document Review coding — code or recode there (room 13) and the affidavit follows. Reference: Ontario Rules of Civil Procedure, r. 30.03 and Form 30A; confirm the wording against the current form before it is sworn.</p>
-    </div>
+    ]))}
+    <p class="note">Each entry is set out in full in Schedule C of the affidavit below.</p>` : ''}
     </div>
 
     ${affidavitDoc(ctx, meta, schedA, schedB, schedC)}

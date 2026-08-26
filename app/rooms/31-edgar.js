@@ -120,9 +120,7 @@ function render(res, ctx, search) {
   // contact declared nothing can search, so the connector leads instead.
   const body = `
   ${results}
-  ${contact ? searchCard : connectorCard}
-  ${onFile}
-  ${contact ? connectorCard : searchCard}
+  ${contact ? searchCard + onFile + connectorCard : connectorCard + searchCard + onFile}
   `;
   html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'SEC filings — contracts, disclosures, and exhibits at the source', body }));
 }

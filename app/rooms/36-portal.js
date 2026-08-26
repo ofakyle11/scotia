@@ -23,6 +23,11 @@ function readingGrade(text) {
 
 const usd = (n) => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const slug = (s) => String(s || 'matter').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'matter';
+// Counts read down a column, not across one — the house cell used in the ledger
+// rooms. This room adds no @media print block of its own: the client document
+// is its own page (/pack/:id), and the shared base in kernel/html.js plus
+// .no-print / .print-only cover everything the desk needs on paper.
+const rcell = (h) => `<div style="text-align:right">${h}</div>`;
 
 // Has the client already answered a decision we posed? 05-client's decisionMemo
 // IS the answer — that room refuses to write one without a decision — so a memo
@@ -178,13 +183,13 @@ ${decisionsBlock}
 function previewBlock(snap, held = []) {
   const dateRows = snap.dates.length
     ? table(['Date', 'What it is', 'Reference'], snap.dates.map((d) => [date(d.due), esc(d.desc), `<span class="note">${esc(d.rule || '')}</span>`]))
-    : empty('No open key dates on this matter.');
+    : empty('No open key dates — diarise the next step in Calendar (room 21) and the three soonest appear here.');
   const b = snap.budget;
   const decisions = snap.decisions.length
     ? snap.decisions.map((d) => `<div style="border-left:3px solid var(--navy);padding-left:12px;margin:0 0 10px"><b>${esc(d.question)}</b>${d.options ? `<div class="note">${esc(d.options).replace(/\n/g, '<br>')}</div>` : ''}</div>`).join('')
     : empty('Nothing awaiting the client. Pose a decision on the right when one is theirs to make.');
   return `
-  <h2 class="sec" style="margin-top:0">Where things stand</h2>
+  <h2 class="sec">Where things stand</h2>
   ${snap.status
     ? `<div class="card"><p style="margin:0 0 6px">${esc(snap.status.text)}</p><span class="note">Last update ${esc(snap.status.sentOn)} · reading level ~grade ${snap.grade} ${snap.grade > 9 ? tag('aim under 9', 'gate') : tag('plain', 'ok')}</span></div>`
     : empty('No status update recorded yet — write one in Client Desk (room 05).')}
@@ -201,7 +206,7 @@ function previewBlock(snap, held = []) {
   ])}</div>
   <h2 class="sec">Decision awaiting the client</h2>
   ${decisions}
-  ${held.length ? `<p class="note">${held.length} open request${held.length > 1 ? 's are' : ' is'} held back from the pack — the client’s answer is already recorded on the Client Desk (room 05). Mark ${held.length > 1 ? 'them' : 'it'} answered below so the record matches.</p>` : ''}`;
+  ${held.length ? `<p class="note">${held.length} open request${held.length > 1 ? 's are' : ' is'} held back from the pack — the client’s answer is already recorded on the Client Desk (room 05). Mark ${held.length > 1 ? 'them' : 'it'} answered under Open decision requests so the record matches.</p>` : ''}`;
 }
 
 function register(app) {
@@ -222,13 +227,17 @@ function register(app) {
       const packs = s.list('clientPack').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
       body = `
-      <div class="grid2">
+      <div class="print-only">This is the internal preview, not the client's document. Open a recorded pack below (View / print) and print that instead.</div>
+      <div class="grid2 no-print">
         <div>
+          <div class="card">
+            <h2 class="sec" style="margin-top:0">Client pack — ${esc(m.title)}</h2>
+            <form method="POST" action="/r/portal/generate" style="margin:0">
+              <button style="margin-top:0">Generate &amp; record client pack</button>
+            </form>
+            <p class="note">Freezes everything below into a read-only page and records what was shared, and when. There is no client login — you deliver the pack yourself.</p>
+          </div>
           ${previewBlock(snap, held)}
-          <form method="POST" action="/r/portal/generate" style="margin-top:8px">
-            <button>Generate &amp; record client pack</button>
-          </form>
-          <p class="note">Generating records what was shared and when. There is no client login — you deliver the printable pack yourself.</p>
         </div>
         <div>
           <div class="card">
@@ -249,17 +258,19 @@ function register(app) {
         </div>
       </div>
 
+      <div class="no-print">
       <h2 class="sec">Packs generated — what was shared, and when</h2>
       ${packs.length ? table(['Generated', 'Update', 'Key dates', 'Decisions', 'By', ''], packs.map((p) => [
         date(p.createdAt),
-        p.status ? `<span class="note">grade ~${p.grade}</span>` : '<span class="note">none</span>',
-        `<span class="num">${(p.dates || []).length}</span>`,
-        `<span class="num">${(p.decisions || []).length}</span>`,
+        p.status ? tag('grade ~' + (Number(p.grade) || 0), Number(p.grade) > 9 ? 'gate' : 'ok') : '<span class="note">no update</span>',
+        rcell(`<span class="num">${(p.dates || []).length}</span>`),
+        rcell(`<span class="num">${(p.decisions || []).length}</span>`),
         esc(p.preparedBy || ''),
-        `<a class="btn quiet" href="/r/portal/pack/${esc(p.id)}" target="_blank" style="margin-right:6px">View / print</a>
+        `<a class="btn quiet" href="/r/portal/pack/${esc(p.id)}" target="_blank" rel="noopener" style="margin-right:6px">View / print</a>
          <form method="POST" action="/r/portal/download" style="display:inline"><input type="hidden" name="id" value="${esc(p.id)}"><button class="quiet">Download</button></form>`,
       ])) : empty('No packs generated yet — generate one above to start the shared-with-client record.')}
-      <p class="note">Each recorded pack is a frozen snapshot: “View / print” opens the read-only client-facing page (print it from the browser); “Download” hands you the same page as a file to deliver.</p>
+      <p class="note">Each recorded pack is a frozen snapshot: “View / print” opens the read-only client-facing page (print it from there); “Download” hands you the same page as a file to deliver.</p>
+      </div>
       `;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'A plain-language status pack the lawyer generates and delivers — no client login', body }));

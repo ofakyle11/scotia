@@ -230,16 +230,14 @@ function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
     if (!ctx.matter) {
-      const body = PRINT + empty('Open a matter to run a bill — the invoice run gathers that matter\'s unbilled time and disbursements.');
+      const body = empty('Open a matter to run a bill — the invoice run gathers that matter\'s unbilled time and disbursements.');
       html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Invoice run — time in, numbered invoice out', body }));
       return;
     }
     const sc = k.scope(ctx.matter.id);
     const fm = feeModelFor(k, ctx.matter.id);
-    const time = sc.list('timeEntry');
-    const unbilledTime = time.filter(isUnbilled);
-    const disb = sc.list('disbursement');
-    const unbilledDisb = disb.filter(isUnbilled);
+    const unbilledTime = sc.list('timeEntry').filter(isUnbilled);
+    const unbilledDisb = sc.list('disbursement').filter(isUnbilled);
     const invoices = sc.list('invoice').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const openDraft = invoices.find((i) => i.status === 'draft');
     const selId = ctx.query.get('inv');
@@ -250,24 +248,41 @@ function register(app) {
     const feePreview = fm.feeModel === 'flat' ? money(fm.flatAmount)
       : fm.feeModel === 'contingency' ? '<span class="note">from recovery (room 24)</span>'
       : money(grossUnbilled);
+    // The lint gate bites at issue, which is one draft too late to find out.
+    // Count it here, on the WIP that is about to be swept in, so a blocked
+    // narrative is fixed in room 28 before the draft is ever generated.
+    const lintBlocked = unbilledTime.filter((t) => narrativeLint(t.narrative)).length;
+
+    // The invoice leads when one is open or selected — that is the sheet counsel
+    // came to work on, and it is the only thing that prints. The run desk sits
+    // under it; on paper it drops out entirely, so a client's bill can never
+    // carry this matter's unbilled WIP or its other invoices.
+    const sheet = selected ? invoiceSheet(ctx, selected)
+      : (invoices.length ? `<div class="no-print">${empty('Select an invoice below to view, print or download it.')}</div>` : '')
+        + '<div class="print-only">This page prints one invoice — open it on the Billing desk first.</div>';
 
     const body = `
     ${PRINT}
+    ${sheet}
+    <div class="no-print">
     <div class="grid2">
-      <div class="card noprint">
+      <div class="card">
         <h2 class="sec" style="margin-top:0">Run a bill — ${esc(ctx.matter.title)}</h2>
+        ${openDraft
+          ? `<p class="note" style="margin-top:0">Draft <a href="/r/billing?inv=${esc(openDraft.id)}">${esc(openDraft.number)}</a> is already open — issue or discard it before starting another.</p>`
+          : `<form method="POST" action="/r/billing/draft" style="margin:0"><button style="margin-top:0">Generate draft invoice</button></form>
+             <p class="note">Sweeps every unbilled entry below into one numbered draft. Write down any line before issuing; issuing marks the time billed so it cannot be billed twice.</p>`}
         ${kv([
           ['Fee model', modelLabel(fm) + ` <span class="note">${esc(fm.source)}</span>`],
           ['Unbilled time', `${money(grossUnbilled)} <span class="note">${unbilledTime.length} entr${unbilledTime.length === 1 ? 'y' : 'ies'}</span>`],
           ['Fees at this model', feePreview],
           ['Unbilled disbursements', `${money(disbUnbilled)} <span class="note">${unbilledDisb.length} item${unbilledDisb.length === 1 ? '' : 's'}</span>`],
+          ['Pre-bill lint', lintBlocked
+            ? `${tag(lintBlocked + ' blocked', 'gate')} <span class="note">issue is refused while any narrative fails — rewrite in Trust &amp; Books (room 28)</span>`
+            : (unbilledTime.length ? tag('all clear', 'ok') : '<span class="note">nothing to check</span>')],
         ])}
-        ${openDraft
-          ? `<p class="note">A draft invoice (<a href="/r/billing?inv=${esc(openDraft.id)}">${esc(openDraft.number)}</a>) is already open — issue or discard it before starting another.</p>`
-          : `<form method="POST" action="/r/billing/draft"><button>Generate draft invoice</button></form>
-             <p class="note">Gathers every unbilled entry above into one numbered draft. Write down any line before issuing; issuing marks the time billed so it cannot be billed twice.</p>`}
       </div>
-      <div class="card noprint">
+      <div class="card">
         <h2 class="sec" style="margin-top:0">Record a disbursement</h2>
         <form method="POST" action="/r/billing/disb">
           ${input('desc', 'Description', { required: true, placeholder: 'Court filing fee — statement of claim' })}
@@ -277,32 +292,36 @@ function register(app) {
           </div>
           <button>Record disbursement</button>
         </form>
-        <p class="note">Posts the firm's out-of-pocket cost to the ledger (expense against operating bank) and holds it as unbilled until it lands on an invoice.</p>
+        <p class="note">Posts the firm's out-of-pocket cost to the ledger (expense against operating bank) and holds it unbilled until it lands on an invoice.</p>
       </div>
     </div>
 
-    ${selected ? invoiceSheet(ctx, selected) : (invoices.length ? empty('Select an invoice below to view or print it.') : '')}
-
     <h2 class="sec">Unbilled time</h2>
-    ${unbilledTime.length ? table(['Date', 'Hours', 'Rate', 'Value', 'Narrative', 'Lint'], unbilledTime.slice().reverse().map((t) => {
+    ${unbilledTime.length ? table(['Date', 'Narrative', 'Hours', 'Rate', 'Value', 'Pre-bill lint'], unbilledTime.slice().reverse().map((t) => {
       // R-G — this room's narrativeLint IS the gate; 28-books' stored `lint` is
       // advisory. Show the gate's own verdict, so a row tagged clean here really
       // will issue, and surface a stale stored lint (written before 28 aligned to
       // this list) as a note rather than dressing it up as a blocking gate.
       const gate = narrativeLint(t.narrative);
       const stale = !gate && t.lint ? ` <span class="note">${esc(String(t.lint))} (room 28, advisory)</span>` : '';
-      return [date(t.createdAt), `<span class="num">${esc(String(num(t.hours)))}</span>`, money(t.rate), money(num(t.hours) * num(t.rate)), esc(t.narrative), (gate ? tag(gate, 'gate') : tag('clean', 'ok')) + stale];
-    })) : empty('No unbilled time — record time in Trust & Books (room 28).')}
+      return [
+        date(t.createdAt), esc(t.narrative),
+        rcell(`<span class="num">${esc(String(num(t.hours)))}</span>`),
+        rcell(money(t.rate)), rcell(money(num(t.hours) * num(t.rate))),
+        (gate ? tag(gate, 'gate') : tag('clean', 'ok')) + stale,
+      ];
+    })) : empty('No unbilled time — record time on this matter in Trust & Books (room 28).')}
 
     <h2 class="sec">Unbilled disbursements</h2>
-    ${unbilledDisb.length ? table(['Date', 'Item', 'Amount'], unbilledDisb.slice().reverse().map((d) => [date(d.incurred || d.createdAt), esc(d.desc), money(d.amount)])) : empty('No unbilled disbursements.')}
+    ${unbilledDisb.length ? table(['Date', 'Item', 'Amount'], unbilledDisb.slice().reverse().map((d) => [date(d.incurred || d.createdAt), esc(d.desc), rcell(money(d.amount))])) : empty('No unbilled disbursements — record one above as the firm pays it.')}
 
     <h2 class="sec">Invoices — ${esc(ctx.matter.title)}</h2>
-    ${invoices.length ? table(['Number', 'Issued', 'Fees', 'Disb.', 'Total', 'Status', ''], invoices.map((i) => [
-      esc(i.number), i.issuedDate ? date(i.issuedDate) : '<span class="note">—</span>',
-      money(i.fees), money(i.disbursements), money(i.total), statusTag(i.status),
-      `<a href="/r/billing?inv=${esc(i.id)}">view</a>`,
-    ])) : empty('No invoices yet — generate a draft above.')}
+    ${invoices.length ? table(['Number', 'Issued', 'Fees', 'Disb.', 'Total', 'Status'], invoices.map((i) => [
+      `<a href="/r/billing?inv=${esc(i.id)}"><span class="num">${esc(i.number)}</span></a>`,
+      i.issuedDate ? date(i.issuedDate) : '<span class="note">—</span>',
+      rcell(money(i.fees)), rcell(money(i.disbursements)), rcell(money(i.total)), statusTag(i.status),
+    ])) : empty('No invoices yet — generate a draft above once there is unbilled time or a disbursement.')}
+    </div>
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Invoice run — time in, numbered invoice out', body }));
   });
