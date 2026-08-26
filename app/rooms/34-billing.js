@@ -18,6 +18,9 @@ const num = (v) => Number(v) || 0;
 const r2 = (n) => Math.round(num(n) * 100) / 100;
 const cents = (n) => Math.round(num(n) * 100);
 const today = () => new Date().toISOString().slice(0, 10);
+// Money and counts read down a column, not across one — the house cell used in
+// every other ledger room (24, 25, 28). money() already carries the .num face.
+const rcell = (h) => `<div style="text-align:right">${h}</div>`;
 
 // BILLED-ONCE, the gathering half. "Unbilled" is `state !== 'billed'` everywhere
 // in the app, and that stays true — but this room adds the second half for its
@@ -93,23 +96,19 @@ function modelLabel(fm) {
   return 'Hourly — time × rate';
 }
 
-// Print styles: Ctrl-P on an open invoice yields a clean statement — the sheet
-// survives, all app chrome and controls drop out.
+// Printing yields the selected invoice alone — the statement the client
+// actually receives. The shared base in kernel/html.js drops the chrome, every
+// form and everything marked .no-print and re-points the palette; the desk
+// around the sheet (unbilled WIP, every other invoice on the matter) is marked
+// .no-print so it can never ride out on a client's bill. Only what the base
+// cannot know is stated here: the room heading has no place on a bill, the
+// intake grids collapse, and an invoice long enough to run past one page must
+// be allowed to break — the base keeps a card whole, which is right everywhere
+// else but wrong for a sheet that IS the document.
 const PRINT = `<style>@media print{
-.side,.topbar,.flash,.noprint,form,button{display:none!important}
-.shell{display:block;min-height:0}.main{padding:0}
+h1.room,.roomsub{display:none}
 .grid2,.grid3{display:block}
-h1.room,.roomsub{display:none!important}
-body{background:#fff;color:#111}
-.invoice-sheet{border:0!important;background:#fff!important;color:#111!important}
-.card{background:#fff;border-color:#bbb;color:#111;break-inside:avoid}
-table.t{background:#fff;border-color:#bbb}
-table.t th{background:#eee;color:#333;border-color:#bbb}
-table.t td{color:#111;border-color:#ddd}
-h2.sec{color:#111;border-color:#bbb}
-.roomsub,.note,.kv dt{color:#444}.num,.kv dd{color:#111}
-.tag{color:#111;border-color:#111;background:none}
-a{color:#111}
+.invoice-sheet{break-inside:auto;page-break-inside:auto}
 }</style>`;
 
 function statusTag(s) {
@@ -122,13 +121,18 @@ function lineRows(inv, editable) {
   return (inv.lineItems || []).map((l) => {
     const lint = narrativeLint(l.narrative);
     const net = r2(num(l.amount) - num(l.writeDown));
+    const code = String(l.utbms || '').slice(0, 4);
+    // On paper the write-down is a figure, not a control: the input is the
+    // desk's, the printed sheet shows what was actually written down.
     const wdCell = editable
-      ? `<input type="number" step="0.01" min="0" max="${esc(r2(l.amount))}" name="wd:${esc(l.timeEntryId)}" value="${esc(r2(l.writeDown))}" style="margin:0;padding:4px 6px;max-width:110px">`
+      ? `<span class="print-only">${money(l.writeDown)}</span>`
+        + `<input class="no-print" form="wdform" type="number" step="0.01" min="0" max="${esc(r2(l.amount))}" name="wd:${esc(l.timeEntryId)}" value="${esc(r2(l.writeDown))}"`
+        + ` aria-label="Write-down — ${esc(String(l.narrative || '').slice(0, 60))}" style="margin:0;padding:4px 6px;max-width:110px">`
       : money(l.writeDown);
     return [
-      `${esc(l.narrative)} ${lint ? tag('lint: ' + lint, 'gate') : ''}<br><span class="note">${esc(String(l.utbms || '').slice(0, 4))}</span>`,
-      `<span class="num">${esc(String(num(l.hours)))}</span>`,
-      money(l.rate), money(l.amount), wdCell, money(net),
+      `${esc(l.narrative)} ${lint ? tag('lint: ' + lint, 'gate') : ''}${code ? `<br><span class="note">${esc(code)}</span>` : ''}`,
+      rcell(`<span class="num">${esc(String(num(l.hours)))}</span>`),
+      rcell(money(l.rate)), rcell(money(l.amount)), rcell(wdCell), rcell(money(net)),
     ];
   });
 }
@@ -137,17 +141,21 @@ function invoiceSheet(ctx, inv) {
   const m = ctx.matter;
   const editable = inv.status === 'draft';
   const rows = lineRows(inv, editable);
-  const disbRows = (inv.disbLines || []).map((d) => [esc(d.desc), money(d.amount)]);
+  const disbRows = (inv.disbLines || []).map((d) => [esc(d.desc), rcell(money(d.amount))]);
   const lintHits = (inv.lineItems || []).filter((l) => narrativeLint(l.narrative)).length;
-  const linesTable = `<table class="t"><thead><tr>
-      <th>Narrative</th><th>Hours</th><th>Rate</th><th>Amount</th><th>Write-down</th><th>Net</th>
-    </tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('') || '<tr><td colspan="6"><span class="note">No time on this invoice.</span></td></tr>'}</tbody></table>`;
-  const wdForm = editable
-    ? `<form method="POST" action="/r/billing/writedown" class="noprint">
-        <input type="hidden" name="inv" value="${esc(inv.id)}">${linesTable}
+  // table() so the sheet inherits the shell's scroll wrapper and sticky header —
+  // a wide invoice scrolls inside its own box instead of pushing the page
+  // sideways. The write-down form is a sibling, not a wrapper: the shared print
+  // base hides every <form>, and a table inside one would vanish from the paper.
+  const linesTable = rows.length
+    ? table(['Narrative', 'Hours', 'Rate', 'Amount', 'Write-down', 'Net'], rows)
+    : empty('No time on this invoice — it bills disbursements only.');
+  const wdForm = editable && rows.length
+    ? `<form method="POST" action="/r/billing/writedown" id="wdform" class="no-print" style="margin:0">
+        <input type="hidden" name="inv" value="${esc(inv.id)}">
         <button class="quiet">Apply write-downs</button>
       </form>`
-    : linesTable;
+    : '';
   return `<div class="card invoice-sheet">
     <h2 class="sec" style="margin-top:0">Invoice ${esc(inv.number)} ${statusTag(inv.status)}</h2>
     ${kv([
@@ -158,6 +166,7 @@ function invoiceSheet(ctx, inv) {
       inv.paidDate ? ['Paid', date(inv.paidDate)] : null,
     ].filter(Boolean))}
     <h2 class="sec">Professional fees</h2>
+    ${linesTable}
     ${wdForm}
     ${inv.feeModel === 'contingency' ? '<p class="note">Contingency retainer: fees are drawn from the recovery in Settlement Waterfall (room 24), not billed hourly here. Time above is recorded for the file; this invoice bills disbursements only.</p>' : ''}
     <h2 class="sec">Disbursements</h2>
@@ -168,7 +177,7 @@ function invoiceSheet(ctx, inv) {
       ['Disbursements', money(inv.disbursements)],
       ['Total due', `<b>${money(inv.total)}</b>`],
     ])}
-    <div class="noprint" style="margin-top:14px">
+    <div class="no-print" style="margin-top:14px">
       ${editable ? `<form method="POST" action="/r/billing/issue" style="display:inline">
         <input type="hidden" name="inv" value="${esc(inv.id)}">
         <button ${lintHits ? 'class="danger"' : ''}>Issue invoice</button>
@@ -183,7 +192,7 @@ function invoiceSheet(ctx, inv) {
       </form>` : ''}
       <a class="btn" href="#" onclick="window.print();return false" style="margin-left:8px">Print / save as PDF</a>
       <a class="btn" href="/r/billing/download?inv=${esc(inv.id)}" style="margin-left:8px">Download .txt</a>
-      ${editable && lintHits ? `<p class="note">${lintHits} line${lintHits === 1 ? '' : 's'} flagged by pre-bill lint — issuing is blocked until the narrative is fixed in Trust &amp; Books (room 28).</p>` : ''}
+      ${editable && lintHits ? `<p class="note">${lintHits} line${lintHits === 1 ? '' : 's'} flagged by pre-bill lint — issuing is refused until the narrative is rewritten in Trust &amp; Books (room 28).</p>` : ''}
     </div>
   </div>`;
 }
