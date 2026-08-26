@@ -26,7 +26,10 @@ const m = store.createMatter({ title: SECRET_TITLE, client: SECRET_CLIENT, juris
 store.firm.put('wall', { matterId: m.id, screened: [dan.id], basis: SECRET_BASIS }, matt.id);
 
 // A second, unwalled matter proves the page still works for what Dan MAY see.
-store.createMatter({ title: 'Ordinary Open Matter', client: 'Someone', jurisdiction: 'on', status: 'open' }, matt.id);
+const open2 = store.createMatter({ title: 'Ordinary Open Matter', client: 'Someone', jurisdiction: 'on', status: 'open' }, matt.id);
+// Billable time on the OTHER matter, so a bill run there would actually produce
+// an invoice — without it the substitution probe below cannot fire at all.
+store.matterScope(open2.id).put('timeEntry', { hours: 2, rate: 400, utbms: 'L110 Fact investigation', narrative: 'Review file', state: 'draft', lint: null }, matt.id);
 
 const danSession = auth.createSession(dan.id);
 const mattSession = auth.createSession(matt.id);
@@ -52,6 +55,37 @@ const base = 'http://localhost:' + process.env.PORT;
   const mattPage = await (await fetch(base + '/admin', { headers: { cookie: `s=${mattSession}` } })).text();
   if (!mattPage.includes(SECRET_TITLE)) fails.push('/admin hid the wall from the UNSCREENED admin who must manage it');
   if (!mattPage.includes(SECRET_BASIS)) fails.push('/admin hid the wall basis from the unscreened admin');
+
+  // Naming a matter you cannot open must not hand you a DIFFERENT one. makeCtx
+  // used to fall through to matters[0] whenever kernel.matter() returned null,
+  // so a request carrying the walled matter's id was silently re-pointed at
+  // another client's file — proven on a money route, where a bill run generated
+  // a numbered draft invoice on the wrong matter with a flash naming neither.
+  // Asserted on BEHAVIOUR, not markup: the walled matter's name must be absent,
+  // and a WRITE carrying its id must not land on another client's file. (The
+  // other matter's title legitimately appears in the "matters you may open"
+  // picker and search index, so its mere presence proves nothing.)
+  {
+    const page = await (await fetch(base + '/r/desk?m=' + encodeURIComponent(m.id), { headers: { cookie: `s=${danSession}` } })).text();
+    if (page.includes(SECRET_TITLE)) fails.push('SUBSTITUTION: the walled matter itself was rendered');
+
+    const before = store.matterScope(open2.id).list('invoice').length;
+    await fetch(base + '/r/billing/draft', {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie: `s=${danSession}; m=${m.id}`, 'content-type': 'application/x-www-form-urlencoded', origin: base },
+      body: new URLSearchParams({}).toString(),
+    }).catch(() => {});
+    const after = store.matterScope(open2.id).list('invoice').length;
+    if (after !== before) {
+      fails.push(`SUBSTITUTION: a bill run naming the WALLED matter created ${after - before} invoice(s) on a different client's matter`);
+    }
+  }
+  // A request naming NO matter may still default to one — that is convenience,
+  // not substitution, and must keep working.
+  {
+    const page = await (await fetch(base + '/r/desk', { headers: { cookie: `s=${danSession}` } })).text();
+    if (!page.includes('Ordinary Open Matter')) fails.push('a request naming no matter stopped defaulting to an available one');
+  }
 
   server.close();
   if (fails.length) { console.error('WALL FAIL:\n  ' + fails.join('\n  ')); process.exit(1); }

@@ -90,9 +90,16 @@ async function makeCtx(req, res, base) {
   const kernel = makeKernel({ store, audit, keyring }, user);
   const matters = kernel.matters();
   let matter = null;
+  // Naming a matter you cannot open must NEVER silently give you a different
+  // one. This used to fall through to matters[0] whenever kernel.matter()
+  // returned null — walled, shredded, or simply unknown — so a POST carrying
+  // `m=<walled id>` executed against another client's file: a bill run was
+  // proven to generate a numbered draft invoice on the wrong matter, with a
+  // success flash naming neither. The convenience default is only for a request
+  // that named no matter at all.
   const want = base.query.get('m') || base.cookies.m;
-  if (want) matter = kernel.matter(want);
-  if (!matter && matters.length) matter = matters[0];
+  if (want) matter = kernel.matter(want);          // null when unavailable — and it stays null
+  else if (matters.length) matter = matters[0];
   return { ...base, user, kernel, matters, matter, registry, flash: takeFlash(req), setFlash: (m, k) => setFlash(req, m, k) };
 }
 

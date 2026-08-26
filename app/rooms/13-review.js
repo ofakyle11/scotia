@@ -35,7 +35,13 @@ h1.room,.roomsub{display:none}
 function nextBates(docs) {
   let max = 0;
   for (const d of docs) {
-    const m = /^DEF-(\d{6})$/.exec(d.bates || '');
+    // Match ANY digit width, not exactly six. Pinned at six, the first document
+    // past DEF-999999 was issued 'DEF-1000000' — which this regex then no longer
+    // matched, so the scan fell back to 999999 and handed the SAME number to the
+    // next document. Two documents sharing a bates number breaks document
+    // identity in a production and on the privilege log. padStart below still
+    // keeps six the minimum width, so existing numbering is unchanged.
+    const m = /^DEF-(\d+)$/.exec(d.bates || '');
     if (m) max = Math.max(max, Number(m[1]));
   }
   return 'DEF-' + String(max + 1).padStart(6, '0');

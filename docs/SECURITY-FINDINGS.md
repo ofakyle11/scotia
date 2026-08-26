@@ -1587,3 +1587,59 @@ All four connectors (ai.js:19, canlii.js:56, uscourts.js:15, edgar.js:15) call `
 **Fix**
 
 Read the body as a stream with a byte budget (e.g. 8 MB) and reject past it, or at minimum refuse when `Number(r.headers.get('content-length'))` exceeds the budget before calling `r.json()`. Apply the same cap to all four connectors.
+
+---
+
+## Addendum — defects found by the T5 e2e agents (2026-08-26)
+
+Nine agents wrote behavioural suites and were forbidden from fixing app code or
+weakening an assertion to make it pass. Five real defects surfaced that way.
+
+**Fixed, each red-green verified:**
+
+1. **Silent matter substitution on write routes** (`server.js`). A request naming
+   a matter the user cannot open — walled, shredded, or unknown — fell through to
+   `matters[0]` instead of being refused. Proven on a money route: a bill run
+   carrying the walled matter's id created a numbered draft invoice on a
+   *different client's* matter, with a success flash naming neither. Now a named
+   matter that does not resolve stays null; the convenience default applies only
+   when no matter was named. Pinned in `test/wall.test.js`.
+
+2. **cite-resolve treated any 200 as a resolution** (`kernel/cite-resolve.js`).
+   `kernel/canlii.js` returns `{ok:true, data:null}` when a 200 body fails to
+   parse, and the resolver hardcoded `resolved:true` with the *citation string*
+   echoed back as the case title. Room 08 then flashed "Connector matched
+   2011 ONCA 9999" and rendered "connector found a match" directly above the
+   checkbox "Resolves to a real case — looked up, not assumed": machine
+   corroboration for a case that does not exist, which is exactly the
+   hallucinated-citation failure this gate exists to prevent. A resolution now
+   requires a real title from the payload, and the query is never its own answer.
+   Same rule applied to the CourtListener branch. Pinned in `test/cite.test.js`.
+
+3. **Bates collision past DEF-999999** (`rooms/13-review.js`). `nextBates()`
+   matched `/^DEF-(\d{6})$/`, so the first document past 999999 got
+   `DEF-1000000`, which the regex no longer matched — the scan fell back and
+   issued the same number again. Two documents sharing a bates number breaks
+   document identity in a production and on the privilege log. Widened to
+   `\d+`; `padStart` keeps six the minimum width.
+
+**Reported, deliberately NOT changed — these are design calls for the lawyers:**
+
+4. **Supplemental productions re-produce everything** (`rooms/33-production.js`).
+   Assembly builds the producible set from coding alone and never excludes
+   documents already frozen into an earlier volume, so PROD002 re-serves all of
+   PROD001 and the two volumes' bates ranges overlap. The room's own advice
+   ("recode before assembling") is worse than the disease: recoding a produced
+   document to `responsive:'no'` is the only way to get a clean supplemental
+   volume, and `35-affidavit.js` derives Schedule A of the Rule 30.03 affidavit
+   from the same coding — so the workaround silently drops produced documents out
+   of sworn evidence. Either exclude already-produced ids at assembly, or state
+   that re-production is intended. Not for me to decide.
+
+5. **Chronology filter widens on the way to the extract**
+   (`rooms/06-chronology.js`). The timeline filters `actor` exactly; the
+   "Statement of facts →" handoff re-filters by substring, so a filtered extract
+   headed `actor "Doe"` also contains "J. Doe Holdings" facts the user was not
+   looking at. The narrative's own form says "Actor contains", so substring is
+   intended *there* — the defect is the one-click handoff between two different
+   semantics. Same divergence exists for the issue filter.

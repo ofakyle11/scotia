@@ -58,9 +58,23 @@ async function resolve(kernel, cite) {
     if (!out || !out.ok) {
       return result(false, 'canlii-api', '', searchUrl, 'CanLII: ' + ((out && out.message) || 'no match') + '.');
     }
+    // A 200 is not a resolution. kernel/canlii.js apiGet() returns
+    // {ok:true, data:null} when a 200 body fails to parse, and an empty payload
+    // used to arrive here as resolved:true with the CITATION STRING echoed back
+    // as the case title — so room 08 flashed "Connector matched 2011 ONCA 9999"
+    // and rendered "connector found a match" directly above the checkbox
+    // "Resolves to a real case — looked up, not assumed". That is machine
+    // corroboration for a case that does not exist: precisely the hallucinated-
+    // citation failure this gate exists to stop. A resolution now requires a
+    // real title from the payload, and the query is never its own answer.
     const d = out.data || {};
-    return result(true, 'canlii-api', d.title || withIds.cite, d.url || searchUrl,
-      `Resolved via CanLII API: ${d.title || withIds.cite}${d.citation ? ', ' + d.citation : ''}.`);
+    const title = typeof d.title === 'string' ? d.title.trim() : '';
+    if (!title) {
+      return result(false, 'canlii-api', '', d.url || searchUrl,
+        'CanLII answered but returned no case record for this citation — unresolved. Confirm by hand before relying on it.');
+    }
+    return result(true, 'canlii-api', title, d.url || searchUrl,
+      `Resolved via CanLII API: ${title}${d.citation ? ', ' + d.citation : ''}.`);
   }
 
   // --- US: reporter cite -> CourtListener/RECAP opinion search (token optional) ---
@@ -81,8 +95,16 @@ async function resolve(kernel, cite) {
         `No CourtListener match for "${raw}" — search the RECAP archive or PACER by hand.`);
     }
     const firstCite = Array.isArray(hit.citation) && hit.citation[0] ? hit.citation[0] : '';
-    return result(true, 'courtlistener', hit.caseName || raw, hit.url || recapUrl,
-      `Resolved via CourtListener: ${hit.caseName || raw}${firstCite ? ', ' + firstCite : ''}${hit.court ? ' (' + hit.court + ')' : ''}.`);
+    // Same rule as the CanLII branch: a hit carrying no case name is not a
+    // resolution, and the citation the user typed is never echoed back as if it
+    // were the connector's answer.
+    const caseName = typeof hit.caseName === 'string' ? hit.caseName.trim() : '';
+    if (!caseName) {
+      return result(false, 'courtlistener', '', hit.url || recapUrl,
+        `CourtListener returned a record with no case name for "${raw}" — unresolved. Confirm by hand before relying on it.`);
+    }
+    return result(true, 'courtlistener', caseName, hit.url || recapUrl,
+      `Resolved via CourtListener: ${caseName}${firstCite ? ', ' + firstCite : ''}${hit.court ? ' (' + hit.court + ')' : ''}.`);
   }
 
   // --- Unrecognized: honest miss, no guess ---
