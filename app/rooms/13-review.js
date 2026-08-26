@@ -13,6 +13,17 @@ const PRIV_BASIS = { 'solicitor-client': 'Solicitor-client privilege', litigatio
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Shape and calendar both. '2026-02-31' clears the ISO regex but rolls forward
+// to March 3 inside Date, so the slice is compared back and the impossible day
+// is refused — the document date is the Created column of the privilege log and
+// the sort key 35-affidavit reads for Schedules A and B, and a day nobody lived
+// is a date the other side can put to a deponent.
+function isRealDate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
 // Printing this page yields the two documents that leave the room — the
 // privilege log and the production list. Search, coding and intake drop out;
 // the shared print base in kernel/html.js does the palette and the chrome.
@@ -421,13 +432,17 @@ function register(app) {
     const title = String(ctx.body.title || '').trim();
     const text = String(ctx.body.text || '');
     if (!title || !text.trim()) { ctx.setFlash('A title and pasted document text are both required.', 'err'); redirect(res, '/r/review'); return; }
+    // Validate before a single encrypted blob is written — a refused intake
+    // must leave nothing behind, the same contract the .eml caps hold to.
+    const docDate = String(ctx.body.docDate || '').trim().slice(0, 10);
+    if (docDate && !isRealDate(docDate)) { ctx.setFlash('Document date must be a real calendar date (YYYY-MM-DD) — nothing was stored.', 'err'); redirect(res, '/r/review'); return; }
     const s = k.scope(ctx.matter.id);
     const blobId = k.blob.put(ctx.matter.id, Buffer.from(text, 'utf8'));
     const bates = nextBates(s.list('document'));
     const doc = s.put('document', {
       title,
       custodian: String(ctx.body.custodian || '').trim(),
-      date: String(ctx.body.docDate || '').slice(0, 10),
+      date: docDate,
       blobId,
       bates,
       privilege: PRIVILEGE.some(([v]) => v === ctx.body.privilege) ? ctx.body.privilege : 'none',

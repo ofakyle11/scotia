@@ -13,12 +13,25 @@
 //                 lost), counterclaims and crossclaims. Counterclaims/crossclaims
 //                 are themselves causes of action, so they carry the same
 //                 element-to-fact coverage as the claim.
+//
+// The page opens on the answer to the only question this room exists to ask:
+// which elements still have no fact behind them, and which defences are still
+// unpleaded — reported before you serve rather than after the motion to strike.
+// Everything below that queue is the working surface it links into.
 const { layout, esc, table, empty, tag, kv, input, textarea, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 10, id: 'pleadings', title: 'Pleadings', phase: 'Build' };
 
 const SUB = 'Element-to-fact coverage — plead facts, not conclusions; plead defences or waive them';
+
+// Printing yields the register: the gap queue, the coverage matrices and the
+// defence register. The shared base in kernel/html.js drops the chrome and every
+// form; only the two things it cannot know are stated here.
+const PRINT = `<style>@media print{
+.roomsub{display:none}
+.grid2,.grid3{display:block}
+}</style>`;
 
 // Reference element sets — real, labeled reference data (see kernel/rules.js style).
 // Citations are to the leading statements of each test; contract elements carry
@@ -92,6 +105,10 @@ const AFF_DEFENCES = {
 };
 
 const SIDES = { claim: 'Cause of action (claim)', counterclaim: 'Counterclaim', crossclaim: 'Crossclaim' };
+// Short forms for headings and buttons — SIDES[..].toLowerCase() reads as
+// "remove cause of action (claim)", which is not how anyone speaks.
+const SIDE_SHORT = { claim: 'cause', counterclaim: 'counterclaim', crossclaim: 'crossclaim' };
+const sideOf = (c) => (SIDES[c.side] ? c.side : 'claim');
 
 // Which affirmative-defence reference set fits the matter's jurisdiction. US
 // federal / New York use the FRCP list; everything else falls to the Ontario
@@ -123,95 +140,120 @@ function register(app) {
     const defences = s.list('affdefence').slice().sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     const drafts = s.list('pleading').slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-    const bySide = (side) => causes.filter((c) => (c.side || 'claim') === side);
+    const bySide = (side) => causes.filter((c) => sideOf(c) === side);
     const claims = bySide('claim');
     const counters = bySide('counterclaim');
     const crosses = bySide('crossclaim');
     const dset = defenceSetFor(ctx.matter.jurisdiction);
+    const unpleaded = defences.filter((d) => !d.pleaded);
+    // Registered drafts, by the pleading they came from — so a row can say
+    // where it stands at the citation gate instead of offering a blind button.
+    const gateBy = new Map(s.list('draft', (d) => !!d.pleadingId).map((d) => [d.pleadingId, d]));
 
-    const coverageGroup = (heading, list, side) => `
-      <h2 class="sec">${esc(heading)}</h2>
-      ${list.length ? list.map((c) => causeSection(c, facts)).join('')
-        : empty(side === 'claim'
-          ? 'No causes of action on this matter yet — add one on the right, then map each element to chronology facts.'
-          : `No ${SIDES[side].toLowerCase()}s recorded yet — add one on the right if the defence asserts one.`)}
-    `;
+    // Counterclaims and crossclaims only get a section once one exists: three
+    // empty boxes on a fresh matter say nothing the Side selector does not.
+    const coverageGroup = (heading, list) => (list.length
+      ? `<h2 class="sec">${esc(heading)}</h2>${list.map((c) => causeSection(c, facts)).join('')}`
+      : '');
 
-    const body = `
-    <h2 class="sec" style="margin-top:0">Pleadings posture — ${esc(ctx.matter.title)}</h2>
+    const posture = [
+      ['Jurisdiction', esc(ctx.matter.jurisdiction || '—')],
+      ['Claim causes', causes.length || defences.length
+        ? `<span class="num">${claims.length}</span> pleaded · <span class="num">${claims.filter(fullyCovered).length}</span> fully supported`
+        : '<span class="note">none yet</span>'],
+    ];
+    if (counters.length) posture.push(['Counterclaims', `<span class="num">${counters.length}</span> · <span class="num">${counters.filter(fullyCovered).length}</span> fully supported`]);
+    if (crosses.length) posture.push(['Crossclaims', `<span class="num">${crosses.length}</span> · <span class="num">${crosses.filter(fullyCovered).length}</span> fully supported`]);
+    posture.push(['Affirmative defences', defences.length
+      ? `<span class="num">${defences.length}</span> registered · <span class="num">${defences.length - unpleaded.length}</span> pleaded · <span class="num">${unpleaded.length}</span> not`
+      : '<span class="note">none registered</span>']);
+
+    const gaps = gapList(causes, defences);
+
+    const body = PRINT + `
+    <h2 class="sec" style="margin-top:0">Before you serve — ${esc(ctx.matter.title)} ${gaps.length
+      ? tag(`${gaps.length} gap${gaps.length === 1 ? '' : 's'}`, 'gate')
+      : (causes.length || defences.length ? tag('nothing outstanding', 'ok') : '')}</h2>
     <div class="card">
-      ${kv([
-        ['Jurisdiction', esc(ctx.matter.jurisdiction || '—')],
-        ['Claim causes', `${claims.length} (${claims.filter((c) => fullyCovered(c)).length} fully supported)`],
-        ['Counterclaims', String(counters.length)],
-        ['Crossclaims', String(crosses.length)],
-        ['Affirmative defences', `${defences.length} recorded — ${defences.filter((d) => d.pleaded).length} pleaded, ${defences.filter((d) => !d.pleaded).length} unpleaded`],
-      ])}
+      ${kv(posture)}
+      ${gaps.length ? `<div style="margin-top:14px">${table(['Where', 'What is missing', 'Risk', ''], gapRows(gaps))}</div>`
+        : `<p class="note" style="margin-top:14px">${causes.length || defences.length
+          ? 'Every pleaded element has a sourced fact behind it and every registered defence is marked pleaded. Re-check after any amendment.'
+          : 'Nothing pleaded yet. Add the first cause of action below, then map each of its elements to a sourced chronology fact.'}</p>`}
       <form method="POST" action="/r/pleadings/register-export" style="display:inline">
-        <button class="quiet" style="margin-top:12px">Export pleadings register (.txt)</button>
+        <button class="quiet" style="margin-top:14px">Export pleadings register (.txt)</button>
       </form>
     </div>
 
-    ${coverageGroup('Causes of action — claim', claims, 'claim')}
+    ${claims.length ? `<h2 class="sec">Causes of action — claim</h2>${claims.map((c) => causeSection(c, facts)).join('')}`
+      : `<h2 class="sec">Causes of action — claim</h2>${empty('No causes of action yet — add one below, then map each element to a sourced chronology fact. An element with nothing behind it is what a motion to strike goes after.')}`}
 
-    <h2 class="sec">Affirmative defences — the waiver trap</h2>
-    <div class="flash err" style="margin-bottom:16px">
-      <b>Waiver trap.</b> An affirmative defence not raised in the statement of defence is waived — it cannot be run at trial
-      (${esc(dset.key === 'US' ? 'Fed. R. Civ. P. 8(c)(1)' : 'Rules of Civil Procedure, r. 25.07(4)')}). Register every defence you may rely on here and mark it <b>pleaded</b> once it is in the served defence. Anything left unpleaded is flagged below.
-    </div>
-    ${defencesSection(defences, dset)}
+    <h2 class="sec" id="defences">Affirmative defences ${unpleaded.length
+      ? tag(`${unpleaded.length} unpleaded — waiver risk`, 'gate')
+      : (defences.length ? tag('all pleaded', 'ok') : '')}</h2>
+    ${defencesSection(defences, dset, unpleaded.length)}
 
-    ${coverageGroup('Counterclaims', counters, 'counterclaim')}
-    ${coverageGroup('Crossclaims', crosses, 'crossclaim')}
+    ${coverageGroup('Counterclaims', counters)}
+    ${coverageGroup('Crossclaims', crosses)}
 
-    <h2 class="sec">Build the pleading</h2>
-    <div class="grid2">
+    <div class="no-print">
+      <h2 class="sec">Build the pleading</h2>
+      <div class="grid2">
+        <div class="card">
+          <h2 class="sec" style="margin-top:0">Add a cause, counterclaim or crossclaim</h2>
+          <form method="POST" action="/r/pleadings/cause">
+            <div class="grid2">
+              <span>${select('side', 'Side', Object.entries(SIDES).map(([v, t]) => [v, t]))}</span>
+              <span>${input('against', 'Asserted against', { placeholder: 'Counterclaim / crossclaim only' })}</span>
+            </div>
+            ${select('set', 'Reference element set', [['', '— custom cause (build your own elements) —']].concat(CAUSES.map((c) => [c.id, `${c.label} (${c.jur}) — ${c.elements.length} elements`])))}
+            <div class="grid2">
+              <span>${input('customLabel', 'Custom cause label', { placeholder: 'Custom cause only' })}</span>
+              <span>${input('customRef', 'Custom cause authority', { placeholder: 'Leading citation for the test' })}</span>
+            </div>
+            <button>Add to matter</button>
+          </form>
+          <p class="note">Reference element sets are labeled reference data carrying the citation to the leading statement of each test — a starting point, not the last word. Once added, each coverage card takes elements in or out so the set fits your jurisdiction and theory. A custom cause starts empty; add its elements on its card.</p>
+        </div>
+        <div class="card">
+          <h2 class="sec" style="margin-top:0">Register an affirmative defence</h2>
+          <form method="POST" action="/r/pleadings/defence">
+            ${select('ref', `Reference defence (${esc(dset.key)})`, [['', '— custom defence —']].concat(dset.items.map((d) => [d.name, `${d.name} — ${d.cite}`])))}
+            ${input('custom', 'Or a custom defence name', { placeholder: 'Only if not in the reference list' })}
+            ${textarea('basis', 'Factual basis / particulars', { placeholder: 'The material facts that make this defence out. Fraud and misrepresentation require full particulars.' })}
+            <button>Register defence</button>
+          </form>
+          <p class="note">Reference defences are drawn from ${esc(dset.ref)}. A checklist to defeat the waiver trap, not legal advice — confirm the authority and the pleading rule for your facts.</p>
+        </div>
+      </div>
+
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Add a cause / counterclaim / crossclaim</h2>
-        <form method="POST" action="/r/pleadings/cause">
-          ${select('side', 'Side', Object.entries(SIDES).map(([v, t]) => [v, t]))}
-          ${input('against', 'Asserted against (party — counterclaim/crossclaim)', { placeholder: 'e.g. Plaintiff, or co-defendant name' })}
-          ${select('set', 'Reference element set', [['', '— custom cause (build your own elements) —']].concat(CAUSES.map((c) => [c.id, `${c.label} (${c.jur}) — ${c.elements.length} elements`])))}
+        <h2 class="sec" style="margin-top:0">Draft a pleading</h2>
+        <form method="POST" action="/r/pleadings/draft">
           <div class="grid2">
-            <span>${input('customLabel', 'Custom cause label', { placeholder: 'Only if building a custom cause' })}</span>
-            <span>${input('customRef', 'Custom cause authority', { placeholder: 'Leading citation for the test' })}</span>
+            <span>${input('title', 'Title', { required: true, placeholder: 'Statement of Claim — draft 1' })}</span>
+            <span>${select('ptype', 'Type', [['claim', 'Claim'], ['defence', 'Defence'], ['counterclaim', 'Counterclaim'], ['crossclaim', 'Crossclaim']])}</span>
           </div>
-          <button>Add to matter</button>
+          ${textarea('body', 'Body', { required: true, placeholder: 'Material facts, pleaded plainly. Evidence stays out; conclusions of law stay out.' })}
+          <button>Save draft</button>
         </form>
-        <p class="note"><b>Reference element sets</b> are labeled reference data carrying the citation to the leading statement of each test. They are a starting point — once added, use each coverage card to add or remove elements, so the element set fits your jurisdiction and theory. A custom cause starts empty; add its elements there.</p>
+        <p class="note">Drafts stay in this matter's encrypted scope. Send one to Citation Check (08) and every authority in it must be verified before Filing (22) will take it.</p>
       </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Register an affirmative defence</h2>
-        <form method="POST" action="/r/pleadings/defence">
-          ${select('ref', `Reference defence (${esc(dset.key)})`, [['', '— custom defence —']].concat(dset.items.map((d) => [d.name, `${d.name} — ${d.cite}`])))}
-          ${input('custom', 'Or a custom defence name', { placeholder: 'Only if not in the reference list' })}
-          ${textarea('basis', 'Factual basis / particulars', { placeholder: 'The material facts that make this defence out. Fraud and misrepresentation require full particulars.' })}
-          <button>Register defence</button>
-        </form>
-        <p class="note">Reference defences are drawn from ${esc(dset.ref)}. This is a checklist to defeat the waiver trap, not legal advice — confirm the authority and pleading rule for your facts.</p>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2 class="sec" style="margin-top:0">Draft a pleading</h2>
-      <form method="POST" action="/r/pleadings/draft">
-        ${input('title', 'Title', { required: true, placeholder: 'Statement of Claim — draft 1' })}
-        ${select('ptype', 'Type', [['claim', 'Claim'], ['defence', 'Defence'], ['counterclaim', 'Counterclaim'], ['crossclaim', 'Crossclaim']])}
-        ${textarea('body', 'Body', { required: true, placeholder: 'Material facts, pleaded plainly. Evidence stays out; conclusions of law stay out.' })}
-        <button>Save draft</button>
-      </form>
-      <p class="note">Drafts live in this matter's encrypted scope. The coverage matrix above tells you whether the claim you are drafting can survive its first motion — and the defence register tells you what you must plead or lose.</p>
     </div>
 
     <h2 class="sec">Pleading drafts</h2>
-    ${drafts.length ? table(['Title', 'Type', 'Saved', 'Body', ''], drafts.map((d) => [
-      esc(d.title),
-      d.ptype === 'claim' ? tag('claim', 'navy') : tag(esc(d.ptype)),
-      date(d.createdAt),
-      `<span class="note">${esc(String(d.body || '').slice(0, 160))}${String(d.body || '').length > 160 ? '…' : ''}</span>`,
-      `<form method="POST" action="/r/pleadings/tocite" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet" style="padding:4px 10px;margin-top:0">to citation check</button></form>` +
-      `<form method="POST" action="/r/pleadings/deldraft" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:0">drop</button></form>`,
-    ])) : empty('No pleading drafts yet — save one from the form above.')}
+    ${drafts.length ? table(['Title', 'Type', 'Saved', 'Citation gate', 'Body', ''], drafts.map((d) => {
+      const g = gateBy.get(d.id);
+      return [
+        esc(d.title),
+        d.ptype === 'claim' ? tag('claim', 'navy') : tag(String(d.ptype || 'claim')),
+        date(d.createdAt),
+        gateCell(g),
+        `<span class="note">${esc(String(d.body || '').slice(0, 140))}${String(d.body || '').length > 140 ? '…' : ''}</span>`,
+        `<span class="no-print"><form method="POST" action="/r/pleadings/tocite" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet" style="padding:4px 10px;margin-top:0">${g ? 're-send to 08' : 'to citation check'}</button></form>`
+        + `<form method="POST" action="/r/pleadings/deldraft" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:0">drop</button></form></span>`,
+      ];
+    })) : empty('No pleading drafts yet — save one from the form above, then send it to Citation Check before it goes anywhere near the Filing Room.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
   });
@@ -230,8 +272,8 @@ function register(app) {
     if (setId) {
       const set = CAUSES.find((c) => c.id === setId);
       if (!set) { ctx.setFlash('Pick a cause of action from the reference list, or build a custom one.', 'err'); redirect(res, '/r/pleadings'); return; }
-      if (s.list('cause').some((c) => c.setId === set.id && (c.side || 'claim') === side && (c.against || '') === against)) {
-        ctx.setFlash(`${set.label} is already recorded as a ${SIDES[side].toLowerCase()} here — map its elements on its card.`, 'err');
+      if (s.list('cause').some((c) => sideOf(c) === side && c.setId === set.id && (c.against || '') === against)) {
+        ctx.setFlash(`${set.label} is already recorded as a ${SIDE_SHORT[side]} here — map its elements on its card.`, 'err');
         redirect(res, '/r/pleadings'); return;
       }
       rec = { setId: set.id, label: set.label, jur: set.jur, ref: set.ref, elements: set.elements.map((e) => ({ ...e })) };
@@ -246,7 +288,7 @@ function register(app) {
       };
     }
     s.put('cause', { ...rec, side, against, mapping: {} });
-    ctx.setFlash(`${rec.label} added as a ${SIDES[side].toLowerCase()}${against ? ' against ' + against : ''} — ${rec.elements.length} element${rec.elements.length === 1 ? '' : 's'}, none supported yet.`);
+    ctx.setFlash(`${rec.label} added as a ${SIDE_SHORT[side]}${against ? ' against ' + against : ''} — ${rec.elements.length} element${rec.elements.length === 1 ? '' : 's'}, none supported yet. Map each one to a sourced fact.`);
     redirect(res, '/r/pleadings');
   });
 
@@ -422,8 +464,16 @@ function register(app) {
     if (!p) { ctx.setFlash('Pick a pleading to send.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
     const already = s.list('draft', (d) => d.pleadingId === p.id)[0];
     if (already) {
-      s.put('draft', { ...already, text: p.body, title: p.title, citeStatus: 'unchecked', scannedAt: null });
-      ctx.setFlash(`Re-sent "${p.title}" to Citation Check — open room 08 to extract and verify.`);
+      // Re-sending replaces the text the gate was cleared against, so the gate
+      // resets with it — same counter-current 18-briefs applies when a section
+      // is edited: citeStatus back to unchecked, the scan stamp dropped, and a
+      // draft that had reached 'final' demoted so 22-filing cannot take it on a
+      // clearance that no longer describes the text.
+      s.put('draft', {
+        ...already, text: p.body, title: p.title, citeStatus: 'unchecked', scannedAt: null,
+        status: already.status === 'final' ? 'draft' : (already.status || 'draft'),
+      });
+      ctx.setFlash(`Re-sent "${p.title}" to Citation Check — the citation gate is reset; open room 08 to extract and verify.`);
     } else {
       s.put('draft', { title: p.title, type: p.ptype || 'pleading', text: p.body, status: 'draft', citeStatus: 'unchecked', pleadingId: p.id });
       ctx.setFlash(`"${p.title}" registered in Citation Check — open room 08 to extract and verify its authorities.`);
@@ -439,13 +489,54 @@ function fullyCovered(c) {
   return els.length > 0 && els.every((el) => (mapping[el.key] || []).length > 0);
 }
 
+// The queue the room exists for: every element with no fact behind it and every
+// registered defence still unpleaded. A cause with no elements at all is its own
+// gap — there is nothing to test the claim against. One pure pass, shared by the
+// on-screen table and the exported register so the two can never disagree.
+function gapList(causes, defences) {
+  const out = [];
+  for (const c of causes) {
+    const els = c.elements || [];
+    if (!els.length) { out.push({ kind: 'noelements', cause: c, label: '' }); continue; }
+    const mapping = c.mapping || {};
+    for (const el of els) if (!(mapping[el.key] || []).length) out.push({ kind: 'element', cause: c, label: el.label });
+  }
+  for (const d of defences) if (!d.pleaded) out.push({ kind: 'defence', cause: null, label: d.name });
+  return out;
+}
+
+// The same list as table rows, each linking straight to the card that fixes it.
+function gapRows(gaps) {
+  return gaps.map((g) => {
+    if (g.kind === 'defence') {
+      return ['<a href="#defences">Affirmative defence</a>', esc(g.label), tag('waived if omitted', 'gate'), '<a href="#defences">mark pleaded →</a>'];
+    }
+    const c = g.cause;
+    const where = `<a href="#c-${esc(c.id)}">${esc(c.label)}</a><div class="note">${esc(SIDES[sideOf(c)])}${c.against ? ' · against ' + esc(c.against) : ''}</div>`;
+    return g.kind === 'noelements'
+      ? [where, '<span class="note">no elements on this cause</span>', tag('nothing to test the claim against', 'gate'), `<a href="#c-${esc(c.id)}">add elements →</a>`]
+      : [where, esc(g.label), tag('no fact behind it', 'gate'), `<a href="#c-${esc(c.id)}">map a fact →</a>`];
+  });
+}
+
+// Where a pleading stands at the citation gate, read off the companion draft
+// 08-citations actually scans. 'unchecked' means registered but not yet
+// extracted; 'blocked' means an authority in it failed or is unverified.
+function gateCell(g) {
+  if (!g) return '<span class="note">not sent</span>';
+  const st = String(g.citeStatus || 'unchecked');
+  if (st === 'clear') return tag('cleared', 'ok') + (g.status === 'final' ? ' ' + tag('final', 'ok') : '');
+  if (st === 'blocked') return tag('blocked — unverified cites', 'gate');
+  return tag(st === 'none' ? 'gate reset by edit' : 'awaiting extraction', 'navy');
+}
+
 // One cause of action: its element × support matrix, element editing, and the
 // mapping form. Used for claims, counterclaims and crossclaims alike.
 function causeSection(c, facts) {
   const byId = new Map(facts.map((f) => [f.id, f]));
   const elements = c.elements || [];
   const mapping = c.mapping || {};
-  const side = c.side || 'claim';
+  const side = sideOf(c);
   const supportFor = (el) => (mapping[el.key] || []).map((id) => byId.get(id)).filter(Boolean);
   const supported = elements.filter((el) => supportFor(el).length).length;
   const full = elements.length > 0 && supported === elements.length;
@@ -459,53 +550,62 @@ function causeSection(c, facts) {
         <form method="POST" action="/r/pleadings/unlink" style="display:inline"><input type="hidden" name="cause" value="${esc(c.id)}"><input type="hidden" name="element" value="${esc(el.key)}"><input type="hidden" name="fact" value="${esc(f.id)}"><button class="quiet" style="padding:2px 8px;margin-top:0">unlink</button></form>
       `).join('<br>') : '—',
       sup.length ? tag(`supported — ${sup.length} fact${sup.length === 1 ? '' : 's'}`, 'ok') : tag('no factual support yet', 'gate'),
-      `<form method="POST" action="/r/pleadings/delelement" style="display:inline"><input type="hidden" name="cause" value="${esc(c.id)}"><input type="hidden" name="element" value="${esc(el.key)}"><button class="quiet danger" style="padding:2px 8px;margin-top:0">drop</button></form>`,
+      `<span class="no-print"><form method="POST" action="/r/pleadings/delelement" style="display:inline"><input type="hidden" name="cause" value="${esc(c.id)}"><input type="hidden" name="element" value="${esc(el.key)}"><button class="quiet danger" style="padding:2px 8px;margin-top:0">drop</button></form></span>`,
     ];
   });
 
   const factOpts = facts.map((f) => [f.id, `${f.date || '????-??-??'} — ${String(f.text || '').slice(0, 70)} (${f.source || 'no pin'})`]);
   const sideTag = side === 'claim' ? tag('claim', 'navy') : tag(SIDES[side]);
 
-  return `<div class="card">
+  return `<div class="card" id="c-${esc(c.id)}">
     <h2 class="sec" style="margin-top:0">${esc(c.label)} ${tag(c.jur || '')} ${sideTag} ${full ? tag(`all ${elements.length} elements supported`, 'ok') : tag(`${supported}/${elements.length} elements supported`, supported ? 'navy' : 'gate')}</h2>
     ${kv([['Reference', `<span class="note">${esc(c.ref || '')}</span>`]].concat(c.against ? [['Asserted against', esc(c.against)]] : []))}
-    ${table(['Element', 'Supported by (chronology facts)', 'Coverage', ''], rows) || empty('This cause has no elements yet — add the first element below.')}
-    <form method="POST" action="/r/pleadings/addelement" style="margin-top:10px">
-      <input type="hidden" name="cause" value="${esc(c.id)}">
-      ${input('label', 'Add an element', { placeholder: 'e.g. Reasonable reliance' })}
-      <button class="quiet" style="margin-top:10px">Add element</button>
-    </form>
-    ${facts.length ? `
-    <form method="POST" action="/r/pleadings/link" style="margin-top:12px">
-      <input type="hidden" name="cause" value="${esc(c.id)}">
-      <div class="grid2">
-        <span>${select('element', 'Element', elements.map((e) => [e.key, e.label]))}</span>
-        <span>${select('fact', 'Chronology fact', factOpts)}</span>
-      </div>
-      <button class="quiet" style="margin-top:12px">Map fact to element</button>
-    </form>` : '<p class="note">No facts in the chronology yet — enter sourced facts in room 06 before mapping elements.</p>'}
-    <form method="POST" action="/r/pleadings/delcause"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:12px">remove ${esc(SIDES[side].toLowerCase())}</button></form>
+    ${table(['Element', 'Supported by (chronology facts)', 'Coverage', ''], rows)
+      || empty('No elements on this cause yet — add the first one below. Until then there is nothing to test the claim against.')}
+    <div class="no-print">
+      <form method="POST" action="/r/pleadings/addelement" style="margin-top:10px">
+        <input type="hidden" name="cause" value="${esc(c.id)}">
+        ${input('label', 'Add an element', { placeholder: 'e.g. Reasonable reliance' })}
+        <button class="quiet" style="margin-top:10px">Add element</button>
+      </form>
+      ${!elements.length ? ''
+        : facts.length ? `
+      <form method="POST" action="/r/pleadings/link" style="margin-top:12px">
+        <input type="hidden" name="cause" value="${esc(c.id)}">
+        <div class="grid2">
+          <span>${select('element', 'Element', elements.map((e) => [e.key, e.label]))}</span>
+          <span>${select('fact', 'Chronology fact', factOpts)}</span>
+        </div>
+        <button class="quiet" style="margin-top:12px">Map fact to element</button>
+      </form>`
+          : '<p class="note">No facts in the chronology yet — enter sourced facts in Chronology (06) before mapping elements. Source-or-drop applies there, so anything you map here already carries its pin.</p>'}
+      <form method="POST" action="/r/pleadings/delcause"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:12px">remove this ${esc(SIDE_SHORT[side])}</button></form>
+    </div>
   </div>`;
 }
 
-// The affirmative-defence register — the waiver-trap checklist.
-function defencesSection(defences, dset) {
+// The affirmative-defence register — the waiver-trap checklist. The waiver rule
+// is the reason this register exists, so its citation stays on the page; the
+// alarm colour is spent only when something is actually unpleaded.
+function defencesSection(defences, dset, unpleaded) {
+  const waiverCite = dset.key === 'US' ? 'Fed. R. Civ. P. 8(c)(1)' : 'Rules of Civil Procedure, r. 25.07(4)';
+  const waiver = `An affirmative defence not raised in the statement of defence is waived — it cannot be run at trial (${esc(waiverCite)}).`;
   if (!defences.length) {
-    return `<div class="card">${empty('No affirmative defences registered yet — add the ones you may rely on from the form below, before the deadline to plead them passes.')}
-      <p class="note">Reference set: ${esc(dset.ref)}</p></div>`;
+    return `<div class="card">${empty('No affirmative defences registered — register every one you may rely on, then mark each pleaded once it is in the served defence.')}
+      <p class="note">${waiver} Reference set: ${esc(dset.ref)}.</p></div>`;
   }
   const rows = defences.map((d) => [
     esc(d.name),
     `<span class="note">${esc(d.cite || '')}</span>`,
-    d.basis ? `<span class="note">${esc(String(d.basis).slice(0, 140))}${String(d.basis).length > 140 ? '…' : ''}</span>` : tag('no basis pleaded', 'gate'),
-    d.pleaded ? tag('pleaded', 'ok') : tag('NOT PLEADED — waived if omitted', 'gate'),
-    `<form method="POST" action="/r/pleadings/defence-plead" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet" style="padding:2px 8px;margin-top:0">${d.pleaded ? 'unmark' : 'mark pleaded'}</button></form>
-     <form method="POST" action="/r/pleadings/deldefence" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:2px 8px;margin-top:0">drop</button></form>`,
+    d.basis ? `<span class="note">${esc(String(d.basis).slice(0, 140))}${String(d.basis).length > 140 ? '…' : ''}</span>` : tag('no basis recorded', 'gate'),
+    d.pleaded ? tag('pleaded', 'ok') : tag('not pleaded — waived if omitted', 'gate'),
+    `<span class="no-print"><form method="POST" action="/r/pleadings/defence-plead" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet" style="padding:2px 8px;margin-top:0">${d.pleaded ? 'unmark' : 'mark pleaded'}</button></form>
+     <form method="POST" action="/r/pleadings/deldefence" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:2px 8px;margin-top:0">drop</button></form></span>`,
   ]);
-  const unpleaded = defences.filter((d) => !d.pleaded).length;
-  return `<div class="card">
+  return `${unpleaded ? `<div class="flash err" style="margin-bottom:16px"><b>Waiver trap.</b> ${waiver} ${unpleaded} registered defence${unpleaded === 1 ? ' is' : 's are'} not yet marked pleaded.</div>` : ''}
+  <div class="card">
     ${table(['Defence', 'Authority', 'Basis', 'Status', ''], rows)}
-    <p class="note">${unpleaded ? `${unpleaded} defence${unpleaded === 1 ? '' : 's'} not yet pleaded — each is waived if it does not appear in the served statement of defence.` : 'Every registered defence is marked pleaded.'} Reference set: ${esc(dset.ref)}.</p>
+    <p class="note">${unpleaded ? '' : `Every registered defence is marked pleaded. ${waiver} `}Reference set: ${esc(dset.ref)}. A checklist, not legal advice.</p>
   </div>`;
 }
 
@@ -516,13 +616,19 @@ function registerText(matter, causes, defences, facts) {
   lines.push('Matter: ' + (matter.title || '') + '   Jurisdiction: ' + (matter.jurisdiction || '—'));
   lines.push('Generated: ' + new Date().toISOString());
   lines.push('This is a work-product register, not a pleading and not legal advice.');
+  const gaps = gapList(causes, defences);
+  const unpleaded = gaps.filter((g) => g.kind === 'defence').length;
+  lines.push(gaps.length
+    ? 'OUTSTANDING: ' + gaps.length + ' gap(s) — ' + (gaps.length - unpleaded) + ' element(s) with no factual support, '
+      + unpleaded + ' defence(s) not pleaded.'
+    : 'OUTSTANDING: none — every pleaded element carries a sourced fact and every registered defence is pleaded.');
   lines.push('');
   for (const side of ['claim', 'counterclaim', 'crossclaim']) {
-    const list = causes.filter((c) => (c.side || 'claim') === side);
+    const list = causes.filter((c) => sideOf(c) === side);
     if (!list.length) continue;
     lines.push('== ' + SIDES[side].toUpperCase() + ' ==');
     for (const c of list) {
-      lines.push('- ' + c.label + ' [' + (c.jur || '—') + ']' + (c.against ? ' against ' + c.against : ''));
+      lines.push('- ' + c.label + ' [' + (c.jur || '-') + ']' + (c.against ? ' against ' + c.against : ''));
       lines.push('  Reference: ' + (c.ref || ''));
       const mapping = c.mapping || {};
       for (const el of (c.elements || [])) {
@@ -542,8 +648,6 @@ function registerText(matter, causes, defences, facts) {
   }
   lines.push('');
   return lines.join('\n');
-
-
 }
 
 module.exports = { ...ROOM, register };

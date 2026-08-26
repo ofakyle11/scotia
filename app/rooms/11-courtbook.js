@@ -15,6 +15,16 @@ const STALE_DAYS = 180;
 const LEVELS = ['Trial', 'Appellate', 'Final appellate', 'Tribunal', 'Other'];
 const SUMMARY = 'cursor:pointer;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)';
 
+// Printing this page yields the directory as a reference sheet. The shared base
+// in kernel/html.js drops the chrome and the forms; the one thing it cannot know
+// is that the standing notes fold away on screen — a printed entry with its fees,
+// limits and standing orders collapsed behind a <details> is worse than useless,
+// so each row also carries the same notes unfolded in a .print-only block.
+const PRINT = `<style>@media print{
+.roomsub{display:none}
+.grid2,.grid3{display:block}
+}</style>`;
+
 // Reference tranche — seeded once, clearly labeled. Verified-on is set to the
 // seed date; the staleness clock starts running immediately, on purpose.
 const SEEDS = [
@@ -81,9 +91,9 @@ function notesCell(e) {
     ['Fees', e.feeNote], ['Limits', e.limitNote], ['Format', e.formatNote], ['Standing orders', e.standingNote],
   ].filter(([, v]) => v);
   if (!rows.length) return '<span class="note">none recorded</span>';
-  return `<details><summary style="${SUMMARY}">${rows.map(([k2]) => esc(k2.toLowerCase())).join(' · ')}</summary>`
-    + rows.map(([k2, v]) => `<div class="note" style="margin-top:4px"><b>${esc(k2)}:</b> ${esc(v)}</div>`).join('')
-    + '</details>';
+  const notes = rows.map(([k2, v]) => `<div class="note" style="margin-top:4px"><b>${esc(k2)}:</b> ${esc(v)}</div>`).join('');
+  return `<details class="no-print"><summary style="${SUMMARY}">${rows.map(([k2]) => esc(k2.toLowerCase())).join(' · ')}</summary>${notes}</details>`
+    + `<div class="print-only">${notes}</div>`;
 }
 
 function register(app) {
@@ -107,7 +117,7 @@ function register(app) {
       ${table(['Court', 'Last verified', ''], stale.map((c) => [
         `<b>${esc(c.court)}</b><div class="note">${esc(c.jurisdiction || '—')}</div>`,
         verifiedCell(c),
-        verifyBtn(c, 'Verified today') + ` <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:8px">edit</a>`,
+        `<span class="no-print">${verifyBtn(c, 'Verified today')} <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:8px">edit</a></span>`,
       ]))}
       <p class="note">Reconfirm against the court’s own site, then stamp it here. The stamp is the record that a human checked — nothing in this book is fetched.</p>
     </div>` : '';
@@ -121,14 +131,14 @@ function register(app) {
       esc(c.portal || '—'),
       notesCell(c),
       verifiedCell(c),
-      `${verifyBtn(c, 'Verified today')}
+      `<span class="no-print">${verifyBtn(c, 'Verified today')}
        <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:6px">edit</a>
-       <form method="POST" action="/r/courtbook/del" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="margin-top:0;padding:4px 10px">Delete</button></form>`,
+       <form method="POST" action="/r/courtbook/del" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="margin-top:0;padding:4px 10px">Delete</button></form></span>`,
     ])) : empty('No courts in the book yet — add the court you file in below: its name, its portal, and the date you last confirmed its rules.')}
     <p class="note">Fees, page limits and standing orders drift constantly, so every entry carries the date a human last confirmed it against the court’s own site and anything older than ${STALE_DAYS} days is flagged until reverified. <span class="tag navy">reference</span> marks the seeded tranche — starting points, not gospel. Nothing here is fetched: Juriscraper / RECAP integration wires in per the Build Sheet.</p>`;
 
     const formCard = `
-    <div class="card">
+    <div class="card no-print">
       <h2 class="sec" style="margin-top:0">${editing ? `Edit — ${esc(editing.court)}` : 'Add a court'}</h2>
       <form method="POST" action="/r/courtbook/save">
         ${editing ? `<input type="hidden" name="id" value="${esc(editing.id)}">` : ''}
@@ -151,7 +161,7 @@ function register(app) {
       <p class="note">Verified-on is the date a human last confirmed this entry against the court’s own site — it is required, because an entry nobody has checked is worse than no entry. Editing an entry by hand drops its <span class="tag navy">reference</span> label.</p>
     </div>`;
 
-    const body = editing ? formCard + staleCard + dirSection : staleCard + dirSection + formCard;
+    const body = PRINT + (editing ? formCard + staleCard + dirSection : staleCard + dirSection + formCard);
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Firm-wide verified court directory — fees, limits, portals, standing orders', body }));
   });
 

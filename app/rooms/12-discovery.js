@@ -46,14 +46,17 @@ const ROG_CAP = 25;
 const SUMMARY = 'cursor:pointer;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft)';
 const PRE = 'white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;color:var(--ink-soft);background:var(--ground);border:1px solid var(--rule);padding:12px 14px;margin:0';
 
-// Ctrl-P (or the button) yields the selected deficiency letter alone: board,
-// forms and history drop out and the letter sets in a serif face, because it
-// goes to opposing counsel over a signature.
+// Ctrl-P (or the button) yields the selected deficiency letter alone: the
+// board, the forms and the history are marked .no-print and the shared base in
+// kernel/html.js drops them along with the chrome. Only the two things the base
+// cannot know are stated here — the room heading has no place on correspondence,
+// and a letter that goes out over a signature sets in a serif face on plain
+// paper, not in the mono box it is read in on screen.
 const PRINT = `<style>@media print{
-.noprint,.no-print{display:none!important}
-h1.room,.roomsub{display:none!important}
-.letter-sheet{border:0!important;background:#fff!important;padding:0!important;margin:0!important}
-.letter-sheet pre{color:#111!important;background:#fff!important;border:0!important;padding:0!important;font-family:Georgia,"Times New Roman",serif!important;font-size:11.5pt!important;line-height:1.5!important;white-space:pre-wrap}
+h1.room,.roomsub{display:none}
+.grid2,.grid3{display:block}
+.letter-sheet{border:0!important;padding:0!important;margin:0!important}
+.letter-sheet pre{color:#111!important;border:0!important;padding:0!important;font-family:Georgia,"Times New Roman",serif!important;font-size:11.5pt!important;line-height:1.5!important}
 }</style>`;
 
 function register(app) {
@@ -77,8 +80,13 @@ function register(app) {
     const openInst = openId ? instruments.find((x) => x.id === openId) : null;
     const autoRules = TYPES.map(([v, l]) => ({ l, rule: ruleFor(k, jur, v) })).filter((x) => x.rule);
     const overdue = instruments.filter((i) => effStatus(i, today) === 'overdue').length;
-    // The letter on the sheet: whichever row the user picked, else the newest.
-    const letterSel = letters.length ? (letters.find((l) => l.id === ctx.query.get('l')) || letters[0]) : null;
+    // The letter on the sheet. A letter the user actually asked for (?l=, which
+    // is where /letter redirects) leads the page — you asked to read it, you
+    // should not have to scroll the whole desk to find it. With no ?l= the
+    // newest letter is still on the sheet, but as the standing record at the
+    // foot of the page, because the desk is what the day starts on.
+    const picked = ctx.query.get('l') ? letters.find((l) => l.id === ctx.query.get('l')) : null;
+    const letterSel = picked || letters[0] || null;
     const keepI = openId ? 'i=' + encodeURIComponent(openId) + '&' : '';
 
     const desk = `
@@ -94,7 +102,10 @@ function register(app) {
           date(i.served),
           i.due ? date(i.due) + (i.dueCite ? ` <span class="note">${esc(i.dueCite)}</span>` : ' <span class="note">manual</span>') : '—',
           st === 'responded' ? tag('responded', 'ok') : st === 'overdue' ? tag('overdue', 'gate') : tag('open'),
-          `<span class="num">${(i.objections || []).length}</span>`,
+          // Boilerplate draws sanctions, so it is flagged where the board is
+          // scanned, not only inside the instrument.
+          `<span class="num">${(i.objections || []).length}</span>`
+            + ((i.objections || []).some((o) => o.boilerplate) ? ' ' + tag('boilerplate', 'gate') : ''),
           `<span class="num">${(i.items || []).length - unans}/${(i.items || []).length}</span>`,
           i.id === openId ? tag('open', 'navy') : `<a href="/r/discovery?i=${encodeURIComponent(i.id)}">open →</a>`,
         ];
@@ -185,8 +196,8 @@ function register(app) {
     // The deficiency letter is correspondence: listed compactly, read on a
     // sheet, printed or downloaded from there.
     const letterBlock = letterSel ? `
-    <div class="noprint">
-      <h2 class="sec">Deficiency letters</h2>
+    <div class="no-print">
+      <h2 class="sec"${picked ? ' style="margin-top:0"' : ''}>Deficiency letters ${letters.length > 1 ? tag(`${letters.length} on file`, 'navy') : ''}</h2>
       ${table(['Generated', 'Instrument', 'To', ''], letters.map((l) => [
         date(l.createdAt),
         esc(typeLabel(l.type)),
@@ -198,12 +209,17 @@ function register(app) {
       <div class="note no-print" style="margin:0 0 12px">
         <a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a>
         <form method="POST" action="/r/discovery/letter-export" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(letterSel.id)}"><button class="quiet">Download (.txt)</button></form>
+        ${picked ? `<a href="/r/discovery${openId ? '?i=' + encodeURIComponent(openId) : ''}" style="margin-left:12px">← back to the desk</a>` : ''}
         <div style="margin-top:8px">Printing yields this letter alone — the board, the forms and the history drop out. Review and sign before it goes out; it forms part of the discovery record either way.</div>
       </div>
       <pre style="${PRE}">${esc(letterSel.text || '')}</pre>
     </div>` : '';
 
-    const body = letterSel ? PRINT + `<div class="noprint">${desk}</div>` + letterBlock : desk;
+    const body = letterSel
+      ? PRINT + (picked
+        ? letterBlock + `<div class="no-print">${desk}</div>`
+        : `<div class="no-print">${desk}</div>` + letterBlock)
+      : desk;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Requests, responses, objections — specific and proportional', body }));
   });
 

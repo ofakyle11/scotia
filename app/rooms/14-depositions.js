@@ -21,6 +21,16 @@ const uKind = (u) => u.kind || 'undertaking'; // records predating kinds read as
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Shape and calendar both. '2026-02-31' clears the ISO regex but rolls forward
+// to March 3 inside Date, so the slice is compared back and the impossible day
+// is refused — a due date nobody lived would sit on the register looking sound
+// and sort ahead of the day the answer is actually owed.
+function isRealDate(s) {
+  if (!ISO.test(s)) return false;
+  const d = new Date(s + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
 // Printing this page yields the refusals chart alone — the tabular chart the
 // Toronto Region consolidated practice direction expects on a refusals motion.
 // Everything else is marked .no-print and the shared print base in
@@ -320,6 +330,7 @@ function register(app) {
       </div>
     </div>
     ${workspace}
+    ${w ? '' : '<div class="print-only">Nothing to print from this page until a witness is open on the bench — the paper this room yields is one witness&rsquo;s refusals chart.</div>'}
     <div class="no-print">
     <h2 class="sec">Undertakings, refusals &amp; under-advisements ${openU.length ? tag(`${openU.length} open`, overdueN ? '' : 'navy') : ''} ${overdueN ? tag(`${overdueN} overdue`, 'gate') : ''}</h2>
     <div class="grid2">
@@ -363,7 +374,7 @@ function register(app) {
     const name = String(ctx.body.name || '').trim();
     if (!name) { ctx.setFlash('A witness needs a name.', 'err'); back(res); return; }
     const examDate = String(ctx.body.examDate || '').trim();
-    if (examDate && !ISO.test(examDate)) { ctx.setFlash('Examination date must be YYYY-MM-DD.', 'err'); back(res); return; }
+    if (examDate && !isRealDate(examDate)) { ctx.setFlash('Examination date must be a real calendar date (YYYY-MM-DD).', 'err'); back(res); return; }
     const side = SIDES.some(([v]) => v === ctx.body.side) ? ctx.body.side : 'theirs';
     const rec = ctx.kernel.scope(ctx.matter.id).put('witness', {
       name, side, role: String(ctx.body.role || '').trim(), examDate: examDate || null,
@@ -456,10 +467,10 @@ function register(app) {
     const ground = kind !== 'undertaking' ? String(ctx.body.ground || '').trim() || null : null;
     const sought = kind !== 'undertaking' ? String(ctx.body.sought || '').trim() || null : null;
     const given = String(ctx.body.given || '').trim() || today();
-    if (!ISO.test(given)) { ctx.setFlash('Given date must be YYYY-MM-DD.', 'err'); back(res, w.id); return; }
+    if (!isRealDate(given)) { ctx.setFlash('Given date must be a real calendar date (YYYY-MM-DD).', 'err'); back(res, w.id); return; }
     let due = String(ctx.body.due || '').trim();
     let basis = 'set by hand';
-    if (due && !ISO.test(due)) { ctx.setFlash('Due date must be YYYY-MM-DD.', 'err'); back(res, w.id); return; }
+    if (due && !isRealDate(due)) { ctx.setFlash('Due date must be a real calendar date (YYYY-MM-DD).', 'err'); back(res, w.id); return; }
     if (!due) {
       const d = defaultDue(ctx.kernel, ctx.matter.jurisdiction, given);
       due = d.due; basis = d.basis;

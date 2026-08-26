@@ -93,7 +93,7 @@ function register(app) {
               `<span class="num">${checkCount(x)}/${CHECKLIST.length}</span>`,
               form53Tag(x),
             ])) : empty('No experts on this matter yet — open the first file with the form beside this.')}
-          <p class="note">Ours ${ours.length} · theirs ${theirs.length}. Prongs counts admissibility items ticked across both regimes — it records work done, never a ruling.</p>
+          <p class="note">Ours ${ours.length} · theirs ${theirs.length}. Prongs counts admissibility items ticked across both regimes — it records work done, never a ruling. Form 53 is required of any expert whose report is served (r. 53.03(2.1)), theirs included: missing on their side is a point to take.</p>
         </div>
         <div class="card">
           <h2 class="sec" style="margin-top:0">Add expert</h2>
@@ -113,7 +113,7 @@ function register(app) {
         </div>
       </div>
       ${experts.length ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x, ctx.matter, now, dls)).join('')}` : ''}
-      <details style="margin-top:18px"${experts.length ? '' : ' open'}>
+      <details class="no-print" style="margin-top:18px"${experts.length ? '' : ' open'}>
         <summary style="${SUMMARY}">Qualification &amp; disclosure reference</summary>
         <div class="card" style="margin-top:10px">${referenceHtml()}</div>
       </details>`;
@@ -128,7 +128,11 @@ function register(app) {
     const sc = ctx.kernel.scope(ctx.matter.id);
     const side = ctx.body.side === 'theirs' ? 'theirs' : 'ours';
     const rate = Number(ctx.body.rate);
-    const reportDue = validDate(ctx.body.reportDue);
+    // A date typed but unusable is refused, not silently dropped: swallowing it
+    // would open the file with no deadline and report success.
+    const rawDue = String(ctx.body.reportDue || '').trim();
+    const reportDue = validDate(rawDue);
+    if (rawDue && !reportDue) { ctx.setFlash('Report due must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/experts'); return; }
     let deadlineId = null;
     if (reportDue) {
       deadlineId = sc.put('deadline', {
@@ -202,7 +206,7 @@ function register(app) {
     const x = loadExpert(ctx);
     if (!x) { redirect(res, '/r/experts'); return; }
     const due = validDate(ctx.body.reportDue);
-    if (!due) { ctx.setFlash('Enter a valid report due date.', 'err'); redirect(res, '/r/experts'); return; }
+    if (!due) { ctx.setFlash('Report due must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/experts'); return; }
     const sc = ctx.kernel.scope(ctx.matter.id);
     let deadlineId = x.deadlineId || null;
     const existing = deadlineId ? sc.get('deadline', deadlineId) : null;
@@ -230,7 +234,9 @@ function register(app) {
     if (!acknowledged) { ctx.setFlash("Tick the acknowledgment box to record Form 53.", 'err'); redirect(res, '/r/experts'); return; }
     const party = String(ctx.body.party || '').trim() || (ctx.matter.client || '');
     if (!party) { ctx.setFlash('Name the party engaging the expert.', 'err'); redirect(res, '/r/experts'); return; }
-    const signedDate = validDate(ctx.body.signedDate);
+    const rawSigned = String(ctx.body.signedDate || '').trim();
+    const signedDate = validDate(rawSigned);
+    if (rawSigned && !signedDate) { ctx.setFlash('Date acknowledged must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/experts'); return; }
     const independence = String(ctx.body.independence || '').trim();
     ctx.kernel.scope(ctx.matter.id).put('expert', {
       ...x, form53: { party, signedDate, acknowledged: true, independence, recordedAt: new Date().toISOString() },
@@ -256,7 +262,7 @@ function register(app) {
     const x = loadExpert(ctx);
     if (!x) { redirect(res, '/r/experts'); return; }
     const due = validDate(ctx.body.due);
-    if (!due) { ctx.setFlash('Enter a valid disclosure deadline date.', 'err'); redirect(res, '/r/experts'); return; }
+    if (!due) { ctx.setFlash('Disclosure deadline must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/experts'); return; }
     const ruleObj = DISCLOSURE_RULES.find((r) => r.id === ctx.body.rule) || DISCLOSURE_RULES[0];
     const sc = ctx.kernel.scope(ctx.matter.id);
     let disclosureDeadlineId = x.disclosureDeadlineId || null;
@@ -310,8 +316,16 @@ function loadExpert(ctx) {
   return x;
 }
 
+// Shape AND calendar. '2026-02-31' passes a bare regex but rolls forward to
+// March 3 inside Date, so the ISO slice is compared back and the impossible day
+// is refused — a report or disclosure date written here becomes a `deadline`
+// record that 21-calendar, 27-desk, 09-jurisdiction and 36-portal all sort and
+// compare, and a day nobody lived corrupts every one of them.
 function validDate(s) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : null;
+  const v = String(s || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const d = new Date(v + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null;
 }
 
 function checkCount(x) {
@@ -322,6 +336,42 @@ function checkCount(x) {
 function reportCount(x) {
   const done = x.report26 || {};
   return REPORT26.filter((c) => done[c.id]).length;
+}
+
+// Once the report is served nothing is owed on the report date, and the three
+// stages past it (challenged, qualified, excluded) can only be reached through
+// service — so an expert sitting at 'identified' or 'retained' past its own due
+// date is the only one genuinely late.
+const SERVED = ['report served', 'challenged', 'qualified', 'excluded'];
+function isLate(x, now) {
+  return !!(x.reportDue && x.reportDue < now && !SERVED.includes(x.status));
+}
+
+// Roster cell for the report date. An unset date is an instruction, not a dash:
+// the report date is what puts the expert on the Trial Calendar at all.
+function dueCell(x, now) {
+  if (!x.reportDue) return '<span class="note" style="margin:0">not set</span>';
+  return `${date(x.reportDue)}${isLate(x, now) ? ' ' + tag('overdue', 'gate') : ''}`;
+}
+
+// Form 53 is required of any expert whose report is served (r. 53.03(2.1)) —
+// including theirs, where a missing acknowledgment is a point to take.
+function form53Tag(x) {
+  return x.form53 && x.form53.acknowledged ? tag('signed', 'ok') : tag('not on file', 'gate');
+}
+
+// What the Trial Calendar actually carries for this expert, read from the
+// deadline record it owns rather than from the expert's own copy of the date.
+// A record deleted or closed in room 21 says so here instead of being implied.
+function calendarCell(deadlineId, dls, now, own) {
+  const d = deadlineId ? dls.get(deadlineId) : null;
+  if (!d) {
+    return own
+      ? `${date(own)} ${tag('not on the calendar', 'gate')}`
+      : '<span class="note" style="margin:0">none set</span>';
+  }
+  const late = d.status !== 'done' && d.due && d.due < now;
+  return `${date(d.due)} ${d.status === 'done' ? tag('done', 'ok') : late ? tag('overdue', 'gate') : tag('diarised', 'navy')}`;
 }
 
 // Working draft of Ontario Form 53. Real form text (O. Reg. under the Rules of
@@ -397,7 +447,7 @@ function reportRow(c, done) {
 
 // Disclosure & independence instruments: Form 53 acknowledgment, the FRCP
 // 26(a)(2)(B) report-contents checklist, and the disclosure-deadline poster.
-function disclosureBlock(x, matter) {
+function disclosureBlock(x, matter, now, dls) {
   const f = x.form53 || null;
   const rdone = x.report26 || {};
   const discSel = x.disclosureRule || defaultDiscRule(matter);
@@ -434,22 +484,27 @@ function disclosureBlock(x, matter) {
           ${input('due', x.disclosureDeadlineId ? 'Move disclosure deadline' : 'Set disclosure deadline', { type: 'date' })}
           <button class="quiet" style="margin-top:12px">Post disclosure deadline</button>
         </form>
-        ${x.disclosureDeadlineId ? `<p class="note" style="margin:8px 0 0">A disclosure deadline is on the Trial Calendar for this expert.</p>` : ''}
+        <p class="note" style="margin:8px 0 0">${x.disclosureDeadlineId
+    ? `On the Trial Calendar: ${calendarCell(x.disclosureDeadlineId, dls, now, null)}. Moving the date moves that record — it never leaves a duplicate.`
+    : 'No disclosure date diarised yet. Take it from the scheduling or case-management order, not from the rule alone.'}</p>
       </div>
     </div>
   </div>`;
 }
 
-function expertCard(x, matter) {
+function expertCard(x, matter, now, dls) {
   const done = x.checklist || {};
   const next = ADVANCE[x.status];
   const ruled = OUTCOMES.includes(x.status);
-  return `<div class="card">
+  const discRule = DISCLOSURE_RULES.find((r) => r.id === x.disclosureRule) || null;
+  return `<div class="card" id="x-${esc(x.id)}">
     <b>${esc(x.name)}</b> · ${esc(x.discipline || 'discipline unstated')}
     ${x.side === 'theirs' ? tag('their expert') : tag('our expert', 'navy')} ${statusTag(x.status)}
     ${kv([
       ['Rate', x.rate ? `${money(x.rate)} / ${x.rateType === 'daily' ? 'day' : 'hour'}` : '—'],
-      ['Report due', x.reportDue ? `${date(x.reportDue)} <span class="note" style="display:inline;margin:0">on the Trial Calendar</span>` : '—'],
+      ['Report due', calendarCell(x.deadlineId, dls, now, x.reportDue)],
+      ['Disclosure due', calendarCell(x.disclosureDeadlineId, dls, now, null)
+        + (discRule ? ` <span class="note" style="display:inline;margin:0">${esc(discRule.cite)}</span>` : '')],
       ['Scope', esc(x.scope || '—')],
       ['Challenge', challengeLine(x)],
     ])}
@@ -482,7 +537,7 @@ function expertCard(x, matter) {
         <button class="quiet" style="margin-top:0;padding:8px 12px">Post deadline</button>
       </form>`}
     </div>
-    ${disclosureBlock(x, matter)}
+    ${disclosureBlock(x, matter, now, dls)}
   </div>`;
 }
 
