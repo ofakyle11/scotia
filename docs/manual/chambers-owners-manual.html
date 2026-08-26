@@ -76,7 +76,7 @@
     </div>
     <div class="meta">
       Every room, every control, every gate — checked against the source.<br>
-      9 chapters · 50 surfaces documented · 2026-08-26<br><br>
+      9 chapters · 52 surfaces documented · 2026-08-26<br><br>
       This manual describes what the software enforces and, just as importantly,
       what it does not. Where a control is a safety gate, both are stated.
     </div>
@@ -86,7 +86,7 @@
     <h2>Contents</h2>
     <ol>
   <li><span class="tocnum">1</span><span class="toctitle">Getting in, and running the firm</span>
-    <ul><li>First boot and the two seat invites</li><li>Enrolling on a seat</li><li>Signing in</li><li>The authenticator step</li><li>Account security — the Password card</li><li>Account security — the Two-factor card</li><li>Firm administration — People and seat release</li><li>Firm administration — Invites</li><li>Firm administration — Ethical walls</li><li>Firm administration — the Model gateway</li><li>Firm administration — the Audit chain panel</li><li>Signing out</li><li>The two-seat lock</li><li>Recovery: lost authenticator, forgotten password, departure</li></ul>
+    <ul><li>First boot and the two seat invites</li><li>Enrolling on a seat</li><li>Signing in</li><li>The authenticator step</li><li>Account security — the Password card</li><li>Account security — the Two-factor card</li><li>Firm administration — People and seat release</li><li>Firm administration — Invites</li><li>Firm administration — Ethical walls</li><li>Firm administration — the Model gateway</li><li>Firm administration — the Audit chain panel</li><li>Signing out</li><li>The two-seat lock</li><li>Recovery: lost authenticator, forgotten password, departure</li><li>The competence bench — Chambers’ own bar</li></ul>
   </li>
   <li><span class="tocnum">2</span><span class="toctitle">Opening a file</span>
     <ul><li>Intake Desk</li><li>Ethics &amp; Conflicts</li><li>Retainer</li><li>Case Value</li></ul>
@@ -107,7 +107,7 @@
     <ul><li>Settlement Waterfall</li><li>Judgment &amp; Enforcement</li><li>Closing Room</li><li>Trust &amp; Books</li><li>Billing</li></ul>
   </li>
   <li><span class="tocnum">8</span><span class="toctitle">Research connectors and the daily desk</span>
-    <ul><li>CanLII</li><li>PACER / RECAP</li><li>EDGAR</li><li>Sources</li><li>Workflow (the daily desk)</li></ul>
+    <ul><li>CanLII</li><li>PACER / RECAP</li><li>EDGAR</li><li>Sources</li><li>Workflow (the daily desk)</li><li>Counsel Panel</li></ul>
   </li>
   <li><span class="tocnum">9</span><span class="toctitle">Production, affidavits and the client portal</span>
     <ul><li>Production</li><li>Affidavit of Documents</li><li>Client Portal</li></ul>
@@ -451,6 +451,30 @@
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
         <div class="callout-body"><p>Three practical rules follow. First, keep both authenticator secrets backed up somewhere independent of the phone — an authenticator app with its own encrypted backup, or the secret text stored in your password manager at the moment you enrol. Second, never let both seats go to one device: the entire recovery model rests on one of you being able to sign in. Third, after any release-and-re-invite, an administrator must revisit the Ethical walls card on /admin and re-raise any wall that applied to the person who came back, because the wall was attached to the account you just retired.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>The competence bench — Chambers’ own bar <span class="route">/admin (Model gateway card) · POST /admin/bench</span></h3>
+      <div class="purpose"><p>The gateway accepts any OpenAI-compatible model, including a small local one chosen for privacy. The bench measures whether THAT model can answer bar-style black-letter law before the firm leans on it: 48 original Ontario/Canadian questions across eight subjects, independently reviewed for accuracy, sent through the same gateway door the rooms use.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>Configure the gateway, then press “Bench this model — 48 bar-style questions”. The run happens in the background (a local model can take minutes); refresh /admin for the score. You get an overall percentage against a 75% line and a per-subject table. Until the exact configured model and endpoint have a recorded run, the card shows a “never benched” warning.</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>Grading is strict: the model is told to answer A–D and an unparseable reply is marked wrong, not retried. The pass line cannot be reached by always answering one letter. The run is recorded in the audit chain as single start/finish entries; the questions are fixed public doctrine, never client content.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>Passing does not make the model a lawyer, its output legal advice, or anything exempt from the citation gate and human verification. It is a measured floor on settled doctrine — nothing more. A failing model is not blocked from use; the software warns wherever its advice appears and leaves the decision with you.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>The Counsel Panel (room 37) shows the bench result beside its ask form.</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>Re-bench after changing the model or the endpoint — the recorded score is tied to the exact pair, and the card treats any change as never-benched.</p></div>
       </div>
     </section>
   </div>
@@ -1307,6 +1331,30 @@
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
         <div class="callout-body"><p>The diary is cross-matter and needs no matter open; the matter selector at the top has no effect on it. A due date that is not a well-formed ISO date leaves the Days column blank rather than warning you. The 'Overdue' and 'Due in 14 days' counts are computed by string comparison against today's date in UTC, so a date due today counts as neither overdue nor, strictly, in the future — it shows as 0 days with a 'soon' chip. Because print hides every form and button, the printed diary shows the LIMITATION tag and any recorded verification but not the un-pressed 'Verify date' buttons: on paper an unverified limitation bar looks like a bare red tag, which is exactly the row to chase. The 'Audit chain — BROKEN' figure is the only warning you get that the tamper-evident chain has failed verification; it is not repeated anywhere else on the page.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Counsel Panel <span class="route">/r/counsel</span></h3>
+      <div class="purpose"><p>One mind for the law, three for what to do with it. A question asked on a matter fans out as four model charges: a doctrine brief that states the governing law across every area the question touches, then three advisers — strategy, risk &amp; settlement, and client &amp; duty — who are each handed that brief and answer “so what do we do” from a different chair.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>Open a matter, type the question, press “Ask — doctrine brief, then strategy, risk and duty”. The panel deliberates in the background; refresh in a minute or two. Each finished panel shows the four sections under an UNVERIFIED banner, tagged with the model that produced them.</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>Every call is policy-checked against the matter (a matter whose data-handling policy forbids model use fails on the record, and nothing is sent) and audited per call — matter content is leaving the building, and the chain says so. With the gateway off, the room does nothing at all: the panel has no knowledge of its own.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>The panel is not an attorney and its output is not advice to anyone. It prepares the lawyer; the lawyer advises the client. Every authority it names is unverified until it clears Citation Check (room 08) — models fabricate citations, which is the exact failure the citation gate exists to stop.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>Citation Check (room 08) for any authority worth relying on; the Decision Memo room for choices the panel informs.</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>If the configured model has not passed the competence bench, the ask form says so. A failing model’s confident wrong answers cost more verification time than they save — bench first.</p></div>
       </div>
     </section>
   </div>
