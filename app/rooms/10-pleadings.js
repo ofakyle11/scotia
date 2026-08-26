@@ -158,7 +158,7 @@ function register(app) {
 
     const posture = [
       ['Jurisdiction', esc(ctx.matter.jurisdiction || '—')],
-      ['Claim causes', causes.length || defences.length
+      ['Claim causes', claims.length
         ? `<span class="num">${claims.length}</span> pleaded · <span class="num">${claims.filter(fullyCovered).length}</span> fully supported`
         : '<span class="note">none yet</span>'],
     ];
@@ -185,8 +185,9 @@ function register(app) {
       </form>
     </div>
 
-    ${claims.length ? `<h2 class="sec">Causes of action — claim</h2>${claims.map((c) => causeSection(c, facts)).join('')}`
-      : `<h2 class="sec">Causes of action — claim</h2>${empty('No causes of action yet — add one below, then map each element to a sourced chronology fact. An element with nothing behind it is what a motion to strike goes after.')}`}
+    <h2 class="sec">Causes of action — claim</h2>
+    ${claims.length ? claims.map((c) => causeSection(c, facts)).join('')
+      : empty('No causes of action yet — add one below, then map each element to a sourced chronology fact. An element with nothing behind it is what a motion to strike goes after.')}
 
     <h2 class="sec" id="defences">Affirmative defences ${unpleaded.length
       ? tag(`${unpleaded.length} unpleaded — waiver risk`, 'gate')
