@@ -81,12 +81,21 @@ function compute(rule, triggerDateISO) {
   const d = new Date(triggerDateISO + 'T00:00:00Z');
   if (Number.isNaN(d.getTime())) throw new Error('bad date');
   const limitation = isLimitation(rule);
+  // Direction matters, and getting it wrong is malpractice-shaped. A
+  // FORWARD-counted rule ("serve within 30 days") rolls a weekend/holiday
+  // landing forward to the next business day — a later date is still compliant.
+  // A BACKWARD-counted rule ("serve at least 90 days BEFORE trial", which is how
+  // 21-calendar builds its pretrial cascade: days: -N) must roll BACKWARD:
+  // rolling it forward moves the date closer to trial and silently shortens the
+  // very lead time the rule exists to guarantee. Rolling always moves AWAY from
+  // the anchor, never toward it.
+  const step = rule.days < 0 ? -1 : 1;
   if (rule.method === 'business') {
-    let left = rule.days;
-    while (left > 0) { d.setUTCDate(d.getUTCDate() + 1); if (isBusinessDay(d, rule.jur)) left--; }
+    let left = Math.abs(rule.days);
+    while (left > 0) { d.setUTCDate(d.getUTCDate() + step); if (isBusinessDay(d, rule.jur)) left--; }
   } else {
     d.setUTCDate(d.getUTCDate() + rule.days);
-    if (!limitation) while (!isBusinessDay(d, rule.jur)) d.setUTCDate(d.getUTCDate() + 1);
+    if (!limitation) while (!isBusinessDay(d, rule.jur)) d.setUTCDate(d.getUTCDate() + step);
   }
   return d.toISOString().slice(0, 10);
 }

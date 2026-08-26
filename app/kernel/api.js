@@ -150,6 +150,12 @@ function makeKernel({ store, audit, keyring }, user) {
     },
     isShredded: (matterId) => keyring.isShredded(matterId),
     isAdmin: () => user.role === 'admin',
+    // Walls this user is allowed to know about. A wall that screens THIS user is
+    // omitted entirely: the point of an ethical wall is that the screened lawyer
+    // never learns the firm acts in the matter, so a surface that lists walls
+    // must not list the one screening its own viewer. Kept here rather than in
+    // the page so the rule lives with walledFrom(), the single source of truth.
+    walls: () => store.firm.list('wall', (w) => !(w.screened || []).includes(user.id)),
   };
 
   // ---- kernel/trust.js — LSO By-Law 9 s.7 / s.18 controls -------------------

@@ -68,10 +68,12 @@ function realDate(v) {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s ? s : null;
 }
 
-// Back-calculate each milestone from the trial date using the SAME procedural
-// roll as forward deadlines: a synthetic negative-offset rule fed to
-// k.rules.compute() subtracts the offset then rolls a weekend/holiday landing
-// forward to the next business day. Nothing is typed by hand.
+// Back-calculate each milestone from the trial date: a synthetic negative-offset
+// rule fed to k.rules.compute() subtracts the offset, then rolls a
+// weekend/holiday landing BACKWARD — away from trial — so a milestone that must
+// be served at least N days before trial keeps at least N days of lead. (Rolling
+// these forward, as this cascade used to, quietly shortened that lead time.)
+// Nothing is typed by hand.
 function computeCascade(k, jur, trialDate) {
   return pretrialTemplate(jur).map((m) => {
     const synth = { id: 'trial-back-' + m.key, jur, category: 'procedural', method: 'calendar', days: -m.before };
@@ -101,7 +103,14 @@ function register(app) {
     // Appeal-clock watchdog: a judgment on the record with no open appeal
     // deadline on the calendar is a claim waiting to happen.
     let appealCard = '';
-    const openAppeal = deadlines.some((d) => d.status === 'open' && String(d.ruleId || '').includes('appeal'));
+    // Match how 27-desk and 25-judgment already do it: an appeal clock counts as
+    // calendared however it was written — by this room with a ruleId, or by hand
+    // with only 'Notice of appeal due' typed in. Keying on ruleId alone left a
+    // hand-diarised appeal permanently showing 'no open appeal deadline', and a
+    // standing false alarm on a malpractice-grade control teaches counsel to
+    // ignore the control.
+    const openAppeal = deadlines.some((d) => d.status === 'open'
+      && /appeal/i.test(`${d.ruleId || ''} ${d.rule || ''} ${d.desc || ''}`));
     if (judgments.length && !openAppeal) {
       const appealRules = jrules.filter((r) => r.id.includes('appeal'));
       appealCard = `<div class="card" style="border-color:var(--oxide)">

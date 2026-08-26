@@ -205,7 +205,10 @@ app.route('GET', '/admin', (req, res, ctx) => {
   if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
   const users = ctx.kernel.firm.list('user');
   const invites = ctx.kernel.firm.list('invite', (i) => !i.used && Date.now() < i.exp);
-  const walls = ctx.kernel.firm.list('wall');
+  // ctx.kernel.walls() omits any wall screening the viewer — see kernel/api.js.
+  // Using firm.list('wall') here reached around the wall and rendered the
+  // screened matter's title and the conflict basis to the very user it screens.
+  const walls = ctx.kernel.walls();
   const chain = ctx.kernel.auditTrail().verify();
   const body = `
   <div class="grid2">
@@ -220,7 +223,7 @@ app.route('GET', '/admin', (req, res, ctx) => {
       ${invites.length ? '<h2 class="sec">Open invites</h2>' + ui.table(['Email', 'Role', 'Link (single use)'], invites.map((i) => [ui.esc(i.email), ui.esc(i.role), `<span class="num">/invite/${ui.esc(i.code)}</span>`])) : ''}
     </div>
     <div class="card"><h2 class="sec" style="margin-top:0">Ethical walls</h2>
-      ${walls.length ? ui.table(['Matter', 'Screened', 'Basis'], walls.map((w) => { const m = ctx.kernel.firm.get('matter', w.matterId); return [ui.esc(m ? m.title : w.matterId), ui.esc((w.screened || []).map((id) => { const u = ctx.kernel.firm.get('user', id); return u ? u.name : id; }).join(', ')), ui.esc(w.basis || '')]; })) : ui.empty('No walls configured.')}
+      ${walls.length ? ui.table(['Matter', 'Screened', 'Basis'], walls.map((w) => { const m = ctx.kernel.matter(w.matterId); return [ui.esc(m ? m.title : w.matterId), ui.esc((w.screened || []).map((id) => { const u = ctx.kernel.firm.get('user', id); return u ? u.name : id; }).join(', ')), ui.esc(w.basis || '')]; })) : ui.empty('No walls configured.')}
       <form method="POST" action="/admin/wall">
         ${ui.select('matterId', 'Matter', ctx.matters.map((m) => [m.id, m.title]), ctx.matter && ctx.matter.id)}
         ${ui.select('userId', 'Screen (deny all access)', ctx.kernel.firm.list('user').map((u) => [u.id, u.name + ' — ' + u.email]))}
