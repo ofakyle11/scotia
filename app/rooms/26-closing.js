@@ -1,6 +1,6 @@
 'use strict';
 // Room 26 — Closing Room. Closed properly, retained on schedule, destroyed for real.
-const { layout, esc, table, empty, tag, kv, input, date } = require('../kernel/html.js');
+const { layout, esc, table, empty, tag, kv, input, date, money } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 26, id: 'closing', title: 'Closing Room', phase: 'Resolve' };
@@ -10,8 +10,9 @@ const CHECK = [['account', 'Final account rendered to the client'], ['originals'
 // Printing this page yields the paper record: the certificate of destruction
 // on a shredded matter, or the closing/retention summary on a live one.
 // Chrome, forms and buttons drop out.
-const PRINT = `<style>@media print{
-.side,.topbar,.flash,.noprint,form,button{display:none!important}
+const PRINT = `<style>.print-only{display:none}@media print{
+.print-only{display:block}
+.side,.topbar,.flash,.noprint,form,button,h1.room,.roomsub{display:none!important}
 .shell{display:block;min-height:0}.main{padding:0}
 .grid2,.grid3{display:block}
 body{background:#fff;color:#111}
@@ -32,7 +33,7 @@ function register(app) {
     if (!ctx.matter) { html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Closing the file properly', body: empty('Open a matter to close it.') })); return; }
     const m = ctx.matter;
     if (k.isShredded(m.id)) {
-      html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Destroyed', body: `${PRINT}<div class="card"><h2 class="sec" style="margin-top:0">Certificate of destruction</h2>${kv([['Matter', esc(m.title)], ['Status', tag('destroyed', 'gate')], ['Effect', 'The matter’s encryption key was destroyed. Its records, documents and history are cryptographically unrecoverable — in the live store, every replica, and every backup.']])}</div>` }));
+      html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Destroyed', body: `${PRINT}<div class="card"><h2 class="sec" style="margin-top:0">Certificate of destruction</h2>${kv([['Matter', esc(m.title)], ['Status', tag('destroyed', 'gate')], ['Effect', 'The matter’s encryption key was destroyed. Its records, documents and history are cryptographically unrecoverable — in the live store, every replica, and every backup.']])}<p class="note print-only">Printed ${new Date().toISOString().slice(0, 10)}.</p></div>` }));
       return;
     }
     const s = k.scope(m.id);
@@ -45,11 +46,12 @@ function register(app) {
     const checks = s.get('closingChecklist', 'closing') || { id: 'closing', done: [] };
     const body = `
     ${PRINT}
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Closing &amp; retention — ${esc(m.title)} — as at ${new Date().toISOString().slice(0, 10)}</h2></div>
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Closing checklist — ${esc(m.title)}</h2>
         ${kv([
-          ['Trust balance', trust > 0.005 ? money_(trust) + ' ' + tag('MUST BE ZERO TO CLOSE', 'gate') : tag('zeroed', 'ok')],
+          ['Trust balance', trust > 0.005 ? money(trust) + ' ' + tag('MUST BE ZERO TO CLOSE', 'gate') : tag('zeroed', 'ok')],
           ['Appeal window', appealRule ? esc(`${appealRule.days} days from ${appealRule.trigger.toLowerCase()} (${appealRule.cite})`) : '—'],
           ['Status', closed ? tag('closed ' + (m.closedAt || '').slice(0, 10), 'ok') : tag(m.status || 'open')],
         ])}
@@ -157,6 +159,5 @@ function register(app) {
 
 const EXPORT_TYPES = ['fact', 'deadline', 'bf', 'document', 'witness', 'depoTopic', 'digest', 'undertaking', 'adrSession', 'offer', 'judgment', 'enfStep', 'timeEntry', 'draft', 'citation_instance'];
 
-const money_ = (n) => `<span class="num">$${Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>`;
 
 module.exports = { ...ROOM, register };

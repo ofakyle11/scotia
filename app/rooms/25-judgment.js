@@ -7,9 +7,10 @@ const ROOM = { num: 25, id: 'judgment', title: 'Judgment & Enforcement', phase: 
 const STEPS = ['demand letter', 'garnishment', 'writ of seizure / judgment lien', 'examination in aid of execution', 'domestication (other jurisdiction)'];
 
 // Printing this page yields a statement of judgment debt: chrome, forms and
-// buttons drop out, leaving the header plus per-judgment cards and tables.
-const PRINT = `<style>@media print{
-.side,.topbar,.flash,.noprint,form,button{display:none!important}
+// buttons drop out, leaving a dated document header plus per-judgment tables.
+const PRINT = `<style>.print-only{display:none}@media print{
+.print-only{display:block}
+.side,.topbar,.flash,.noprint,form,button,h1.room,.roomsub{display:none!important}
 .shell{display:block;min-height:0}.main{padding:0}
 .grid2,.grid3{display:block}
 body{background:#fff;color:#111}
@@ -35,8 +36,10 @@ function register(app) {
     if (!ctx.matter) { html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Getting paid after you win', body: empty('Open a matter to track its judgments.') })); return; }
     const s = k.scope(ctx.matter.id);
     const judgments = s.list('judgment');
+    const today = new Date().toISOString().slice(0, 10);
     const body = `
     ${PRINT}
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Statement of judgment debt — ${esc(ctx.matter.title)} — as at ${today}</h2></div>
     ${judgments.map((j) => card(ctx, s, j)).join('') || empty('No judgments recorded — record the first below.')}
     <div class="card noprint">
       <h2 class="sec" style="margin-top:0">Record a judgment</h2>

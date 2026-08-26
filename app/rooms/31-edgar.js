@@ -41,8 +41,9 @@ function render(res, ctx, search) {
   const contact = k.edgar.contact();
   const saved = ctx.matter ? k.scope(ctx.matter.id).list('secFiling') : [];
 
+  // Results render first — after a search, what you asked for tops the page.
   const results = search ? `
-    <h2 class="sec">Results — ${esc(String(search.total))} filings for “${esc(search.q)}”${search.forms ? ' in ' + esc(search.forms) : ''}</h2>
+    <h2 class="sec" style="margin-top:0">Results — ${esc(String(search.total))} filings for “${esc(search.q)}”${search.forms ? ' in ' + esc(search.forms) : ''}</h2>
     ${search.results.length ? table(['Company', 'Form', 'Filed', 'Document', ''], search.results.map((r) => [
       esc(r.company), tag(r.form || '?', 'navy'), esc(r.date),
       `<a href="${esc(r.url)}" rel="noopener" target="_blank">${esc(r.description || r.doc || r.adsh)}</a>`,
@@ -54,12 +55,13 @@ function render(res, ctx, search) {
     ])) : empty('No filings matched.')}` : '';
 
   const body = `
+  ${results}
   <div class="grid2">
     <div class="card">
       <h2 class="sec" style="margin-top:0">Full-text search of SEC filings</h2>
       <form method="POST" action="/r/edgar/search">
-        ${input('q', 'Query — use quotes for exact phrases', { required: true, placeholder: '"change of control" royalty' })}
-        ${input('forms', 'Form filter (optional)', { placeholder: '10-K,8-K,S-1,DEF 14A' })}
+        ${input('q', 'Query — use quotes for exact phrases', { required: true, value: search ? search.q : '', placeholder: '"change of control" royalty' })}
+        ${input('forms', 'Form filter (optional)', { value: search ? search.forms : '', placeholder: '10-K,8-K,S-1,DEF 14A' })}
         <button>Search EDGAR</button>
       </form>
       <p class="note">Litigation gold sits in here: material agreements as exhibits (EX-10), disclosed lawsuits, related-party dealings, executive contracts — searchable to 2001. Every result links to the primary document on sec.gov.</p>
@@ -75,7 +77,6 @@ function render(res, ctx, search) {
       ${ctx.user.role === 'admin' ? `<form method="POST" action="/r/edgar/contact">${input('contact', 'Declared contact email', { type: 'email', value: contact || '' })}<button>Save contact</button></form>` : ''}
     </div>
   </div>
-  ${results}
   ${ctx.matter ? `<h2 class="sec">On the file — ${esc(ctx.matter.title)}</h2>` + (saved.length
     ? table(['Company', 'Form', 'Filed', 'Document'], saved.map((s) => [esc(s.company), tag(s.form || '?', 'navy'), esc(s.date || ''), `<a href="${esc(s.url)}" rel="noopener" target="_blank">${esc(s.description || s.adsh || 'open')} →</a>`]))
     : empty('No SEC filings saved to this matter yet.')) : ''}

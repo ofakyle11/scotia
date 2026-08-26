@@ -8,6 +8,25 @@ const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 32, id: 'sources', title: 'Sources', phase: 'Always on' };
 
+// Printing this page yields the diligence record: the shelf and the matter's
+// lookup log under a dated header; entry forms and chrome drop out.
+const PRINT = `<style>.print-only{display:none}@media print{
+.print-only{display:block}
+.side,.topbar,.flash,.noprint,form,button,h1.room,.roomsub{display:none!important}
+.shell{display:block;min-height:0}.main{padding:0}
+.grid2,.grid3{display:block}
+body{background:#fff;color:#111}
+.card{background:#fff;border-color:#bbb;color:#111;break-inside:avoid}
+.empty{background:#fff;border-color:#bbb;color:#444}
+table.t{background:#fff;border-color:#bbb}
+table.t th{background:#eee;color:#333;border-color:#bbb}
+table.t td{color:#111;border-color:#ddd}
+h1.room,h2.sec{color:#111;border-color:#bbb}
+.roomsub,.note,.kv dt{color:#444}.num,.kv dd{color:#111}
+.tag{color:#111;border-color:#111;background:none}
+a{color:#111}
+}</style>`;
+
 const ACCESS = [
   ['api', 'Official API — integrated'],
   ['credentialed', 'Credentialed account — link-out'],
@@ -37,13 +56,15 @@ function register(app) {
     const lookups = ctx.matter ? k.scope(ctx.matter.id).list('lookup').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')) : [];
     const accLabel = (v) => (ACCESS.find(([k2]) => k2 === v) || ['', v])[1];
     const body = `
+    ${PRINT}
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Research sources &amp; diligence record${ctx.matter ? ' — ' + esc(ctx.matter.title) : ''} — as at ${new Date().toISOString().slice(0, 10)}</h2></div>
     <h2 class="sec" style="margin-top:0">The shelf</h2>
     ${table(['Source', 'Category', 'Access', 'Notes'], sources.map((s) => [
       `<a href="${esc(s.url)}" rel="noopener" target="_blank">${esc(s.name)} →</a>`, esc(s.category || ''),
       tag(accLabel(s.access), s.access === 'api' ? 'ok' : s.access === 'commercial' ? 'gate' : 'navy'),
       `<span class="note">${esc(s.notes || '')}</span>`,
     ]))}
-    <div class="grid2">
+    <div class="grid2 noprint">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Record a lookup${ctx.matter ? ' — ' + esc(ctx.matter.title) : ''}</h2>
         ${ctx.matter ? `<form method="POST" action="/r/sources/lookup">

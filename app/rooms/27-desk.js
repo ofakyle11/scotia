@@ -18,7 +18,6 @@ function register(app) {
     const matters = ctx.matters;
     const today = new Date().toISOString().slice(0, 10);
     const soon = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
-    const printMode = ctx.query.get('print') === '1';
 
     // Signed days-remaining; null when the due date is not a real date.
     const daysLeft = (due) => {
@@ -103,16 +102,20 @@ function register(app) {
         ]))
       : empty('No bring-forwards pending.');
 
-    // Print kit: same page, plus @media print rules that strip the chrome —
-    // nav, stat tiles, matter list — leaving diary and BFs under the header.
-    const printKit = printMode ? `
+    // Print kit — always on, no separate print view: Ctrl-P from this page
+    // strips the chrome (nav, stat tiles, matter list, verify forms) and
+    // outputs the firm diary and bring-forwards under a dated header.
+    const printKit = `
     <style>
+      .print-only{display:none}
       @media print{
-        .side,.topbar,.flash,.screen-only,h1.room,.roomsub,button{display:none !important}
+        .print-only{display:block}
+        .side,.topbar,.flash,.screen-only,h1.room,.roomsub,form,button{display:none !important}
         .shell{display:block;min-height:0}
         .main{padding:0}
         body{background:#fff;color:#111}
-        .card{background:#fff;color:#111;border-color:#bbb}
+        .card{background:#fff;color:#111;border-color:#bbb;break-inside:avoid}
+        .empty{background:#fff;border-color:#bbb;color:#444}
         table.t{background:#fff;border-color:#bbb}
         table.t th{background:#eee;color:#333;border-color:#bbb}
         table.t td{color:#111;border-color:#ddd}
@@ -123,15 +126,12 @@ function register(app) {
         a{color:#111}
       }
     </style>
-    <div class="card" style="border-color:var(--navy)">
-      <h2 class="sec" style="margin-top:0">Diary as at ${esc(today)}</h2>
-      <p class="note screen-only">Print view for the Monday meeting — the browser's print dialog outputs only the firm diary and bring-forwards under this header. <a href="/r/desk">Back to the working desk →</a></p>
-    </div>` : '';
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Firm diary — as at ${esc(today)}</h2></div>`;
 
     const body = `
     ${printKit}
     <h2 class="sec" style="margin-top:0">Firm diary — every open deadline, every visible matter</h2>
-    <p class="note screen-only">Limitation and prescription dates (Limitations Act, 2002, s. 4 · art. 2925 CCQ) carry the dual-diary tick: a second lawyer — never the one who calendared it — verifies each date by name and day. <a href="/r/desk?print=1">Print diary →</a></p>
+    <p class="note screen-only">Limitation and prescription dates (Limitations Act, 2002, s. 4 · art. 2925 CCQ) carry the dual-diary tick: a second lawyer — never the one who calendared it — verifies each date by name and day. Printing this page (Ctrl-P) outputs just the dated diary and bring-forwards for the Monday meeting.</p>
     ${diaryTable}
     ${appealRows}
     <h2 class="sec">Bring-forwards ${tag('BF', 'navy')} — ticklers, never computed deadlines</h2>

@@ -7,8 +7,9 @@ const ROOM = { num: 28, id: 'books', title: 'Trust & Books', phase: 'Always on' 
 
 // Printing this page yields the trust statement: position, reconciliation
 // record and ledger survive; entry forms, export chrome and buttons drop out.
-const PRINT = `<style>@media print{
-.side,.topbar,.flash,.noprint,form,button{display:none!important}
+const PRINT = `<style>.print-only{display:none}@media print{
+.print-only{display:block}
+.side,.topbar,.flash,.noprint,form,button,h1.room,.roomsub{display:none!important}
 .shell{display:block;min-height:0}.main{padding:0}
 .grid2,.grid3{display:block}
 body{background:#fff;color:#111}
@@ -118,6 +119,7 @@ function register(app) {
 
     const body = `
     ${PRINT}
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Trust statement — ${ctx.matter ? esc(ctx.matter.title) : 'firm'} — as at ${new Date().toISOString().slice(0, 10)}</h2></div>
     ${ctx.matter ? `
     <h2 class="sec" style="margin-top:0">Time — ${esc(ctx.matter.title)} <span class="tag navy">unbilled ${money(unbilled)}</span></h2>
     <div class="card noprint"><form method="POST" action="/r/books/time" class="grid3" style="align-items:end">

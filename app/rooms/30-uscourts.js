@@ -48,8 +48,9 @@ function render(res, ctx, search) {
     ...k.scope(ctx.matter.id).list('docketRef', (d) => d.source === 'recap').map((d) => ({ ...d, _k: 'Docket' })),
   ] : [];
 
+  // Results render first — after a search, what you asked for tops the page.
   const results = search ? `
-    <h2 class="sec">Results — ${esc(String(search.count))} match${search.count === 1 ? '' : 'es'} for “${esc(search.q)}” (${search.type === 'r' ? 'RECAP dockets' : 'opinions'})</h2>
+    <h2 class="sec" style="margin-top:0">Results — ${esc(String(search.count))} match${search.count === 1 ? '' : 'es'} for “${esc(search.q)}” (${search.type === 'r' ? 'RECAP dockets' : 'opinions'})</h2>
     ${search.results.length ? table(['Case', 'Court', 'Filed', search.type === 'r' ? 'Docket' : 'Citation', 'Cited by', ''], search.results.map((r) => [
       `<a href="${esc(r.url)}" rel="noopener" target="_blank">${esc(r.caseName)}</a>`,
       esc(r.court), esc(r.dateFiled), `<span class="num">${esc(search.type === 'r' ? r.docketNumber : (r.citation[0] || ''))}</span>`,
@@ -62,12 +63,13 @@ function render(res, ctx, search) {
     ])) : empty('No matches in the archive — try the PACER Case Locator link for live federal dockets.')}` : '';
 
   const body = `
+  ${results}
   <div class="grid2">
     <div class="card">
       <h2 class="sec" style="margin-top:0">Search the RECAP archive</h2>
       <form method="POST" action="/r/uscourts/search">
-        ${input('q', 'Query — party, case name, keywords', { required: true, placeholder: 'e.g. Twombly, or "restrictive covenant" tire' })}
-        ${select('type', 'Corpus', [['o', 'Opinions (case law)'], ['r', 'RECAP dockets & filings']], 'o')}
+        ${input('q', 'Query — party, case name, keywords', { required: true, value: search ? search.q : '', placeholder: 'e.g. Twombly, or "restrictive covenant" tire' })}
+        ${select('type', 'Corpus', [['o', 'Opinions (case law)'], ['r', 'RECAP dockets & filings']], search ? search.type : 'o')}
         <button>Search</button>
       </form>
       <p class="note">Powered by the Free Law Project's CourtListener API — free and public, covering millions of federal opinions and every PACER document the RECAP community has archived. Check here before paying PACER for the same pages.</p>
@@ -83,7 +85,6 @@ function render(res, ctx, search) {
       ${ctx.user.role === 'admin' ? `<form method="POST" action="/r/uscourts/token">${input('token', 'CourtListener API token (optional, blank to clear)')}<button>Save token</button></form>` : ''}
     </div>
   </div>
-  ${results}
   ${ctx.matter ? `<h2 class="sec">On the file — ${esc(ctx.matter.title)}</h2>` + (saved.length
     ? table(['Kind', 'Case', 'Court', 'Date', 'Link'], saved.map((s) => [tag(s._k, s._k === 'Opinion' ? 'navy' : ''), esc(s.title || s.caseName), esc(s.court || ''), esc(s.decisionDate || s.dateFiled || ''), `<a href="${esc(s.url)}" rel="noopener" target="_blank">open →</a>`]))
     : empty('Nothing saved from US courts to this matter yet.')) : ''}

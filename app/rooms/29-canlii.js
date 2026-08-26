@@ -27,7 +27,7 @@ function register(app) {
     const text = String(ctx.body.text || '').trim();
     if (!text) { ctx.setFlash('Paste some text to scan.', 'err'); redirect(res, '/r/canlii'); return; }
     const cites = ctx.kernel.canlii.parseCitations(text);
-    render(res, ctx, { cites, scanned: text.length });
+    render(res, ctx, { cites, text });
   });
 
   // Resolve one citation against the official API; save as a verified authority.
@@ -89,8 +89,10 @@ function render(res, ctx, scan) {
   const cache = k.firm.list('canliiCase').sort((a, b) => (b.fetched || '').localeCompare(a.fetched || ''));
   const authorities = ctx.matter ? k.scope(ctx.matter.id).list('authority', (a) => a.source === 'canlii-api') : [];
 
+  // Scan results render first — the daily action is scan → resolve → save,
+  // so what you just asked for sits at the top, not below the fold.
   const scanBlock = scan ? `
-    <h2 class="sec">Scan results — ${scan.cites.length} citation${scan.cites.length === 1 ? '' : 's'} found</h2>
+    <h2 class="sec" style="margin-top:0">Scan results — ${scan.cites.length} citation${scan.cites.length === 1 ? '' : 's'} found</h2>
     ${scan.cites.length ? table(['Citation', 'Kind', 'CanLII ids', 'Actions'], scan.cites.map((c) => [
       `<span class="num">${esc(c.cite)}</span>`, esc(c.kind),
       c.ids ? `<span class="num">${esc(c.ids.databaseId)}/${esc(c.ids.caseId)}</span>` : tag('link-out only'),
@@ -99,11 +101,12 @@ function render(res, ctx, scan) {
     ])) : empty('No Canadian citations recognized.')}` : '';
 
   const body = `
+  ${scanBlock}
   <div class="grid2">
     <div class="card">
       <h2 class="sec" style="margin-top:0">Citation scanner</h2>
       <form method="POST" action="/r/canlii/scan">
-        ${textarea('text', 'Paste any text — factum, memo, opposing brief', { placeholder: 'e.g. ... as held in Dunsmuir v. New Brunswick, 2008 SCC 9 ...' })}
+        ${textarea('text', 'Paste any text — factum, memo, opposing brief', { value: scan ? scan.text : '', placeholder: 'e.g. ... as held in Dunsmuir v. New Brunswick, 2008 SCC 9 ...' })}
         <button>Scan for Canadian citations</button>
       </form>
       <p class="note">Recognizes neutral citations (2008 SCC 9), CanLII citations (1999 CanLII 1527 (ON CA)), and SCR citations. Neutral and CanLII cites resolve deterministically to CanLII ids — no search required.</p>
@@ -119,7 +122,6 @@ function render(res, ctx, scan) {
       ${ctx.user.role === 'admin' ? `<form method="POST" action="/r/canlii/key">${input('apiKey', 'API key (blank to clear)', { placeholder: 'paste CanLII api_key' })}<button>Save key</button></form>` : '<p class="note">An administrator can add the firm’s API key.</p>'}
     </div>
   </div>
-  ${scanBlock}
   ${ctx.matter ? `<h2 class="sec">Resolved authorities — ${esc(ctx.matter.title)}</h2>` +
     (authorities.length ? table(['Citation', 'Case', 'Decided', 'Docket', 'Link'], authorities.map((a) => [
       `<span class="num">${esc(a.cite)}</span>`, esc(a.title), esc(a.decisionDate || ''), esc(a.docket || ''),
