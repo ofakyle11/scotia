@@ -33,4 +33,8 @@ module.exports = [
   { num: 30, id: 'uscourts',    title: 'PACER / RECAP',          phase: 'Always on' },
   { num: 31, id: 'edgar',       title: 'EDGAR',                  phase: 'Always on' },
   { num: 32, id: 'sources',     title: 'Sources',                phase: 'Always on' },
+  { num: 33, id: 'production',  title: 'Production',             phase: 'Discover' },
+  { num: 34, id: 'billing',     title: 'Billing',                phase: 'Always on' },
+  { num: 35, id: 'affidavit',   title: 'Affidavit of Documents', phase: 'Discover' },
+  { num: 36, id: 'portal',      title: 'Client Portal',          phase: 'Always on' },
 ];

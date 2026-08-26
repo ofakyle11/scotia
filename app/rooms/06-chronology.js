@@ -63,7 +63,7 @@ function register(app) {
       ]);
     }
 
-    const body = `
+    const body = `\n    <p class="note no-print" style="margin-bottom:10px"><a href="/r/chronology/narrative">Generate statement of facts →</a></p>
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Add a fact</h2>
@@ -106,6 +106,36 @@ function register(app) {
     ${filtering ? '<p class="note">Gap flags are hidden while a filter is on — gaps are only meaningful on the full timeline.</p>' : ''}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
+  });
+
+
+  // Downstream generator: the sourced timeline as a statement-of-facts
+  // narrative (each fact carrying its source pin) plus a print-clean view.
+  app.route('GET', `/r/${ROOM.id}/narrative`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { redirect(res, '/r/chronology'); return; }
+    const s = k.scope(ctx.matter.id);
+    const actor = String(ctx.query.get('actor') || '').trim();
+    const issue = String(ctx.query.get('issue') || '').trim();
+    let facts = s.list('fact').sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (actor) facts = facts.filter((f) => (f.actor || '').toLowerCase().includes(actor.toLowerCase()));
+    if (issue) facts = facts.filter((f) => (f.issues || []).some((i) => i.toLowerCase().includes(issue.toLowerCase())));
+    const paras = facts.map((f, i) => `<p style="margin:0 0 10px"><b class="num">${i + 1}.</b> On ${esc(f.date || '[date]')}, ${esc(f.actor || '[actor]')}: ${esc(f.text)}${f.disputed ? ' <em>[disputed]</em>' : ''} <span class="note">(${esc(f.source || 'no source')})</span></p>`).join('');
+    const body = `
+    <style>@media print{.side,.topbar,.no-print{display:none!important}.main{padding:0}.shell{display:block}}</style>
+    <div class="no-print" style="margin-bottom:14px">
+      <a href="/r/chronology">&larr; Back to Chronology</a>
+      <form method="GET" action="/r/chronology/narrative" class="mselect" style="margin-top:10px">
+        <input name="actor" placeholder="filter by actor" value="${esc(actor)}" style="width:180px">
+        <input name="issue" placeholder="filter by issue" value="${esc(issue)}" style="width:180px">
+        <button class="quiet">Filter</button>
+      </form>
+      <p class="note">Numbered, sourced, chronological — paste into a factum's fact section or print for the trial binder. Disputed facts are flagged; nothing here exists without a source pin.</p>
+    </div>
+    <div class="card"><h2 class="sec" style="margin-top:0">Statement of facts — ${esc(ctx.matter.title)}</h2>
+      ${paras || '<p class="note">No facts match the filter.</p>'}
+    </div>`;
+    html(res, layout({ ...ctx, room: ROOM.id }, { title: 'Statement of Facts', sub: `${facts.length} sourced facts · chronological`, body }));
   });
 
   app.route('POST', `/r/${ROOM.id}/add`, (req, res, ctx) => {

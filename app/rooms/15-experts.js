@@ -29,6 +29,33 @@ const CHECKLIST = [
   { id: 'wb_duty', regime: 'mohan', label: 'Duty to the court — fair, objective and non-partisan', cite: 'White Burgess Langille Inman v. Abbott and Haliburton Co., 2015 SCC 23' },
 ];
 
+// Reference data — FRCP 26(a)(2)(B) written-report contents. Real rule text,
+// clearly scoped as a reference checklist; ticking a box records that the
+// draft report covers the item, not that it is sufficient.
+const REPORT26 = [
+  { id: 'r_opinions', label: 'Complete statement of all opinions and the basis and reasons for them', cite: 'Fed. R. Civ. P. 26(a)(2)(B)(i)' },
+  { id: 'r_facts', label: 'The facts or data considered in forming the opinions', cite: 'Fed. R. Civ. P. 26(a)(2)(B)(ii)' },
+  { id: 'r_exhibits', label: 'Any exhibits used to summarize or support the opinions', cite: 'Fed. R. Civ. P. 26(a)(2)(B)(iii)' },
+  { id: 'r_quals', label: 'Qualifications, including publications authored in the previous 10 years', cite: 'Fed. R. Civ. P. 26(a)(2)(B)(iv)' },
+  { id: 'r_cases', label: 'List of cases testified in (trial or deposition) in the previous 4 years', cite: 'Fed. R. Civ. P. 26(a)(2)(B)(v)' },
+  { id: 'r_comp', label: 'Statement of the compensation for the study and testimony', cite: 'Fed. R. Civ. P. 26(a)(2)(B)(vi)' },
+];
+
+// Reference data — real expert-disclosure timing rules. The record written per
+// expert is a plain 'deadline' {desc,due,rule,trigger,status}; counsel enters
+// the date and confirms it against the court's scheduling/case-management order.
+const DISCLOSURE_RULES = [
+  { id: 'on_5303_1', label: "Ontario — expert's report served", cite: 'Rules of Civil Procedure (Ont.), r. 53.03(1) — not less than 90 days before pre-trial conference' },
+  { id: 'on_5303_2', label: 'Ontario — responding report served', cite: 'Rules of Civil Procedure (Ont.), r. 53.03(2) — not less than 60 days before pre-trial conference' },
+  { id: 'frcp_26d_i', label: 'US federal — expert disclosure', cite: 'Fed. R. Civ. P. 26(a)(2)(D)(i) — at least 90 days before trial' },
+  { id: 'frcp_26d_ii', label: 'US federal — rebuttal disclosure', cite: "Fed. R. Civ. P. 26(a)(2)(D)(ii) — within 30 days of the other party's disclosure" },
+];
+function defaultDiscRule(matter) {
+  const j = matter && matter.jurisdiction;
+  if (j && String(j).startsWith('us')) return 'frcp_26d_i';
+  return 'on_5303_1';
+}
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -74,7 +101,7 @@ function register(app) {
         </div>
       </div>
       ${experts.length
-        ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x)).join('')}`
+        ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x, ctx.matter)).join('')}`
         : `<h2 class="sec">Qualification reference</h2><div class="card">${referenceHtml()}</div>`}`;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Retain, serve, survive the challenge', body }));
@@ -171,6 +198,76 @@ function register(app) {
     ctx.setFlash(`Report due ${due} — posted to the Trial Calendar.`);
     redirect(res, '/r/experts');
   });
+
+  // Ontario Form 53 — Acknowledgment of Expert's Duty. Records the signed
+  // acknowledgment and any independence disclosure on the expert file.
+  app.route('POST', `/r/${ROOM.id}/form53`, (req, res, ctx) => {
+    const x = loadExpert(ctx);
+    if (!x) { redirect(res, '/r/experts'); return; }
+    const acknowledged = ctx.body.acknowledged === '1' || ctx.body.acknowledged === 'on';
+    if (!acknowledged) { ctx.setFlash("Tick the acknowledgment box to record Form 53.", 'err'); redirect(res, '/r/experts'); return; }
+    const party = String(ctx.body.party || '').trim() || (ctx.matter.client || '');
+    if (!party) { ctx.setFlash('Name the party engaging the expert.', 'err'); redirect(res, '/r/experts'); return; }
+    const signedDate = validDate(ctx.body.signedDate);
+    const independence = String(ctx.body.independence || '').trim();
+    ctx.kernel.scope(ctx.matter.id).put('expert', {
+      ...x, form53: { party, signedDate, acknowledged: true, independence, recordedAt: new Date().toISOString() },
+    });
+    ctx.kernel.audit('experts.form53', ctx.matter.id + ':' + x.id);
+    ctx.setFlash(`Form 53 acknowledgment recorded for ${x.name}.`);
+    redirect(res, '/r/experts');
+  });
+
+  // FRCP 26(a)(2)(B) written-report contents checklist.
+  app.route('POST', `/r/${ROOM.id}/report`, (req, res, ctx) => {
+    const x = loadExpert(ctx);
+    if (!x) { redirect(res, '/r/experts'); return; }
+    const report26 = {};
+    for (const c of REPORT26) if (ctx.body['rc_' + c.id]) report26[c.id] = true;
+    ctx.kernel.scope(ctx.matter.id).put('expert', { ...x, report26 });
+    ctx.setFlash(`Report-contents checklist saved for ${x.name} — ${Object.keys(report26).length}/${REPORT26.length} items.`);
+    redirect(res, '/r/experts');
+  });
+
+  // Expert-disclosure deadline — a 'deadline' record the Trial Calendar reads.
+  app.route('POST', `/r/${ROOM.id}/disclosure`, (req, res, ctx) => {
+    const x = loadExpert(ctx);
+    if (!x) { redirect(res, '/r/experts'); return; }
+    const due = validDate(ctx.body.due);
+    if (!due) { ctx.setFlash('Enter a valid disclosure deadline date.', 'err'); redirect(res, '/r/experts'); return; }
+    const ruleObj = DISCLOSURE_RULES.find((r) => r.id === ctx.body.rule) || DISCLOSURE_RULES[0];
+    const sc = ctx.kernel.scope(ctx.matter.id);
+    let disclosureDeadlineId = x.disclosureDeadlineId || null;
+    const existing = disclosureDeadlineId ? sc.get('deadline', disclosureDeadlineId) : null;
+    const trigger = `Expert disclosure (${x.side}) — ${ruleObj.label}`;
+    if (existing) sc.put('deadline', { ...existing, due, rule: ruleObj.cite, trigger, status: 'open' });
+    else {
+      disclosureDeadlineId = sc.put('deadline', {
+        desc: `Expert disclosure served — ${x.name}`, due, rule: ruleObj.cite, trigger, status: 'open',
+      }).id;
+    }
+    sc.put('expert', { ...x, disclosureDeadlineId, disclosureRule: ruleObj.id });
+    ctx.kernel.audit('experts.disclosure', ctx.matter.id + ':' + x.id + ':' + due);
+    ctx.setFlash(`Disclosure deadline ${due} — posted to the Trial Calendar (${ruleObj.cite}).`);
+    redirect(res, '/r/experts');
+  });
+
+  // Download the Form 53 acknowledgment as a working draft. Sets Content-Type
+  // and Content-Disposition; a null matter or bad id flashes and returns.
+  app.route('GET', `/r/${ROOM.id}/form53/download`, (req, res, ctx) => {
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/experts'); return; }
+    const id = ctx.query.get('id');
+    const x = id ? ctx.kernel.scope(ctx.matter.id).get('expert', id) : null;
+    if (!x) { ctx.setFlash('Expert not found on this matter.', 'err'); redirect(res, '/r/experts'); return; }
+    ctx.kernel.audit('experts.form53.download', ctx.matter.id + ':' + x.id);
+    const slug = String(x.name || 'expert').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 40) || 'expert';
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Disposition': `attachment; filename="form-53-acknowledgment-${slug}.txt"`,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(form53Text(x, ctx.matter));
+  });
 }
 
 // Guarded load: never throws on a null matter or an empty/garbage body.
@@ -190,6 +287,52 @@ function validDate(s) {
 function checkCount(x) {
   const done = x.checklist || {};
   return CHECKLIST.filter((c) => done[c.id]).length;
+}
+
+function reportCount(x) {
+  const done = x.report26 || {};
+  return REPORT26.filter((c) => done[c.id]).length;
+}
+
+// Working draft of Ontario Form 53. Real form text (O. Reg. under the Rules of
+// Civil Procedure), clearly labelled as a draft to verify before signing.
+function form53Text(x, matter) {
+  const party = (x.form53 && x.form53.party) || (matter && matter.client) || '__________';
+  const L = [];
+  L.push("FORM 53 — ACKNOWLEDGMENT OF EXPERT'S DUTY");
+  L.push('(Ontario Rules of Civil Procedure, Form 53; see rr. 4.1.01 and 53.03(2.1))');
+  L.push('');
+  L.push('Court proceeding: ' + ((matter && matter.title) || '__________'));
+  L.push('');
+  L.push('1. My name is ' + (x.name || '__________') + '. I live at __________ (municipality), in the');
+  L.push('   __________ of __________.');
+  L.push('');
+  L.push('2. I have been engaged by or on behalf of ' + party + ' to provide evidence in');
+  L.push('   relation to the above-noted court proceeding.');
+  L.push('');
+  L.push('3. I acknowledge that it is my duty to provide evidence in relation to this');
+  L.push('   proceeding as follows:');
+  L.push('   (a) to provide opinion evidence that is fair, objective and non-partisan;');
+  L.push('   (b) to provide opinion evidence that is related only to matters that are');
+  L.push('       within my area of expertise; and');
+  L.push('   (c) to provide such additional assistance as the court may reasonably require');
+  L.push('       to determine a matter in issue.');
+  L.push('');
+  L.push('4. I acknowledge that the duty referred to above prevails over any obligation');
+  L.push('   which I may owe to any party by whom or on whose behalf I am engaged.');
+  L.push('');
+  L.push('Date: ' + ((x.form53 && x.form53.signedDate) || '__________') + '      Signature: __________________________');
+  L.push('');
+  if (x.form53 && x.form53.independence) {
+    L.push('Independence — connections to a party disclosed by the expert:');
+    L.push(x.form53.independence);
+    L.push('');
+  }
+  L.push("NOTE: This acknowledgment must be attached to the expert's report (r. 53.03(2.1)).");
+  L.push('');
+  L.push('--- Generated by Chambers as a WORKING DRAFT of Form 53. Verify against the current');
+  L.push('    prescribed form before signing or serving. Reference text, not legal advice. ---');
+  return L.join('\n') + '\n';
 }
 
 function statusTag(s) {
@@ -215,7 +358,59 @@ function checkboxRow(c, done) {
   </label>`;
 }
 
-function expertCard(x) {
+function reportRow(c, done) {
+  return `<label style="display:flex;gap:8px;align-items:baseline;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13px;color:var(--ink-soft);margin:6px 0 0">
+    <input type="checkbox" name="rc_${c.id}" value="1" ${done[c.id] ? 'checked' : ''} style="width:auto;margin:0">
+    <span>${esc(c.label)} <span class="note" style="display:inline;margin:0">${esc(c.cite)}</span></span>
+  </label>`;
+}
+
+// Disclosure & independence instruments: Form 53 acknowledgment, the FRCP
+// 26(a)(2)(B) report-contents checklist, and the disclosure-deadline poster.
+function disclosureBlock(x, matter) {
+  const f = x.form53 || null;
+  const rdone = x.report26 || {};
+  const discSel = x.disclosureRule || defaultDiscRule(matter);
+  const form53Status = f && f.acknowledged
+    ? `${tag('Form 53 signed', 'ok')} <span class="note" style="display:inline;margin:0">${f.signedDate ? esc(f.signedDate) + ' · ' : ''}engaged by ${esc(f.party || '—')}</span> · <a href="/r/experts/form53/download?id=${encodeURIComponent(x.id)}">download draft</a>`
+    : `${tag('Form 53 not on file', 'gate')} <span class="note" style="display:inline;margin:0">Rule 53.03(2.1) requires the acknowledgment attached to the report.</span>`;
+  return `<div style="border-top:1px solid var(--rule-soft);margin-top:12px;padding-top:12px">
+    <span class="tag navy">Disclosure &amp; independence</span>
+    <div style="margin:8px 0 4px">${form53Status}</div>
+    ${f && f.independence ? `<p class="note" style="margin:2px 0 0">Independence disclosed: ${esc(f.independence)}</p>` : ''}
+    <div class="grid2" style="margin-top:10px">
+      <form method="POST" action="/r/experts/form53">
+        <input type="hidden" name="id" value="${esc(x.id)}">
+        <span class="tag">Ontario Form 53 — Acknowledgment of Expert's Duty</span>
+        ${input('party', 'Engaged by (party)', { value: (f && f.party) || (matter && matter.client) || '' })}
+        ${input('signedDate', 'Date acknowledged', { type: 'date', value: (f && f.signedDate) || '' })}
+        ${textarea('independence', 'Independence — connections to a party disclosed', { value: (f && f.independence) || '', placeholder: 'Prior retainers, relationships, financial interest — or "none disclosed".' })}
+        <label style="display:flex;gap:8px;align-items:baseline;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13px;color:var(--ink-soft);margin:10px 0 0">
+          <input type="checkbox" name="acknowledged" value="1" ${f && f.acknowledged ? 'checked' : ''} style="width:auto;margin:0">
+          <span>Expert has signed the fair, objective and non-partisan duty (rr. 4.1.01, 53.03).</span>
+        </label>
+        <button class="quiet" style="margin-top:12px">Record Form 53</button>
+      </form>
+      <div>
+        <form method="POST" action="/r/experts/report">
+          <input type="hidden" name="id" value="${esc(x.id)}">
+          <span class="tag">Written report contents — FRCP 26(a)(2)(B)</span>
+          ${REPORT26.map((c) => reportRow(c, rdone)).join('')}
+          <button class="quiet" style="margin-top:12px">Save report checklist (${reportCount(x)}/${REPORT26.length})</button>
+        </form>
+        <form method="POST" action="/r/experts/disclosure" style="margin-top:12px">
+          <input type="hidden" name="id" value="${esc(x.id)}">
+          ${select('rule', 'Disclosure rule', DISCLOSURE_RULES.map((r) => [r.id, r.cite]), discSel)}
+          ${input('due', x.disclosureDeadlineId ? 'Move disclosure deadline' : 'Set disclosure deadline', { type: 'date' })}
+          <button class="quiet" style="margin-top:12px">Post disclosure deadline</button>
+        </form>
+        ${x.disclosureDeadlineId ? `<p class="note" style="margin:8px 0 0">A disclosure deadline is on the Trial Calendar for this expert.</p>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function expertCard(x, matter) {
   const done = x.checklist || {};
   const next = ADVANCE[x.status];
   const ruled = OUTCOMES.includes(x.status);
@@ -257,6 +452,7 @@ function expertCard(x) {
         <button class="quiet" style="margin-top:0;padding:8px 12px">Post deadline</button>
       </form>`}
     </div>
+    ${disclosureBlock(x, matter)}
   </div>`;
 }
 
@@ -267,7 +463,24 @@ function referenceHtml() {
       ${table(['Item', 'Authority'], CHECKLIST.filter((c) => c.regime === rg.id).map((c) => [esc(c.label), `<span class="note" style="margin:0">${esc(c.cite)}</span>`]))}
     </div>`).join('')}
   </div>
-  <p class="note">Reference tranche only: the prongs above track FRE 702(b)–(d) as construed in Daubert, and the Mohan criteria with the White Burgess duty threshold. Ticking an item on an expert file records that the work is done — it is not a ruling.</p>`;
+  <p class="note">Reference tranche only: the prongs above track FRE 702(b)–(d) as construed in Daubert, and the Mohan criteria with the White Burgess duty threshold. Ticking an item on an expert file records that the work is done — it is not a ruling.</p>
+  <div class="grid2" style="margin-top:16px">
+    <div>
+      <h2 class="sec" style="margin-top:0">Written report contents — FRCP 26(a)(2)(B)</h2>
+      ${table(['Required content', 'Authority'], REPORT26.map((c) => [esc(c.label), `<span class="note" style="margin:0">${esc(c.cite)}</span>`]))}
+    </div>
+    <div>
+      <h2 class="sec" style="margin-top:0">Ontario Form 53 — Acknowledgment of Expert's Duty</h2>
+      ${table(['Disclosure instrument', 'Authority'], [
+        ['Expert acknowledges a fair, objective and non-partisan duty to the court', '<span class="note" style="margin:0">Rules of Civil Procedure (Ont.), Form 53; rr. 4.1.01, 53.03(2.1)</span>'],
+        ['That duty prevails over any obligation to the engaging party', '<span class="note" style="margin:0">Form 53, para. 4</span>'],
+        ['Acknowledgment attached to the served report', '<span class="note" style="margin:0">r. 53.03(2.1)</span>'],
+      ])}
+      <h2 class="sec">Disclosure timing (case-management order controls)</h2>
+      ${table(['Rule', 'Reference'], DISCLOSURE_RULES.map((r) => [esc(r.label), `<span class="note" style="margin:0">${esc(r.cite)}</span>`]))}
+    </div>
+  </div>
+  <p class="note">Real reference text, clearly scoped. Form 53 renders here as a working draft to verify against the current prescribed form; disclosure dates are confirmed against the court's scheduling/case-management order.</p>`;
 }
 
 module.exports = { ...ROOM, register };

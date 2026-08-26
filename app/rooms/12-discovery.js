@@ -32,6 +32,12 @@ const ESI_ITEMS = [
   ['clawback', 'Clawback / non-waiver order entered'],
 ];
 
+// FRCP 33(a)(1): no more than 25 written interrogatories, including all
+// discrete subparts, without leave or stipulation. Ontario's Rules of Civil
+// Procedure have no written interrogatories (discovery is by examination for
+// discovery, r.31), so the cap is inapplicable to ON-seated matters.
+const ROG_CAP = 25;
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -46,6 +52,9 @@ function register(app) {
     const esi = s.list('esiProtocol')[0] || {};
     const esiDone = ESI_ITEMS.filter(([key]) => esi[key]).length;
     const letters = s.list('deficiencyLetter').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const plan = s.list('discoveryPlan')[0] || {};
+    const meets = s.list('meetConfer').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const rogs = instruments.filter((i) => i.type === 'rog');
     const openId = ctx.query.get('i');
     const openInst = openId ? instruments.find((x) => x.id === openId) : null;
     const autoRules = TYPES.map(([v, l]) => ({ l, rule: ruleFor(k, jur, v) })).filter((x) => x.rule);
@@ -70,6 +79,41 @@ function register(app) {
       })) : empty('No discovery instruments tracked on this matter yet — track the first below.')}
 
     ${openInst ? instrumentDetail(openInst, today) : ''}
+
+    <h2 class="sec">Discovery plan &amp; proportionality ${plan.createdAt ? tag('on file', 'ok') : tag('not yet agreed', 'gate')}</h2>
+    <div class="card">
+      <form method="POST" action="/r/discovery/plan">
+        ${textarea('scope', 'Scope of discovery', { value: plan.scope, placeholder: 'Documentary discovery limited to the 2022–24 supply relationship; no restoration of backup tapes absent good cause.' })}
+        ${textarea('custodians', 'Custodians / sources (one per line)', { value: plan.custodians, placeholder: 'J. Okafor (VP Ops)\nProcurement shared drive\nO365 mailboxes for 3 custodians' })}
+        <div class="grid2">
+          <span>${input('dateFrom', 'Date range — from', { type: 'date', value: plan.dateFrom })}</span>
+          <span>${input('dateTo', 'Date range — to', { type: 'date', value: plan.dateTo })}</span>
+        </div>
+        ${input('format', 'Production format', { value: plan.format, placeholder: 'TIFF + .dat/.opt load file; native for spreadsheets; de-dup by hash' })}
+        ${textarea('costNote', 'Proportionality note (cost / burden vs. amount in issue)', { value: plan.costNote, placeholder: 'Est. collection & review cost ~$18k against a $250k claim — proportionate; TAR proposed to contain review.' })}
+        ${textarea('agreedDates', 'Agreed dates / milestones', { value: plan.agreedDates, placeholder: 'Affidavits of documents: 2026-10-01\nSubstantial completion of production: 2026-11-15\nExaminations: Jan 2027' })}
+        <button>Save discovery plan</button>
+      </form>
+      ${plan.createdAt ? `<form method="POST" action="/r/discovery/plan-export" style="margin-top:10px"><button class="quiet" style="margin-top:0">Download plan (.txt)</button></form>` : ''}
+      <p class="note">Ontario r.29.1.03 requires the parties to agree to a discovery plan; r.29.2 governs proportionality in discovery. The US-federal equivalent is the FRCP 26(f) conference and discovery plan, with proportionality under FRCP 26(b)(1). Reference framework — not legal advice.</p>
+    </div>
+
+    ${rogs.length ? `<h2 class="sec">Interrogatory count — FRCP 33(a)(1) cap</h2>
+    <div class="card">
+      ${jur === 'on' ? '<p class="note">This matter is Ontario-seated: the Rules of Civil Procedure provide for examination for discovery (r.31), not written interrogatories, so the FRCP 33 numerical cap does not apply. Counts below are informational.</p>' : ''}
+      ${table(['Set', 'Party', `Count (incl. discrete subparts) / ${ROG_CAP}`, 'Direction'], rogs.map((i) => {
+        const c = rogCount(i.items);
+        const over = jur !== 'on' && c > ROG_CAP;
+        const near = jur !== 'on' && !over && c >= ROG_CAP - 3;
+        return [
+          `<a href="/r/discovery?i=${esc(i.id)}">${esc(typeLabel(i.type))}</a>`,
+          esc(i.party || '—'),
+          `<span class="num">${c}</span> / ${ROG_CAP} ${over ? tag('over cap — leave/stipulation required', 'gate') : near ? tag('near cap', 'navy') : ''}`,
+          i.direction === 'inbound' ? tag('inbound', 'navy') : tag('outbound'),
+        ];
+      }))}
+      <p class="note">FRCP 33(a)(1): a party may serve no more than 25 written interrogatories, including all discrete subparts, without leave or a stipulation. Subparts here are estimated from lettered/roman markers detected in each item — verify discrete-subpart counts manually. Reference — not legal advice.</p>
+    </div>` : ''}
 
     <div class="grid2">
       <div class="card">
@@ -96,6 +140,29 @@ function register(app) {
           <button>Save checklist</button>
         </form>
         <p class="note">The protocol is negotiated in writing before collection starts, not after. For US federal matters the clawback order is entered under FRE 502(d); elsewhere, by agreement or court order.</p>
+      </div>
+    </div>
+
+    <h2 class="sec">Meet-and-confer log</h2>
+    <div class="grid2">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Log a conference</h2>
+        <form method="POST" action="/r/discovery/meet">
+          ${input('date', 'Date', { type: 'date', required: true })}
+          ${input('attendees', 'Attendees', { placeholder: 'Counsel of record for both parties' })}
+          ${textarea('issues', 'Issues raised', { placeholder: 'Scope of custodian list; date range; native-format spreadsheets.' })}
+          ${textarea('resolutions', 'Resolutions / next steps', { placeholder: 'Agreed 5 custodians; opposing to confirm date range by 2026-09-05.' })}
+          <button>Log conference</button>
+        </form>
+        <p class="note">A documented meet-and-confer record supports (and is often a precondition to) a motion to compel — FRCP 37(a)(1) requires a good-faith conferral certification; Ontario r.29.1.03 requires the parties to agree a discovery plan. Reference — not legal advice.</p>
+      </div>
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">History</h2>
+        ${meets.length ? meets.map((m) => `<div style="border:1px solid var(--rule);padding:10px 12px;margin-bottom:8px;background:var(--ground)">
+            <b>${date(m.date)}</b> · ${esc(m.attendees || 'attendees not recorded')}
+            ${m.issues ? `<div class="note"><b>Issues:</b> ${esc(m.issues)}</div>` : ''}
+            ${m.resolutions ? `<div class="note"><b>Resolved:</b> ${esc(m.resolutions)}</div>` : ''}
+          </div>`).join('') : empty('No meet-and-confer conferences logged yet.')}
       </div>
     </div>
 
@@ -199,6 +266,65 @@ function register(app) {
     ctx.setFlash(`Deficiency letter generated from ${unanswered.length} unanswered item(s) — review before it goes out.`);
     redirect(res, '/r/discovery?i=' + encodeURIComponent(inst.id));
   });
+
+  // Discovery plan + proportionality record — one per matter (Ont. r.29.1 / FRCP 26(f)).
+  app.route('POST', `/r/${ROOM.id}/plan`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/discovery'); return; }
+    const s = k.scope(ctx.matter.id);
+    const b = ctx.body || {};
+    const fields = {
+      scope: String(b.scope || '').trim(),
+      custodians: String(b.custodians || '').trim(),
+      dateFrom: isoDate(b.dateFrom) || '',
+      dateTo: isoDate(b.dateTo) || '',
+      format: String(b.format || '').trim(),
+      costNote: String(b.costNote || '').trim(),
+      agreedDates: String(b.agreedDates || '').trim(),
+    };
+    if (!Object.values(fields).some((v) => v)) { ctx.setFlash('Enter at least one part of the discovery plan.', 'err'); redirect(res, '/r/discovery'); return; }
+    if (fields.dateFrom && fields.dateTo && fields.dateTo < fields.dateFrom) { ctx.setFlash('Date range ends before it starts.', 'err'); redirect(res, '/r/discovery'); return; }
+    const existing = s.list('discoveryPlan')[0] || {};
+    s.put('discoveryPlan', { ...existing, ...fields });
+    k.audit('discoveryPlan.saved', ctx.matter.id);
+    ctx.setFlash('Discovery plan saved.');
+    redirect(res, '/r/discovery');
+  });
+
+  // Download the plan as a plain-text record for the discovery file.
+  app.route('POST', `/r/${ROOM.id}/plan-export`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/discovery'); return; }
+    const s = k.scope(ctx.matter.id);
+    const plan = s.list('discoveryPlan')[0];
+    if (!plan) { ctx.setFlash('No discovery plan to export yet — save one first.', 'err'); redirect(res, '/r/discovery'); return; }
+    const text = planText(ctx.matter, plan);
+    k.audit('discoveryPlan.export', ctx.matter.id + ':' + plan.id);
+    const slug = String(ctx.matter.title || 'matter').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 40) || 'matter';
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Disposition': `attachment; filename="discovery-plan-${slug}.txt"`,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(text);
+  });
+
+  // Meet-and-confer log — date, attendees, issues, resolutions.
+  app.route('POST', `/r/${ROOM.id}/meet`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/discovery'); return; }
+    const s = k.scope(ctx.matter.id);
+    const d = isoDate(ctx.body.date);
+    const attendees = String(ctx.body.attendees || '').trim();
+    const issues = String(ctx.body.issues || '').trim();
+    const resolutions = String(ctx.body.resolutions || '').trim();
+    if (!d) { ctx.setFlash('Enter a valid conference date.', 'err'); redirect(res, '/r/discovery'); return; }
+    if (!attendees && !issues && !resolutions) { ctx.setFlash('Record who attended or what was discussed.', 'err'); redirect(res, '/r/discovery'); return; }
+    s.put('meetConfer', { date: d, attendees, issues, resolutions });
+    k.audit('meetConfer.logged', ctx.matter.id + ':' + d);
+    ctx.setFlash('Meet-and-confer conference logged.');
+    redirect(res, '/r/discovery');
+  });
 }
 
 // ---- helpers ----
@@ -210,6 +336,43 @@ function effStatus(inst, today) {
   if (inst.due && inst.due < today) return 'overdue';
   return 'open';
 }
+// Count interrogatories in a set including discrete subparts — one per item,
+// plus lettered/roman markers detected within each item (estimate; FRCP 33(a)(1)).
+function rogCount(items) {
+  let total = 0;
+  for (const it of items || []) {
+    const subs = (String(it.text || '').match(/\((?:[a-z]|[ivxlcdm]+)\)/gi) || []).length;
+    total += 1 + subs;
+  }
+  return total;
+}
+
+function planText(matter, p) {
+  const line = (v) => (v ? String(v) : '(not recorded)');
+  return `Discovery Plan — ${matter.title}
+Client: ${matter.client || '(n/a)'} · Jurisdiction: ${matter.jurisdiction || 'on'}
+Prepared: ${new Date().toISOString().slice(0, 10)}
+
+1. Scope of discovery:
+${line(p.scope)}
+
+2. Custodians / sources:
+${line(p.custodians)}
+
+3. Date range: ${p.dateFrom || '(open)'} to ${p.dateTo || '(open)'}
+
+4. Production format:
+${line(p.format)}
+
+5. Proportionality (Ont. r.29.2 / FRCP 26(b)(1)):
+${line(p.costNote)}
+
+6. Agreed dates / milestones:
+${line(p.agreedDates)}
+
+Framework: Ontario Rule 29.1 (discovery plan) and r.29.2 (proportionality); FRCP 26(f) discovery plan and 26(b)(1) proportionality. This record forms part of the discovery record in this matter.`;
+}
+
 const check = (name, label, on) => `<label style="display:flex;gap:9px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13.5px;color:var(--ink-soft);margin:8px 0"><input type="checkbox" name="${name}" ${on ? 'checked' : ''} style="width:auto">${esc(label)}</label>`;
 
 function instrumentDetail(i, today) {
