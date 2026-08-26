@@ -558,7 +558,9 @@ function causeSection(c, facts) {
   const sideTag = side === 'claim' ? tag('claim', 'navy') : tag(SIDES[side]);
 
   return `<div class="card" id="c-${esc(c.id)}">
-    <h2 class="sec" style="margin-top:0">${esc(c.label)} ${tag(c.jur || '')} ${sideTag} ${full ? tag(`all ${elements.length} elements supported`, 'ok') : tag(`${supported}/${elements.length} elements supported`, supported ? 'navy' : 'gate')}</h2>
+    <h2 class="sec" style="margin-top:0">${esc(c.label)} ${tag(c.jur || '')} ${sideTag} ${!elements.length ? tag('no elements yet', 'gate')
+      : full ? tag(`all ${elements.length} elements supported`, 'ok')
+        : tag(`${supported}/${elements.length} elements supported`, supported ? 'navy' : 'gate')}</h2>
     ${kv([['Reference', `<span class="note">${esc(c.ref || '')}</span>`]].concat(c.against ? [['Asserted against', esc(c.against)]] : []))}
     ${table(['Element', 'Supported by (chronology facts)', 'Coverage', ''], rows)
       || empty('No elements on this cause yet — add the first one below. Until then there is nothing to test the claim against.')}
@@ -631,7 +633,9 @@ function registerText(matter, causes, defences, facts) {
       lines.push('- ' + c.label + ' [' + (c.jur || '-') + ']' + (c.against ? ' against ' + c.against : ''));
       lines.push('  Reference: ' + (c.ref || ''));
       const mapping = c.mapping || {};
-      for (const el of (c.elements || [])) {
+      const els = c.elements || [];
+      if (!els.length) lines.push('    * NO ELEMENTS RECORDED — nothing to test the claim against');
+      for (const el of els) {
         const sup = (mapping[el.key] || []).map((id) => byId.get(id)).filter(Boolean);
         lines.push('    * ' + el.label + ' — ' + (sup.length
           ? sup.map((f) => (f.date || '????-??-??') + ' (' + (f.source || 'no pin') + ')').join('; ')
