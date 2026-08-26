@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "ofakyle-plugins",
+  "owner": {
+    "name": "ofakyle11",
+    "url": "https://github.com/ofakyle11"
+  },
+  "description": "Claude Code plugins tuned to the way ofakyle11 actually ships: static-first sites with serverless backends, no build step, git push = production.",
+  "version": "1.0.0",
+  "plugins": [
+    {
+      "name": "superpowers-static-saas",
+      "source": "./plugins/superpowers-static-saas",
+      "displayName": "Superpowers: Static SaaS",
+      "description": "Superpowers, retuned for the Shotbreak / Anderson Foundation stack: vanilla JS + Netlify Functions, no build step, no test runner, git push deploys straight to production.",
+      "version": "1.0.0",
+      "author": { "name": "ofakyle11" },
+      "repository": "https://github.com/ofakyle11/scotia",
+      "license": "MIT",
+      "keywords": ["netlify", "serverless", "static-site", "vanilla-js", "deploy-safety", "secrets"],
+      "category": "workflow"
+    }
+  ]
+}

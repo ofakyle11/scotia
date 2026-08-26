@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "superpowers-static-saas",
+  "displayName": "Superpowers: Static SaaS",
+  "version": "1.0.0",
+  "description": "Superpowers, retuned for a static-first SaaS stack: vanilla JS + Netlify Functions, no build step, no test runner, git push deploys straight to production.",
+  "author": { "name": "ofakyle11" },
+  "repository": "https://github.com/ofakyle11/scotia",
+  "license": "MIT",
+  "keywords": ["netlify", "serverless", "static-site", "vanilla-js", "deploy-safety", "secrets"],
+  "hooks": "./hooks/hooks.json",
+  "defaultEnabled": true
+}
