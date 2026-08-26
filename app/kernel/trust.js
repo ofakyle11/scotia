@@ -30,9 +30,16 @@ const finite = (n) => { const x = Number(n); return Number.isFinite(x) ? x : nul
 // but computed honestly so a negative surfaces rather than hides. A falsy
 // matterId (e.g. null ctx.matter) yields an empty position of 0.
 function perMatterTrustBalance(kernel, matterId) {
+  return round2(rawTrustBalance(kernel, matterId));
+}
+
+// The same position WITHOUT the half-up rounding. Display may round; the s.7
+// gate may not — rounding 99.996 up to 100.00 hands the client four tenths of a
+// cent that is not in the account.
+function rawTrustBalance(kernel, matterId) {
   if (!kernel || !kernel.ledger || typeof kernel.ledger.balances !== 'function' || !matterId) return 0;
   const bal = kernel.ledger.balances(matterId) || {};
-  return round2(bal['trust:bank'] || 0);
+  return Number(bal['trust:bank'] || 0);
 }
 
 // True iff paying `amount` out of this matter's trust would NOT overdraw it —
@@ -41,7 +48,16 @@ function perMatterTrustBalance(kernel, matterId) {
 function wouldNotOverdraw(kernel, matterId, amount) {
   const amt = finite(amount);
   if (amt === null || amt <= 0) return false;
-  return cents(amt) <= cents(perMatterTrustBalance(kernel, matterId));
+  // s.7 admits no slack, so the two sides are rounded in OPPOSITE directions:
+  // what is available is floored to whole cents, what is being paid is ceilinged.
+  // perMatterTrustBalance() rounds half-up, so a position of 99.996 presented as
+  // 100.00 and let a 100.00 disbursement through — the gate creating four
+  // tenths of a cent of the client's money that was never there. The 1e-6 nudge
+  // absorbs binary float error so an exact-balance payment is not refused.
+  const bal = finite(rawTrustBalance(kernel, matterId));
+  if (bal === null || bal <= 0) return false;
+  const available = Math.floor(bal * 100 + 1e-6);
+  return Math.ceil(amt * 100 - 1e-6) <= available;
 }
 // Name per task spelling; keep the clear alias too.
 const wouldNoverdraw = wouldNotOverdraw;

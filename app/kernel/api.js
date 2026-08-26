@@ -63,7 +63,20 @@ function makeKernel({ store, audit, keyring }, user) {
       let dr = 0, cr = 0, touchesTrust = false, touchesIncome = false;
       for (const l of lines) {
         if (!l.account) throw new Error('ledger: account required');
-        dr += Math.round((l.dr || 0) * 100); cr += Math.round((l.cr || 0) * 100);
+        // Every leg must be a finite number BEFORE it reaches the balance check.
+        // Math.round(Infinity * 100) is Infinity, and Infinity !== Infinity is
+        // false, so an infinite transaction used to satisfy `dr !== cr` and post
+        // cleanly — after which the matter's trust balance was Infinity and the
+        // By-Law 9 s.7 overdraw gate (cents(amount) <= cents(held)) passed for
+        // every payment out of trust, forever. NaN was already caught by the
+        // same comparison; only the infinities slipped through.
+        for (const side of ['dr', 'cr']) {
+          const v = l[side];
+          if (v === undefined || v === null || v === '') continue;
+          const n = Number(v);
+          if (!Number.isFinite(n)) throw new Error(`ledger: ${side} must be a finite amount (got ${String(v)})`);
+        }
+        dr += Math.round((Number(l.dr) || 0) * 100); cr += Math.round((Number(l.cr) || 0) * 100);
         if (TRUST.test(l.account)) touchesTrust = true;
         if (OPERATING_INCOME.test(l.account)) touchesIncome = true;
       }
