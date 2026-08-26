@@ -29,6 +29,40 @@ class Auth {
     return h.n > RATE.max;
   }
   activeCount() { return this.store.firm.list('user', (u) => u.active).length; }
+  // --- recovery paths -------------------------------------------------------
+  // Without these, three ordinary mishaps end the deployment: a mistyped
+  // password at enrolment, a wall raised on the wrong person, and a lost
+  // authenticator. All three were unrecoverable because a password was written
+  // exactly once, walls had no delete, and nothing ever set a user inactive
+  // while the seat lock counted active users.
+
+  // Change your OWN password. Requires the current one, so a stolen session
+  // cannot take the account over, and the caller must pass the new value twice.
+  changePassword(userId, current, next, confirm) {
+    const u = this.store.firm.get('user', userId);
+    if (!u || !u.active) return { error: 'No such account.' };
+    if (!verifyPassword(current, u.pw)) {
+      this.audit.log(userId, 'password.change.denied', 'wrong current password');
+      return { error: 'Current password is wrong.' };
+    }
+    if (String(next || '').length < 12) return { error: 'Choose a password of at least 12 characters.' };
+    if (next !== confirm) return { error: 'The two new passwords do not match.' };
+    this.store.firm.put('user', { ...u, pw: hashPassword(next) }, userId);
+    this.audit.log(userId, 'password.changed', u.email);
+    return { ok: true };
+  }
+
+  // Release a seat so it can be re-issued. Never your own: an admin who
+  // deactivates themselves strands the firm with nobody able to invite anyone.
+  deactivate(targetId, byId) {
+    if (targetId === byId) return { error: 'You cannot release your own seat — ask the other administrator.' };
+    const u = this.store.firm.get('user', targetId);
+    if (!u) return { error: 'No such account.' };
+    if (!u.active) return { error: 'That seat is already released.' };
+    this.store.firm.put('user', { ...u, active: false }, byId);
+    this.audit.log(byId, 'seat.released', u.email);
+    return { ok: true };
+  }
   seatCap() { return SEATS.length; }
   seats() { return SEATS; }
   userByEmail(email) {

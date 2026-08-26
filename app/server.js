@@ -163,6 +163,13 @@ app.route('GET', '/invite/:code', (req, res, ctx) => {
 app.route('POST', '/invite/:code', (req, res, ctx) => {
   const inv = store.firm.list('invite', (i) => i.code === ctx.params.code && !i.used)[0];
   if (!inv || Date.now() > inv.exp) { send(res, 404, 'Not found.'); return; }
+  // Confirm the two entries match BEFORE the password is hashed and stored.
+  // This form used to have one password box, and a password is written exactly
+  // once in this product's life — so a typo here was a permanent lockout with no
+  // reset path and no way for the other seat to help.
+  if ((ctx.body.password || '') !== (ctx.body.password2 || '')) {
+    html(res, ui.enrollPage(inv, 'The two passwords do not match.')); return;
+  }
   const out = auth.redeemInvite(ctx.params.code, ctx.body.password || '', ctx.body.email);
   if (!out) { send(res, 404, 'Not found.'); return; }
   if (out.error) { html(res, ui.enrollPage(inv, out.error)); return; }
@@ -197,12 +204,31 @@ app.route('GET', '/account', (req, res, ctx) => {
       ${enrolled ? `<form method="POST" action="/account/totp-disable">${ui.input('code', 'Current code to disable', { required: true })}<button class="danger">Disable 2FA</button></form>` : ''}
     </div>
     <div class="card">
+      <h2 class="sec" style="margin-top:0">Password</h2>
+      <form method="POST" action="/account/password">
+        ${ui.input('current', 'Current password', { type: 'password', required: true })}
+        ${ui.input('password', 'New password (12+ characters)', { type: 'password', required: true })}
+        ${ui.input('password2', 'New password again', { type: 'password', required: true })}
+        <button>Change password</button>
+      </form>
+      <p class="note">Nobody else can change or reset this for you — not the other seat, not an administrator. Type it into a password manager before you change it.</p>
+    </div>
+    <div class="card">
       <h2 class="sec" style="margin-top:0">Session</h2>
       ${ui.kv([['Signed in as', ui.esc(u.name)], ['Email', ui.esc(u.email)], ['Role', ui.esc(u.role)], ['Session policy', '8h sliding · HttpOnly · SameSite=Strict']])}
       <p class="note">Sessions live in server memory only — a restart signs everyone out, deliberately.</p>
     </div>
   </div>`;
   html(res, ui.layout({ ...ctx, room: null }, { title: 'Account security', sub: 'Your credentials, your second factor', body }));
+});
+app.route('POST', '/account/password', (req, res, ctx) => {
+  // The recovery path that did not exist: a password was written exactly once,
+  // at enrolment, by a form with no confirmation field. A typo there locked a
+  // lawyer out of the practice permanently, and the other admin could not help.
+  const out = auth.changePassword(ctx.user.id, ctx.body.current || '', ctx.body.password || '', ctx.body.password2 || '');
+  if (out.error) { ctx.setFlash(out.error, 'err'); redirect(res, '/account'); return; }
+  ctx.setFlash('Password changed.');
+  redirect(res, '/account');
 });
 app.route('POST', '/account/totp-start', (req, res, ctx) => {
   const u = ctx.kernel.firm.get('user', ctx.user.id);
@@ -244,7 +270,11 @@ app.route('GET', '/admin', (req, res, ctx) => {
   const body = `
   <div class="grid2">
     <div class="card"><h2 class="sec" style="margin-top:0">People</h2>
-      ${ui.table(['Name', 'Email', 'Role', 'Status'], users.map((u) => [ui.esc(u.name), ui.esc(u.email), ui.esc(u.role), u.active ? ui.tag('active', 'ok') : ui.tag('disabled')]))}
+      ${ui.table(['Name', 'Email', 'Role', 'Status', ''], users.map((u) => [ui.esc(u.name), ui.esc(u.email), ui.esc(u.role), u.active ? ui.tag('active', 'ok') : ui.tag('released'),
+        u.active && u.id !== ctx.user.id
+          ? `<form method="POST" action="/admin/deactivate" class="no-print"><input type="hidden" name="userId" value="${ui.esc(u.id)}"><button class="danger">Release seat</button></form>`
+          : (u.id === ctx.user.id ? '<span class="note">you</span>' : '')]))}
+      <p class="note">Releasing a seat frees it so a replacement can be invited — the seat lock counts active people. Do it when a device is lost or a partner leaves. You cannot release your own seat.</p>
       <form method="POST" action="/admin/invite">
         ${ui.input('email', 'Email', { type: 'email', required: true })}
         ${ui.input('name', 'Name')}
@@ -254,7 +284,7 @@ app.route('GET', '/admin', (req, res, ctx) => {
       ${invites.length ? '<h2 class="sec">Open invites</h2>' + ui.table(['Email', 'Role', 'Link (single use)'], invites.map((i) => [ui.esc(i.email), ui.esc(i.role), `<span class="num">/invite/${ui.esc(i.code)}</span>`])) : ''}
     </div>
     <div class="card"><h2 class="sec" style="margin-top:0">Ethical walls</h2>
-      ${walls.length ? ui.table(['Matter', 'Screened', 'Basis'], walls.map((w) => { const m = ctx.kernel.matter(w.matterId); return [ui.esc(m ? m.title : w.matterId), ui.esc((w.screened || []).map((id) => { const u = ctx.kernel.firm.get('user', id); return u ? u.name : id; }).join(', ')), ui.esc(w.basis || '')]; })) : ui.empty('No walls configured.')}
+      ${walls.length ? ui.table(['Matter', 'Screened', 'Basis', ''], walls.map((w) => { const m = ctx.kernel.matter(w.matterId); return [ui.esc(m ? m.title : w.matterId), ui.esc((w.screened || []).map((id) => { const u = ctx.kernel.firm.get('user', id); return u ? u.name : id; }).join(', ')), ui.esc(w.basis || ''), `<form method="POST" action="/admin/wall/remove" class="no-print"><input type="hidden" name="wallId" value="${ui.esc(w.id)}"><button class="danger">Lift</button></form>`]; })) : ui.empty('No walls configured.')}
       <form method="POST" action="/admin/wall">
         ${ui.select('matterId', 'Matter', ctx.matters.map((m) => [m.id, m.title]), ctx.matter && ctx.matter.id)}
         ${ui.select('userId', 'Screen (deny all access)', ctx.kernel.firm.list('user').map((u) => [u.id, u.name + ' — ' + u.email]))}
@@ -293,9 +323,45 @@ app.route('POST', '/admin/ai', (req, res, ctx) => {
   ctx.setFlash(endpoint ? 'Model gateway configured (settings encrypted at rest).' : 'Model gateway disabled.');
   redirect(res, '/admin');
 });
+app.route('POST', '/admin/wall/remove', (req, res, ctx) => {
+  if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
+  // Only a wall you are NOT screened by can be lifted — ctx.kernel.walls()
+  // already omits the one screening you, so a screened lawyer cannot quietly
+  // lift their own wall. With two seats the other administrator does it.
+  const wall = ctx.kernel.walls().find((w) => w.id === ctx.body.wallId);
+  if (!wall) { ctx.setFlash('That wall is not yours to lift.', 'err'); redirect(res, '/admin'); return; }
+  ctx.kernel.firm.del('wall', wall.id);
+  ctx.setFlash('Wall lifted.');
+  redirect(res, '/admin');
+});
+app.route('POST', '/admin/deactivate', (req, res, ctx) => {
+  if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
+  // Releasing a seat is what makes a lost authenticator or a departing partner
+  // survivable: the seat lock counts ACTIVE users, so without this the cap is
+  // reached once and never falls again.
+  const out = auth.deactivate(ctx.body.userId, ctx.user.id);
+  if (out.error) { ctx.setFlash(out.error, 'err'); redirect(res, '/admin'); return; }
+  ctx.setFlash('Seat released. You can now invite a replacement.');
+  redirect(res, '/admin');
+});
 app.route('POST', '/admin/wall', (req, res, ctx) => {
   if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
-  ctx.kernel.firm.put('wall', { matterId: ctx.body.matterId, screened: [ctx.body.userId], basis: ctx.body.basis });
+  // Walling YOURSELF is unrecoverable through the UI: the wall would then be
+  // hidden from you (that is the point of a wall), so you could not lift it, and
+  // a matter walled against both seats is unreachable forever. Refuse it.
+  if (ctx.body.userId === ctx.user.id) {
+    ctx.setFlash('You cannot screen yourself — you would not be able to see the wall to lift it. Ask the other administrator.', 'err');
+    redirect(res, '/admin'); return;
+  }
+  // The form is a pair of selects, but a POST is a POST: check both ids are real
+  // before writing a record that silently screens nobody off nothing.
+  const target = ctx.kernel.firm.get('user', ctx.body.userId);
+  const onMatter = ctx.kernel.matter(ctx.body.matterId);
+  if (!target || !onMatter) {
+    ctx.setFlash('Pick an existing matter and an existing person.', 'err');
+    redirect(res, '/admin'); return;
+  }
+  ctx.kernel.firm.put('wall', { matterId: onMatter.id, screened: [target.id], basis: String(ctx.body.basis || '').slice(0, 500) });
   ctx.setFlash('Wall raised. The screened user can no longer see or decrypt this matter.');
   redirect(res, '/admin');
 });

@@ -360,6 +360,7 @@ ${err ? `<div class="flash err">${esc(err)}</div>` : ''}
 <form method="POST" action="/invite/${esc(invite.code)}">
 ${invite.seat ? '<label for="em">Your email (becomes your sign-in)</label><input id="em" name="email" type="email" autocomplete="username" required autofocus>' : ''}
 <label for="p1">Choose a password (12+ characters)</label><input id="p1" name="password" type="password" autocomplete="new-password" minlength="12" required ${invite.seat ? '' : 'autofocus'}>
+<label for="p2">Type it again</label><input id="p2" name="password2" type="password" autocomplete="new-password" minlength="12" required>
 <button style="width:100%">Enroll &amp; enter</button>
 </form>
 <p style="font-size:11.5px;color:var(--ink-faint);margin-top:12px">You set your own password now and your own two-factor code inside (Account → enable 2FA). Nobody else holds either.</p>

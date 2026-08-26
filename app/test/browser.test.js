@@ -58,7 +58,7 @@ let log = ''; srv.stdout.on('data', (d) => { log += d; });
 
   // Real enrollment through a real browser form POST — the exact path that 500'd.
   await p.goto(invite); await p.waitForTimeout(400);
-  await p.fill('#em', 'dan@example.test'); await p.fill('#p1', 'a-real-password-here');
+  await p.fill('#em', 'dan@example.test'); await p.fill('#p1', 'a-real-password-here'); await p.fill('#p2', 'a-real-password-here');
   await p.click('button'); await p.waitForTimeout(1200);
   if (!p.url().includes('/account')) throw new Error('enrollment failed: landed on ' + p.url() + ' — browser form POST is broken');
 

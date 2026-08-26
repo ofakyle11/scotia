@@ -21,21 +21,21 @@ const post = async (p, form) => { const r = await fetch(base + p, { method: 'POS
   const matt = invites.find((i) => i.name === 'Matt D');
 
   // Dan enrolls with his own email + password; lands on /account for 2FA.
-  let r = await post('/invite/' + dan.code, { email: 'dan@firm.ca', password: 'dan-sets-his-own-pw' });
+  let r = await post('/invite/' + dan.code, { email: 'dan@firm.ca', password: 'dan-sets-his-own-pw', password2: 'dan-sets-his-own-pw' });
   assert.strictEqual(r.status, 303); assert.strictEqual(r.location, '/account', 'enrollment routes straight to 2FA setup');
   const danUser = store.firm.list('user', (u) => u.email === 'dan@firm.ca')[0];
   assert(danUser && danUser.name === 'Dan G' && danUser.role === 'admin' && danUser.active);
 
   // Reusing Dan's link is dead; bad email on Matt's seat refused; dup email refused.
-  r = await post('/invite/' + dan.code, { email: 'x@x.ca', password: 'another-long-password' });
+  r = await post('/invite/' + dan.code, { email: 'x@x.ca', password: 'another-long-password', password2: 'another-long-password' });
   assert.strictEqual(r.status, 404, 'used seat invite must be dead');
-  r = await post('/invite/' + matt.code, { email: 'not-an-email', password: 'matt-sets-his-own-pw' });
+  r = await post('/invite/' + matt.code, { email: 'not-an-email', password: 'matt-sets-his-own-pw', password2: 'matt-sets-his-own-pw' });
   assert(r.text.includes('valid email'), 'bad email refused');
-  r = await post('/invite/' + matt.code, { email: 'dan@firm.ca', password: 'matt-sets-his-own-pw' });
+  r = await post('/invite/' + matt.code, { email: 'dan@firm.ca', password: 'matt-sets-his-own-pw', password2: 'matt-sets-his-own-pw' });
   assert(r.text.includes('already enrolled'), 'duplicate email refused');
 
   // Matt enrolls.
-  r = await post('/invite/' + matt.code, { email: 'matt@firm.ca', password: 'matt-sets-his-own-pw' });
+  r = await post('/invite/' + matt.code, { email: 'matt@firm.ca', password: 'matt-sets-his-own-pw', password2: 'matt-sets-his-own-pw' });
   assert.strictEqual(r.status, 303);
   assert.strictEqual(store.firm.list('user', (u) => u.active).length, 2);
 
