@@ -162,6 +162,31 @@ certificate must name the matter to be worth producing to a client, so this is a
 genuine trade-off. The narrative fields that are *not* needed for that (theory,
 ledger memos) carry By-Law 9 retention implications — that is the lawyers' call.
 
+**R14 — The manual pass is an engineering activity, not a formality. It found what
+40 auditor-hours did not.**
+The 12-agent security audit asked "can an adversary get in?" and answered it well:
+59 findings, 42 confirmed, 10 HIGH. It never asked "what does a lawyer do when this
+goes wrong on an ordinary day" — and the answer was *nothing*. Writing the owner's
+manual honestly forced that question, because a documenter cannot write the
+"What it does NOT do" callout without confronting the recovery path. Three lockouts
+surfaced, none of which any auditor reported:
+(a) a password is written at exactly ONE line in the codebase, from a form with a
+single box and no confirmation — a typo at enrolment locked a lawyer out of the
+practice permanently, with no reset, no admin override, and no help from the other
+seat;
+(b) walls could be raised but never lowered, and the screen list included yourself,
+so an admin could wall themselves off a matter and then could not see the wall to
+lift it;
+(c) nothing ever set a user inactive while the seat lock counted active users, so
+once both seats enrolled every future invite was refused for the life of the
+deployment — a lost authenticator ended it.
+Fixed in `79e29e4`, pinned by `test/recovery.test.js` (five paths, each red first).
+Lesson worth keeping: a security audit models an attacker; a manual models a user
+having a bad day. They find different bugs, and for a two-person firm the second
+class is the one that actually ends the deployment. Cost if wrong: none — the fixes
+are additive and every recovery path is guarded (no self-release, no lifting the wall
+that screens you, current password required).
+
 ---
 
 ## Pending final step (user instruction, 2026-08-26)
@@ -193,3 +218,5 @@ before or after use, as it has been in plaintext in a transcript.
 | T1 | 13 Opus-5 agents fixed the proven defects + director closed 3 residual seams | 36-room harness + 8 suites green; new `seam.test.js` and `pleadcite.test.js` prove R-A/R-D and the pleading→gate path | this commit |
 | T3 audit | 12 Opus-5 auditors, 647 turns, all wire-verified `claude-opus-5` | 59 findings / 42 CONFIRMED / 150 refuted, in `docs/SECURITY-FINDINGS.md` | `51c8d68` |
 | T3 fix | 8 of 10 HIGH findings fixed, each red-green verified | gate 13 -> 18 suites, all green | `200ac6b`..`8dc1bb1` |
+| T5 e2e | 9 Opus agents, one owned suite each, TDD-enforced | gate 18 -> 27 suites; 3 defects found + fixed | `9f7a71d` |
+| T4 manual | 9 Opus documenters, 43 surfaces, 104pp PDF | `docs/manual/` + 3 lockouts found and fixed | `79e29e4` |
