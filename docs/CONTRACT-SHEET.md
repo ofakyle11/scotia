@@ -27,10 +27,13 @@ professional-responsibility control (conflicts clearance, citation verification,
 diary, trust accounting, admission foundation) — you may *strengthen* it, never weaken,
 bypass, or silently widen it. Where it says **CONFLICT**, two rooms already disagree;
 do not "fix" it by changing one side unilaterally unless your task is exactly that, and
-if you do, update every reader named here. `/home/user/scotia/app/CONTRACT.md` remains the
-module contract (export shape, allowed requires, honesty rules); this sheet is the data
-contract that sits underneath it. Where the two disagree, this sheet is the one derived
-from current code — see §(f), CONTRACT.md drift.
+if you do, update every reader named here. Where it says **RESOLVED (was a CONFLICT)**, a
+disagreement this sheet once recorded has been closed in code — the note stays only so the
+next agent does not "re-fix" it or re-introduce the old shape; §(f) carries the same list.
+`/home/user/scotia/app/CONTRACT.md` remains the module contract (export shape, allowed
+requires, honesty rules); this sheet is the data contract that sits underneath it. The two
+are currently in agreement — where they ever diverge, re-derive both from the source rather
+than trusting either.
 
 ---
 
@@ -204,14 +207,28 @@ authorities) · 07-research (filtered `c.source==='research' && c.status==='unve
   (case-insensitive on `cite`).
 - `POST /reopen` resets a failed instance to a clean `'unverified'` (nulls pinpoint,
   quoteOk, treatmentCurrent, resolved, resolvedUrl, failReason).
-- **Every write path must call `regate(s, draftId)` immediately afterwards.**
-- **CONFLICT (sharpest in matter scope)** — 07-research instances carry no `draftId`, so
-  08-citations' per-draft filters never surface them and `regate()` never counts them.
-  They are orphaned: 07 shows them "awaiting citation check" forever; no room can verify them.
+- **Every write path must call `regate(s, draftId)` immediately afterwards.** The one
+  deliberate exception is `POST /resolve`, which writes only the advisory `lookup` field:
+  calling `regate()` there would re-stamp `gateStamp` and wash out a staleness flag nobody
+  re-verified.
+- **`lookup` IS NOT A VERIFICATION.** `POST /resolve` runs the cite through
+  `k.citeResolve.resolve` (see §d) and records what came back beside the row. It never
+  touches `status`, `resolved`, `quoteOk` or `treatmentCurrent`, and it refuses an
+  already-`'verified'` instance. Only an `/^https?:\/\//i` URL is stored (the value is
+  re-rendered as a link and `esc()` does not neutralise `javascript:`). The route is absent —
+  degrading to the manual flow — when the facade does not expose `citeResolve`.
+- **RESOLVED (was the sharpest CONFLICT in matter scope): 07-research now always supplies
+  `draftId`.** `POST /send` carries a draft selector with no default and **refuses** a blank
+  one, so no instance can be minted that `regate()` cannot count and no one can verify. It
+  also honours 08's per-`(draftId, cite)` case-insensitive duplicate guard by linking the
+  authority to the existing instance instead of minting a second row, and — because a room
+  may not require another room's `regate()` — moves the draft in the **blocking direction
+  only** (`citeStatus:'blocked'`, `noCitationsFound:false`, audited `research.gate.blocked`).
+  It never opens a gate. 08-citations' GET re-gates defensively in the same one direction.
 
 ### Research
 
-#### `authority` — **THREE INCOMPATIBLE SHAPES.**
+#### `authority` — **THREE SHAPES, EACH STAMPED AND EACH READ BACK ONLY BY ITS OWN ROOM.**
 | | 07-research | 29-canlii | 30-uscourts |
 |---|---|---|---|
 | `cite` | yes | yes | `citation \|\| caseName` |
@@ -222,25 +239,32 @@ authorities) · 07-research (filtered `c.source==='research' && c.status==='unve
 | `court` | yes | `= databaseId` | yes |
 | `year` | 4-digit string or `''` | — | — |
 | `checkId` | citation_instance id once sent, else `null` | — | — |
+| `draftId` | the draft it was sent against, else `null` | — | — |
 | `title`,`url`,`decisionDate` | — | yes (+`docket`) | yes |
-| `source` | **absent** | `'canlii-api'` | `'courtlistener'` |
+| `source` | **`'research'`** | `'canlii-api'` | `'courtlistener'` |
 | `resolved` | — | `true` | `true` |
 
-**Written by** 07-research (`/authority`, `/send` sets `checkId`, `/drop` deletes) ·
-29-canlii (`POST /resolve`, only when a matter is open) · 30-uscourts (`POST /save` when
-`kind !== 'r'`)
-**Read by** 07-research (**list is UNFILTERED**) · 29-canlii (filtered
-`source==='canlii-api'`) · 30-uscourts (filtered `source==='courtlistener'`)
+**Written by** 07-research (`/authority`, `/send` sets `checkId` + `draftId`, `/drop`
+deletes) · 29-canlii (`POST /resolve`, only when a matter is open) · 30-uscourts
+(`POST /save` when `kind !== 'r'`)
+**Read by** 07-research (filtered `isOurs = (a) => !a.source || a.source === 'research'`) ·
+29-canlii (filtered `source==='canlii-api'`) · 30-uscourts (filtered
+`source==='courtlistener'`)
 **Invariants**
+- **EVERY WRITER STAMPS `source`, AND EVERY READER FILTERS ON IT.** A new writer that omits
+  `source` is silently adopted by 07-research's `isOurs` (the deliberate fallback for rows
+  written before the stamp existed) and will render there with a blank proposition. Stamp it.
 - 07-research refuses an authority without both `cite` and `proposition`, and rejects a
   `year` that is not exactly four digits.
 - **CANDOUR:** adverse authorities render **first** on the Research Desk (`byAdverseFirst`).
-- `POST /send` refuses if `a.checkId` is already set (no double-send).
-- **CONFLICT** — because 07's list is unfiltered, CanLII/CourtListener authorities appear
-  on the Research Desk with no `memoId`, no `proposition`, no `weight`, no `adverse`; the
-  row renders a blank Proposition and a `'persuasive'` tag they were never given, and offers
-  a "send to Citation Check" button that mints a `citation_instance` with `memoId: undefined`.
-  **Any new reader of `authority` must filter on `source` or on the presence of `memoId`.**
+- `POST /send` refuses if `a.checkId` is already set (no double-send), **and refuses a
+  connector row outright** (`!isOurs(a)`) — a CanLII/CourtListener authority must be re-entered
+  under a memo with the proposition it stands for before it can reach the gate. That is what
+  stops an instance being minted with `memoId: undefined`.
+- `/drop` deletes the authority and **deliberately leaves its `citation_instance` standing** —
+  dropping a row here must never be a way to make a blocked draft clear itself.
+- **RESOLVED (was a CONFLICT):** 07's list is no longer unfiltered. Connector rows are counted
+  on the desk-state card and pointed at their own rooms, never rendered as weighed research.
 
 #### `memo` (07-research)
 **Fields** `issue` (required) · `conclusion` (may be `''`). Written/read by 07-research only.
@@ -253,10 +277,13 @@ Every `authority` points at a memo via `memoId`; `/authority` refuses an unresol
 **Core shape (all writers)** `desc` · `due` (ISO) · `rule` (**citation STRING**, e.g.
 `rule.cite`, `'expert report'`, `'ADR schedule'`, `'By agreement / manual'`,
 `'Trial date (anchor)'`) · `trigger` (human string) · `status` (`'open'|'done'`)
-**Extra fields, by writer**
-- `ruleId` (a `kernel/rules.js` rule id) — **written only by 21-calendar**
-  (`/compute` → `rule.id`; `/trial` → `'trial-date'` and `'trial-back-<key>'`)
-- `anchor:'trial'`, `milestone`, `trialDate` — only 21-calendar's cascade
+**`ruleId` — now written by EVERY writer.** It is a `kernel/rules.js` rule id, or an explicit
+`null` meaning "counsel typed this date, no rule computed it". **Never a placeholder** — an
+id that resolves to no rule on file reads as a rule that is not there. Readers must handle
+all three states: an id, an explicit `null`, and **absent** on rows written before the field
+was universal.
+**Other extra fields, by writer**
+- `source:'trial-cascade'`, `anchor:'trial'`, `milestone`, `trialDate` — only 21-calendar's cascade
 - `stale`, `staleReason`, `staleFrom`, `staleTo`, `staleAt`, `staleLimitation`,
   `staleClearedAt` — only 09-jurisdiction
 - `verifiedBy`, `verifiedById`, `verifiedAt` — only 27-desk
@@ -264,37 +291,52 @@ Every `authority` points at a memo via `memoId`; `/authority` refuses an unresol
 **Written by**
 | room | route | notes |
 |---|---|---|
-| 01-intake | `POST /decide` accept | limitation deadline from `inq.limitation`; `rule: inq.limCite \|\| 'limitation'`; **no ruleId** |
-| 12-discovery | `POST /new` | only when a due date exists; `rule: dueCite \|\| 'By agreement / manual'`; **no ruleId** |
-| 15-experts | `/new`, `/due`, `/disclosure` | `rule:'expert report'` or the disclosure rule cite; **no ruleId**; ids stored on the expert |
-| 21-calendar | `/compute`, `/trial`, `/done` | the only writer of `ruleId` and `anchor` |
-| 23-adr | `POST /session` | brief-due; `rule:'ADR schedule'`; **no ruleId**; not linked back to the session |
+| 01-intake | `POST /decide` accept | limitation deadline from `inq.limitation`; `rule: inq.limCite \|\| limRule.cite \|\| 'limitation'`; **`ruleId` set from `inq.limRuleId` (or the claim-type lookup that produced it) when it resolves to a real rule — otherwise the field is omitted, never faked** |
+| 12-discovery | `POST /new` | only when a due date exists; `rule: dueCite \|\| 'By agreement / manual'`; **`ruleId` = the computing rule's id, explicit `null` on the typed fallback**; the new deadline's id is stored back on the instrument as `deadlineId` |
+| 15-experts | `/new`, `/due`, `/disclosure` | `rule:'expert report'` (**`ruleId: null` by design** — no rules.js rule computes a report date) or the disclosure rule cite with `ruleId` = that rule's id **only if `k.rules.rule(id)` resolves**; ids stored on the expert |
+| 21-calendar | `/compute`, `/trial`, `/done` | `putDeadline(s, ruleId, fields)` takes `ruleId` **positionally** so no path can forget it: `/compute` → `rule.id`; `/trial` → `'trial-date'` and `'trial-back-<key>'`. Sole writer of `anchor` and `source:'trial-cascade'` |
+| 23-adr | `POST /session` | brief-due; `rule:'ADR schedule'`; **`ruleId: null` by design** (a provider's schedule, not a rule); not linked back to the session |
 | 09-jurisdiction | `/govern`, `/recompute-clear` | **updates existing records only** |
 | 27-desk | `POST /verify` | **updates existing records only** |
 
 **Read by** 21-calendar (list/get) · 27-desk (cross-matter diary, `status==='open'`) ·
 09-jurisdiction (list `status!=='done'`; get for recompute-clear) · 36-portal (list
 `status==='open'` → next 3 key dates in the client pack) · 15-experts (get by
-`expert.deadlineId` / `expert.disclosureDeadlineId`) · 21-calendar ICS feed
+`expert.deadlineId` / `expert.disclosureDeadlineId`) · 12-discovery (get by
+`instrument.deadlineId`; `POST /respond` closes it `status:'done'`) · 21-calendar ICS feed
 `/r/calendar/feed/:token` (list `status==='open'` across all visible matters) · 26-closing
+(EXPORT_TYPES)
 **Invariants**
-- **21-calendar `POST /trial` is destructive-idempotent:** it `del`s **every** deadline
-  with `anchor==='trial'` before rebuilding the cascade. Any deadline a future room writes
-  with `anchor:'trial'` will be destroyed on the next trial-date recompute.
+- **21-calendar `POST /trial` is destructive-idempotent, and sweeps STRICTLY by `source`.**
+  It `del`s every deadline with `source === 'trial-cascade'` — the marker it stamps on its
+  own rows — and **never** by `anchor`, because another room's deadline hung off the trial
+  date carries `anchor:'trial'` too and was being destroyed silently on every recompute. A
+  trial-anchored row without the cascade stamp is left alone and rendered
+  `not cascade-managed` in the diary. **If you write a trial-anchored deadline, set
+  `anchor:'trial'` and do NOT set `source:'trial-cascade'`** — that stamp means "21-calendar
+  owns this row and will delete it".
 - **GATE — DUAL DIARY.** 27-desk `POST /verify` refuses when `ctx.user.id === d.createdBy`
   and refuses a second verification once `d.verifiedBy` is set.
 - 09-jurisdiction `POST /govern` flags **every** deadline with `status!=='done'` stale when
   the matter's jurisdiction changes.
 - 21-calendar `/trial` and `/bf` round-trip the date through `Date` so `'2026-02-31'` is
   rejected rather than rolled forward.
-- **CONFLICT** — 27-desk's limitation detection is `isLimitation = (d) =>
-  /limitation|prescription/.test(String(d.ruleId||''))` (`27-desk.js:13`). 01-intake,
-  12-discovery, 15-experts and 23-adr write **no `ruleId`**, so 01-intake's limitation
-  deadline never shows the LIMITATION flag or the dual-diary tick on the Workflow diary.
-  09-jurisdiction uses a three-way fallback (`staleLimitation` → `k.rules.rule(ruleId)`
-  category → regex over `rule + desc`) that 27-desk does **not** share.
-- **CONFLICT** — `rule` is a citation string, `ruleId` is a rules.js id. Only 21-calendar
-  sets both. **Never assume `ruleId` exists.**
+- **RESOLVED (was the most consequential CONFLICT in the app): the LIMITATION flag no longer
+  keys off `ruleId` alone.** 27-desk `classify(k, d, rx, category)` (`27-desk.js:26`) matches
+  on **any** of (a) the `ruleId` string, (b) `rule + desc` — the citation string and
+  description every writer sets — or (c) the rules.js record standing behind the id (its
+  `category`, else its own `desc + cite`). `LIMITATION_RX` and `APPEAL_RX` are
+  case-**insensitive** by necessity: 01-intake stores `desc:'Limitation period expires'` and
+  cites such as `'Limitations Act, 2002, s. 4'`, which a case-sensitive `/limitation/` misses
+  entirely. 25-judgment's appeal watchdog does the same over `ruleId + rule + desc`.
+- 09-jurisdiction keeps its own three-way fallback (`staleLimitation` → `k.rules.rule(ruleId)`
+  category → regex over `rule + desc`) — near-identical, but its regex is still
+  case-**sensitive**, so a hand-written row with no resolvable `ruleId` and only
+  `'Limitation period expires'` on it classifies in 27-desk and not in 09. Harmless today
+  (01-intake now carries a real `ruleId`); do not widen the gap.
+- **`rule` is a citation STRING, `ruleId` is a rules.js id — they are not interchangeable.**
+  Both are now written by every writer, but `ruleId` may legitimately be `null` or absent.
+  **Never assume `ruleId` resolves**; go through `k.rules.rule(id)` and handle `undefined`.
 
 #### `bf` — bring-forward tickler (21-calendar)
 **Fields** `note` (required) · `due` (round-tripped ISO) · `owner` (`ctx.user.id`) ·
@@ -532,6 +574,9 @@ fills with stale duplicates. `checklist` and `report26` are **replaced wholesale
 - `trialChecklist`: **`id` set explicitly to `'checklist'`** (singleton) · `done`
   (**number[] of ARRAY INDICES** into the room's 7-item CHECKLIST constant). Reordering or
   inserting into CHECKLIST silently reinterprets every saved checklist — **append only**.
+  On read, an index that is not an integer inside the current range is ignored rather than
+  counted, so a stale record can never report the book more ready than it is. Note this is
+  the **opposite** convention to 26-closing's `closingChecklist`, which stores keys.
 
 #### `filing` (22-filing)
 **Fields** `draftId` · `draftTitle` (denormalised) · `court` · `style` · `fileNo` · `served`
@@ -587,20 +632,24 @@ issue) · 05-client (budget vs actual) · 36-portal (same figure for the client 
 **Invariants**
 - **BILLED-ONCE.** Every reader defines unbilled as `state !== 'billed'`. Discarding a draft
   invoice (`POST /discard`) deliberately leaves time unbilled.
-- **PRE-BILL LINT (two different rules — see CONFLICT).** 28-books stamps `lint` at creation
-  when `/^(work on file|attend to file|misc|various|review file)\.?$/i` matches **or**
-  `narrative.length < 12`.
-- **CONFLICT** — 34-billing runs a stricter independent `narrativeLint()`
-  (`34-billing.js:16-21`): empty, `<12` chars, or the longer VAGUE regex adding
-  `attend(ed) to (the) file`, `attention to (the) file`, `miscellaneous`, `general`,
-  `admin(istration)`, `as discussed`, `review of file`, `per instructions`. It **refuses to
-  issue** an invoice while any line fails. An entry stored `lint:null` by 28-books can still
-  block issue. **34-billing's `narrativeLint` is authoritative for the gate; 28-books' `lint`
-  field is advisory.**
-- **CONFLICT** — 28-books does not validate hours/rate: `hours: Number(ctx.body.hours)` can
-  store `NaN`. 28-books' own WIP sum uses `t.hours * t.rate` raw (NaN poisons it), while
-  34-billing, 05-client and 36-portal all use `(Number(t.hours)||0) * (Number(t.rate)||0)`.
-  **New readers use the `||0` form.**
+- **PRE-BILL LINT — ONE RULE, WRITTEN TWICE, KEPT IDENTICAL.** 28-books (`28-books.js:50`)
+  and 34-billing (`34-billing.js:35`) hold **byte-identical** `VAGUE` regexes and
+  `narrativeLint()` bodies: empty → `'empty narrative'`, `<12` chars → `'narrative too thin'`,
+  or the VAGUE regex (`work on file`, `attend(ed) to (the) file`, `attention to (the) file`,
+  `misc(ellaneous)`, `various`, `general`, `admin(istration)`, `as discussed`, `review file`,
+  `review of file`, `per instructions`) → `'narrative too vague'`. **If you touch one, touch
+  both.** 34-billing's is the GATE — it refuses to issue an invoice while any line fails;
+  28-books' stamps the advisory `lint` field at creation and flashes the reason, so an entry
+  can no longer pass at entry and block at billing.
+- **NUMERIC COERCION IS UNIVERSAL.** 28-books `POST /books/time` now refuses `hours <= 0` and
+  `rate <= 0` outright, and every reader — 28-books' own WIP sum and CSV, 34-billing,
+  05-client, 36-portal — puts both factors through `Number(v) || 0` before multiplying, so a
+  legacy `NaN` reads as zero instead of poisoning a total or printing "NaN" on an invoice.
+  **New readers use the `||0` form**; a stored `NaN` from before the validation still exists.
+- 34-billing's gathering half of BILLED-ONCE is stricter than the shared definition:
+  `isUnbilled = (r) => r.state !== 'billed' && !r.invoiceId` — nothing sets `invoiceId` before
+  issue, so an entry claimed by an issued invoice can never be swept into a second bill even
+  if its `state` somehow reads `'draft'`.
 
 #### `disbursement` (34-billing)
 `desc` (required) · `amount` (2dp, >0) · `incurred` (ISO, default today) · `state`
@@ -656,10 +705,12 @@ in both rooms.
 #### `decisionMemo` (05-client)
 `question` (required) · `options` · `decision` (**required at creation**) · `decidedOn` ·
 `recordedBy`.
-**Invariant/GOTCHA** 36-portal treats a memo with an **empty** `decision` as a decision still
-awaiting the client — but 05-client refuses to create one without a decision, so that branch
-is currently unreachable via the UI. A future writer that allows an open question must keep
-`decision` as `''`.
+**Invariant** a `decisionMemo` records a decision that **came back** — 05-client refuses to
+create one without a decision. 36-portal no longer treats an empty-`decision` memo as an
+outstanding question (that branch could never match and has been removed); it reads
+`answeredMemos(s) = list('decisionMemo').filter(d => String(d.decision||'').trim())` and
+sources the pack's outstanding questions from `decisionRequest` alone. **A future writer that
+wants to pose an open question must write a `decisionRequest`, not a blank-decision memo.**
 
 #### `decisionRequest` / `clientPack` (36-portal)
 - `decisionRequest`: `question` (required) · `options` · `status` (`'open'|'closed'`). Only
@@ -669,7 +720,10 @@ is currently unreachable via the UI. A future writer that allows an open questio
   (`{text, sentOn}`|null), `grade`, `dates` (`[{due, desc, rule}]`, the 3 soonest open
   deadlines with a real ISO due), `budget` (`{figure, feesEarned, disbursements, unbilled,
   trustHeld, actual, remaining, hasBudget, over, nearing}`), `decisions` (`[{question,
-  options}]` = open requests ++ empty-decision memos).
+  options}]` = **open `decisionRequest`s only**, minus any already answered by a later
+  `decisionMemo` with a normalised-equal question — `normQ` lower-cases, collapses whitespace
+  and strips trailing punctuation, and the memo must post-date the request, so a question
+  re-posed after an earlier answer is asked again rather than silently dropped).
   **A pack is a FROZEN, SELF-CONTAINED snapshot:** `/pack/:id` renders from the stored record
   only. Every figure derives from other rooms (ledger balances, deadlines, timeEntry WIP,
   `matter.budget`) — nothing invented. **There is no client login and no second auth surface;
@@ -694,12 +748,24 @@ All derived figures (expected recovery, net if tried) are computed at render, ne
 - **SCHEME ALLOWLIST (both):** `url` must match `/^https?:\/\//i` — the stored value is
   re-rendered as a clickable link and `esc()` cannot neutralise a `javascript:` URI.
 
-#### `closingChecklist` — **DEAD READ**
-`26-closing.js:46` does `s.get('closingChecklist','closing') || {id:'closing', done:[]}` and
-the resulting `checks` variable is **never used**. **No room anywhere writes this type.**
-The closing form uses required checkboxes named by the CHECK constant, submitted per-close and
-not persisted. Treat the name as unclaimed but reserved; if you implement it, mirror
-20-trialbook's fixed-id singleton pattern.
+#### `closingChecklist` (26-closing) — **a real record, and a real GATE**
+**Fields** `id` (**set explicitly to `'closing'`** — fixed-id singleton, mirroring
+20-trialbook's `trialChecklist`) · `done` (**string[] of CHECK KEYS**, not indices —
+currently `account`, `originals`, `letter`) · `by` (`ctx.user.name`) · `at` (full ISO)
+**Written by** 26-closing `POST /check` (replaces `done` wholesale with what was submitted)
+and `POST /close` (**merges** anything ticked on the close form into the recorded set and
+persists it before testing the gate, so no tick is lost on a refusal)
+**Read by** 26-closing only — `doneSet(rec)` on the room GET, and again in `POST /close`.
+**Invariants**
+- **GATE — CLOSE ON A RECORDED CHECKLIST.** `POST /close` refuses while any CHECK step is
+  unrecorded ("N of 3 closing steps are not recorded"), then refuses again if
+  `balances['trust:bank'] > 0.005`. It reads the **stored** record, not the submission.
+- Once `matter.status === 'closed'` the checklist is the closing record and `POST /check`
+  refuses to edit it; the room renders the recorded ticks (which print) instead of the form.
+- `done` holds **keys, not indices** — the opposite of `trialChecklist`. CHECK may therefore
+  be reordered freely; **renaming a key silently retires that step's tick** and reopens the
+  gate for every matter that had it. `orderedDone()` re-sorts to CHECK order on write and
+  `doneSet()` ignores anything not in CHECK on read.
 
 #### Rooms that store nothing
 **17-tools** touches no kernel storage at all — no `scope`, no `firm`, no ledger. It is
@@ -715,14 +781,14 @@ Storage: `ctx.kernel.firm.list|get|put|del(type, …)` — sealed with the tenan
 
 | type | fields | written by | read by |
 |---|---|---|---|
-| `matter` | `title, client, adverse[], jurisdiction, status ('open'\|'closed'\|'destroyed'), theory, posture, budget?, aiPolicy?` | 01-intake `/decide` (creation, mints the DEK), 05-client (`budget`), 09-jurisdiction (`jurisdiction`), 19-moot (`aiPolicy`), 26-closing (`status`), kernel `shred()` | everywhere via `ctx.matter` / `ctx.matters`; `k.matter(id)`; 02, 05, 19, 26, 28 read it directly |
+| `matter` | `title, client, adverse[], jurisdiction, status ('open'\|'closed'\|'destroyed'), theory, posture, budget?, aiPolicy?, closedAt?` (full ISO, set with `status:'closed'`) | 01-intake `/decide` (creation, mints the DEK), 05-client (`budget`), 09-jurisdiction (`jurisdiction`), 19-moot (`aiPolicy`), 26-closing (`status` + `closedAt`), kernel `shred()` | everywhere via `ctx.matter` / `ctx.matters`; `k.matter(id)`; 02, 05, 19, 26, 28 read it directly. 26-closing derives the destroy-eligible date from `closedAt` |
 | `inquiry` | `client, adverse[], jurisdiction, claimType, discovered, summary, limitation, limRuleId, limCite, limNote, status ('screening'\|'accepted'\|'declined'), matterId` | 01-intake (`/new`, `/decide`) | 01-intake, 02-conflicts, 03-retainer (`matterCleared` back-link), 27-desk (`status==='screening'` count) |
 | `conflictRun` | `name, hits[], parties[] (deduped: name + client + adverse of the tied matter/inquiry), matterId\|null, inquiryId\|null, outcome ('pending'\|'clear'\|'waiver'\|'declined'), runBy, ranBy, ranAt, decidedBy, decidedAt` | 02-conflicts (`/run` creates with `outcome: hits.length ? 'pending' : 'clear'`; `/outcome` decides) | **01-intake `inquiryCleared()`**, **03-retainer `matterCleared()`**, 02-conflicts |
 | `party` | `name, aliases[], role (ROLES, default 'Client'), matterId\|null, inquiryId\|null` | 02-conflicts `/party` | 02-conflicts (the name graph `runCheck` walks) |
 | `rescan` | `checkedRuns, newHits[{runId,name,hits[]}], byName` | 02-conflicts `/rescan` | 02-conflicts |
 | `watchName` | `name, addedBy` | 02-conflicts (`/watch`, del) | 02-conflicts |
 | `letter` | `kind ('non-engagement'\|'conflict-waiver'), to, text` | 01-intake `/decide` decline, 02-conflicts waiver | 02-conflicts (filtered `kind==='conflict-waiver'`) |
-| `engagementSigned` | `matterId, engagementId, version, feeModel, rate, flatAmount, contingencyPct, expectedRetainer, signedAt, signedBy` | 03-retainer sign | **NOBODY — write-only.** See §(f) |
+| `engagementSigned` | `matterId, engagementId, version, feeModel, rate (hourly only, else null), flatAmount (flat only), contingencyPct (contingency only), expectedRetainer (the flat figure, else null), signedAt (date only), signedBy` — built by `signedMarker()` entirely from the stored `engagement`, so it is self-sufficient | 03-retainer: `POST /status` on signature, **plus `backfillMarkers()` on room GET**, which mirrors a marker for any already-`'signed'` version that has none (it never performs a signature, so the conflicts gate is untouched); audited `engagement.marker.backfill` | **28-books** `signedEngagement()` — the Fee-commitment card. **Newest `version` wins**, ties broken on `signedAt \|\| createdAt`, same discipline as 34-billing's `feeModelFor()`. It reads the marker only; it never reopens the matter scope |
 | `courtEntry` | `court, jurisdiction, level, portal, feeNote, limitNote, formatNote, standingNote, verifiedOn, reference` | 11-courtbook (seed + `/save` + `/verify`; `reference` is cleared on any hand edit) | 11-courtbook, 22-filing (court picker) |
 | `setting` | id-keyed singletons: `'canlii' {apiKey}`, `'courtlistener' {token}`, `'edgar' {contact}`, `'ai' {endpoint, model, apiKey}`, `'courtbook-seed' {done}` | 29, 30, 31, 11, `server.js POST /admin/ai` | `kernel/api.js` (`k.canlii.apiKey()`, `k.uscourts.token()`, `k.edgar.contact()`, `k.ai.config()`), 11-courtbook |
 | `calfeed` | `userId` (the record's own `id` **is** the feed token) | 21-calendar (`/feed-new` deletes the user's old ones then puts) | 21-calendar (`GET /r/calendar/feed/:token`, `feedCard`) |
@@ -779,6 +845,32 @@ k.canlii  = {...canlii,  apiKey()}      k.uscourts = {...uscourts, token()}
 k.edgar   = {...edgar,   contact()}
 k.ai = { config(), enabled(), policy(matterId),
          async chat(matterId, messages, opts) -> {ok, text, model} | {ok:false, message} }
+
+// kernel/cite-resolve.js, surfaced through the facade (a room may never require it).
+k.citeResolve = {
+  detect(cite)     -> {jurisdiction:'CA'|'US'|null, raw, ca:[]}   // pure, offline, no I/O
+  US_CITE_RX                                                       // no /g flag; .test() is stateless
+  async resolve(cite) -> {resolved:bool, source:string|null, title, url, note}
+}
+   // ONE-ARGUMENT, kernel-already-bound form (the underlying module takes (kernel, cite)).
+   // NEVER THROWS: unrecognised cite, missing API key, unconfigured connector and no-match
+   // all return resolved:false with a real link-out `url` where one exists.
+   // Each call that actually reaches CanLII/CourtListener is audited 'cite.resolve.egress'
+   // BEFORE the request leaves (fails closed); the cite STRING is never logged.
+
+// kernel/trust.js, surfaced the same way. Pure, read-only, over k.ledger.balances.
+k.trust = {
+  perMatterTrustBalance(matterId)        -> number   (0 for a falsy matterId)
+  wouldNotOverdraw(matterId, amount)     -> bool     (false for <=0 / garbage)
+  wouldNoverdraw(...)                    -> alias of the above (documented spelling)
+  replenishmentNeeded(matterId, floor)   -> bool     (false when floor <=0 / garbage)
+  threeWayCheck(statementBalance)        -> {ledger, liabilities, statement, ok}
+}
+   // Each is bound to this facade, so the ledger is already wall-filtered. You MAY pass your
+   // own kernel-like {ledger:{balances()}} as an extra FIRST argument to compute the same
+   // arithmetic over a NARROWER view (28-books does this to restrict the legs to matters the
+   // caller may see); anything without .ledger.balances is treated as the first real
+   // argument. That can only narrow visibility, never widen it.
 ```
 
 **`kernel/rules.js` data model.** A rule is
@@ -822,29 +914,45 @@ sets `'clear'|'waiver'|'declined'`.
 `outcome` or both gates will silently stay shut.** If you add a new gate, copy one of these
 two helpers rather than inventing a third matching rule.
 
-**2. Citation gate chain: 18 → 08 → 22.**
-`18-briefs /new` (`citeStatus:'none'`, `status:'draft'`) → author sections → `/status
-cite-check` → **08-citations auto-extracts on GET** (`status==='cite-check' && !scannedAt &&
-no instances`) → `runScan` mints `citation_instance{status:'unverified'}` per detected cite →
+**2. Citation gate chain: 18 / 08 / 10 / 07 → 08 → 22.**
+**Three entry points, one gate.** A draft reaches 08-citations from
+`18-briefs /new` (`citeStatus:'none'`, `status:'draft'`, sections authored, then `/status
+cite-check`), from `08-citations /draft` (pasted `text`, `status:'draft'`,
+`citeStatus:'unchecked'`), or from `10-pleadings /tocite` (`text` = the pleading's `body`,
+`status:'draft'`, `citeStatus:'unchecked'`, `pleadingId`). All three carry `status`, so all
+three can end up filed.
+Then: **08-citations auto-extracts on GET** (`status==='cite-check' && !scannedAt`) →
+`runScan` mints `citation_instance{draftId, status:'unverified'}` per detected cite →
+optionally `POST /resolve` records an advisory `lookup` (a machine finding, never a check) →
 human `POST /verify` with pinpoint + all three boxes → `regate()` writes
-`draft.citeStatus='clear'` and stamps `gateStamp{id:draftId, at:draft.updatedAt}` →
-`18-briefs /status final` (allowed only when `citeStatus==='clear'`) → `22-filing /prepare`
-(requires `citeStatus==='clear' && status==='final'` + preflight) → `/sign` (exact-name,
-lawyer/admin) → `/confirm`.
-Two counter-currents keep it honest: **editing a section resets `citeStatus` to `'none'` and
-demotes `final`→`draft`**; and **`gateStamp` staleness** blocks the certificate when
-`draft.updatedAt > stamp.at`. Any new write to a `draft` or a `citation_instance` must be
-followed by `regate(s, draftId)`.
+`draft.citeStatus='clear'` (+ `noCitationsFound`) and stamps `gateStamp{id:draftId,
+at:draft.updatedAt}` → `18-briefs /status final` (allowed only when `citeStatus==='clear'`)
+→ `22-filing /prepare` (requires `citeStatus==='clear' && status==='final'` + preflight) →
+`/sign` (exact-name, lawyer/admin) → `/confirm`.
+`07-research /send` injects into the same chain: it **requires** a draft, mints the instance
+against it, and can only ever push the draft toward `'blocked'`.
+Counter-currents keep it honest: **editing a section resets `citeStatus` to `'none'` and
+demotes `final`→`draft`**; **re-sending a pleading** resets `citeStatus:'unchecked'`,
+`scannedAt:null` and demotes `final`→`draft`; **`gateStamp` staleness** blocks the
+certificate when `draft.updatedAt > stamp.at`; and **08's GET re-gates defensively in the
+blocking direction only**, so an instance minted elsewhere against an already-clear draft
+cannot be filed around. Any new write to a `draft` or a `citation_instance` must be followed
+by `regate(s, draftId)` — and a room that cannot reach `regate()` must move the gate in the
+blocking direction itself, never the reverse.
 
 **3. Deadline pipeline.**
 Producers: 01 (limitation), 12 (discovery responses), 15 (expert report + disclosure), 21
 (`/compute`, trial cascade), 23 (ADR brief). Consumers: 21 (matter view), 27 (cross-matter
 diary + dual diary + appeal alarms), 36 (client pack), 09 (staleness), the ICS feed, 26.
 `k.rules.compute(rule, triggerISO)` is the only sanctioned date arithmetic; rooms store the
-resulting ISO string plus the rule's **cite** in `rule`, and (21 only) the rule **id** in
-`ruleId`. **If you want a deadline to be recognised as a limitation bar by 27-desk, or as an
-appeal deadline by the watchdog, you must set `ruleId`.** If you add a trial-anchored
-deadline, know that `21-calendar /trial` deletes every `anchor==='trial'` record first.
+resulting ISO string, the rule's **cite** in `rule`, and the rule's **id** in `ruleId` — an
+explicit `null` where counsel typed the date and no rule computed it. **Set `ruleId` whenever
+a rule produced the date**: 27-desk and 25-judgment now also match on `rule + desc` and on the
+rules.js record behind the id, so a missing `ruleId` is survivable rather than fatal, but it
+is the only signal that is unambiguous. **Never write a placeholder id that resolves to no
+rule.** If you add a trial-anchored deadline set `anchor:'trial'` and **not**
+`source:'trial-cascade'` — `21-calendar /trial` deletes every record carrying that stamp and
+nothing else.
 
 **4. Ledger / trust rules (`kernel/api.js` `ledger.post`).**
 Hard-enforced: ≥2 lines, every line needs an `account`, `dr` total must equal `cr` total in
@@ -890,32 +998,54 @@ Several also guard with `if (k.isShredded(m.id)) continue;` first.
 
 ## (f) CONFLICTS & GOTCHAS
 
-**Shape conflicts (three type names, multiple incompatible shapes):**
-1. `draft` — 18-briefs (`sections`+`status`+`type`) vs 08-citations (`text`, no `status`).
-   An 08-registered draft can never be filed.
-2. `citation_instance` — 08 (`draftId`) vs 07 (`source:'research'`, **no `draftId`**).
-   07's instances are orphaned: never gated, never verifiable, permanently "awaiting check".
-3. `authority` — 07 (memo/proposition/weight/adverse) vs 29 (`source:'canlii-api'`) vs 30
-   (`source:'courtlistener'`). 07's list is unfiltered and mis-renders the connector rows
-   (blank proposition, a `'persuasive'` tag never assigned) and offers a send-to-gate button
-   that mints an instance with `memoId: undefined`.
-4. `document` — paste shape vs `.eml` shape (author/recipients/date). Use the shared
-   `authorOf/recipientsOf/createdOf` fallback chain.
-5. `deadline` — `rule` (citation string, all writers) vs `ruleId` (rules.js id, 21-calendar
-   only). 27-desk's LIMITATION flag and dual-diary tick key off `ruleId`, so **01-intake's
-   limitation deadline is invisible to the dual-diary control** — the single most
-   consequential field mismatch in the app. 09-jurisdiction has a three-way fallback
-   (`staleLimitation` → `ruleId` category → regex over `rule + desc`) that 27-desk lacks.
+This section is the one place in the sheet that must never accumulate. A conflict listed here
+is a live defect a reader can walk into today; a conflict that has been fixed is deleted, not
+softened, so the list stays worth reading. **What follows is what still stands as at the
+verification commit above.**
 
-**Rule conflicts:**
-6. Pre-bill lint — 28-books' creation-time regex vs 34-billing's stricter `narrativeLint`.
-   The gate is 34's. An entry can be `lint:null` and still block invoice issue.
-7. Numeric coercion — 28-books stores unvalidated `Number(ctx.body.hours)` (can be `NaN`)
-   and sums it raw; 34/05/36 all coerce with `||0`. New readers use `||0`.
+**Shape conflicts that STILL STAND:**
+1. `document` — paste shape vs `.eml` shape (author / recipients / date). 13-review,
+   33-production and 35-affidavit each define `privOf / respOf / authorOf / recipientsOf /
+   createdOf` **identically and locally** (three copies), and 33/35 each define
+   `isProducible / isWithheld` again. **Copy the chain verbatim** or `.eml` documents render
+   blank; change one copy and the produced set and the privilege log drift apart.
+   `dateCreated` is read by all three `createdOf`s and **written by nobody**.
+
+**Rule conflicts that STILL STAND:**
+2. Limitation classification is written **twice, and not identically**. 27-desk's `classify()`
+   is case-**insensitive** and consults the rules.js record behind `ruleId`;
+   09-jurisdiction's `isLimitationDeadline()` checks `staleLimitation` first, then the same
+   rules.js record, then a case-**sensitive** `/limitation|prescription/` over `rule + desc`.
+   A hand-written row with no resolvable `ruleId` and only `'Limitation period expires'` on it
+   is a limitation bar in 27 and not in 09. Do not widen the gap; prefer 27's form.
+
+**CLOSED since this sheet was first written — do not re-report these:**
+- `draft` had no `status` from 08-citations, so a registered draft could never be filed —
+  **closed**: 08 and 10 both stamp `status:'draft'` (see §b `draft`).
+- `citation_instance` from 07-research carried no `draftId` and was permanently unverifiable
+  — **closed**: `POST /send` refuses without a draft (see §b `citation_instance`).
+- `authority` rendered connector rows as weighed research with an invented `'persuasive'`
+  weight — **closed**: every writer stamps `source`, every reader filters, and `/send`
+  refuses a connector row (see §b `authority`).
+- `deadline` — 27-desk's LIMITATION flag and dual-diary tick keyed off `ruleId`, which only
+  21-calendar wrote, so 01-intake's limitation bar was invisible to the control built to
+  catch it — **closed** from both ends: every writer stamps `ruleId`, and 27-desk/25-judgment
+  classify on `ruleId` **or** `rule + desc` **or** the rules.js record (see §b `deadline`).
+- 21-calendar's trial recompute deleted every `anchor:'trial'` deadline, destroying other
+  rooms' rows — **closed**: it sweeps strictly by `source === 'trial-cascade'`.
+- Pre-bill lint diverged between 28-books and 34-billing, and 28-books stored unvalidated
+  `NaN` hours — **closed**: identical `VAGUE`/`narrativeLint` in both, and `hours`/`rate` are
+  validated at entry and `||0`-coerced at every reader (see §b `timeEntry`).
+- `closingChecklist` was a dead read and `engagementSigned` was write-only — **closed**: both
+  are now written and read, and `closingChecklist` gates `POST /close`.
+- CONTRACT.md drift (`k.rules` under-documented, "the 28 rooms") — **closed**: `app/CONTRACT.md`
+  now states 36 rooms, the full `kernel/rules.js` export list, and `k.citeResolve` / `k.trust`.
 
 **Look-alike types that are deliberately NOT the same — do not unify:**
-`witness` (14) vs `trialWitness` (20) · `draft` (18/08) vs `pleading` (10) ·
-`deadline` (rule-computed) vs `bf` (hand-set tickler).
+`witness` (14) vs `trialWitness` (20) · `deadline` (rule-computed) vs `bf` (hand-set tickler) ·
+`draft` (18/08/10) vs `pleading` (10) — these two are now **linked** (a pleading registers a
+companion draft carrying `pleadingId`) but are still separate records with separate lifecycles:
+the pleading is the drafting surface, the draft is the gated artifact. Do not merge them.
 
 **Singleton conventions differ by room** — three patterns coexist:
 fixed id (`gateStamp` = draftId, `trialChecklist` = `'checklist'`, `closingChecklist` =
@@ -925,41 +1055,41 @@ newest-wins (`affidavitMeta` by `createdAt`, `clientUpdate` by `sentOn`, engagem
 `version`). Match the room you are in; do not convert one to another.
 
 **Dead / write-only / unreachable code (do not assume these work):**
-- `closingChecklist` — **no writer anywhere.** 26-closing reads it into an unused variable.
-- `engagementSigned` — **no reader anywhere.** 03-retainer writes it "so Trust & Books sees
-  the commitment", but 28-books never reads it. If you build that view, this is the record.
-- 36-portal's open-`decisionMemo` branch is unreachable because 05-client requires a decision.
-- `enfStep.status` never leaves `'active'`.
-- The ICS feed `GET /r/calendar/feed/:token` is **token-authenticated but currently
-  unreachable without a session cookie**: `makeCtx` in server.js admits only its fixed
-  PUBLIC set, so a phone's cookie-less fetch is redirected to sign-in first. The room
-  documents this as a deliberate, labelled integration note; exposing it requires a
-  server.js change outside any room file.
+- `enfStep.status` never leaves `'active'` — there is still no completion transition. The
+  only guard is a duplicate check on `(judgmentId, step, status:'active')`.
+- `document.dateCreated` is read by `createdOf()` in 13 / 33 / 35 and **written by nobody**.
+- 07-research's "awaiting citation check" count is `citation_instance` filtered
+  `source==='research' && status==='unverified'`. Those instances now carry a `draftId` and
+  are verifiable in 08 — the count is a real queue, not the orphan list it once was.
+- **No longer dead** (do not re-report): `closingChecklist` is written and gates `/close`;
+  `engagementSigned` is read by 28-books; 36-portal's open-`decisionMemo` branch has been
+  removed rather than left unreachable.
 
-**ORPHANED KERNEL MODULES — real, tested, and wired to nothing:**
-- **`kernel/cite-resolve.js`** (130 lines). Exports `{resolve, detect, US_CITE_RX}`.
-  `detect(cite)` is a pure offline classifier (`{jurisdiction:'CA'|'US'|null, raw, ca}`) using
-  `canlii.parseCitations` for Canadian forms and a reporter-token regex for US ones;
-  `resolve(kernel, cite)` drives the CanLII / CourtListener connectors and **never throws** —
-  a missing key, unconfigured endpoint or no match all return
-  `{resolved:false, source, title, url, note}` with a real link-out URL where one exists.
-  It has a `require.main` self-test (`node kernel/cite-resolve.js`).
-  **Nothing requires it.** 08-citations' verify flow is entirely manual and deep-links to
-  CanLII search by hand. This is the natural backing for the "resolves to a real case" check.
-- **`kernel/trust.js`** (142 lines). Exports `{perMatterTrustBalance, wouldNotOverdraw,
-  wouldNoverdraw (alias), replenishmentNeeded, threeWayCheck}` — pure, read-only helpers over
-  `k.ledger.balances`, implementing LSO By-Law 9 s.7 (no client's money funds another's) and
-  s.18 (three-way monthly comparison). Self-test: `node kernel/trust.js`.
-  **Nothing requires it.** 28-books re-implements both the overdraw check (`/transfer`) and
-  the three-way comparison (`/reconcile`) inline. If you touch either, prefer wiring
-  `kernel/trust.js` in over adding a third implementation — but note rooms may not require it
-  directly (see §g); it would have to be surfaced through `ctx.kernel` in `kernel/api.js`.
-
-**CONTRACT.md drift** — `app/CONTRACT.md` says `k.rules` is
-`{JURISDICTIONS, RULES, rulesFor, rule, compute}`. The module actually also exports
-`HOLIDAYS, isBusinessDay, isLimitation, landsOnNonBusinessDay, computeLimitation`, and rooms
-(09-jurisdiction) already use `k.rules.isLimitation`. CONTRACT.md also says "the 28 rooms";
-`kernel/registry.js` lists **36**.
+**THE TWO KERNEL MODULES ARE NOW WIRED — through the facade, never by `require`.**
+`kernel/api.js` binds both at the bottom of `makeKernel()` and exposes them as `k.citeResolve`
+and `k.trust` (signatures in §d). A room still may not require either file (§g.1); the facade
+is the only door, and a room must **check for presence and degrade** rather than assume it:
+- **`kernel/cite-resolve.js`** → `k.citeResolve`. Consumed by **08-citations** `POST /resolve`,
+  which discovers it defensively (`citeResolver(k)` accepts `k.citeResolve` or `k.cite`, an
+  object with `.resolve` or a bare function, and uses arity to tell the bound one-arg form from
+  the raw `(kernel, cite)` one). When absent the room offers no resolve button and the manual
+  flow is unchanged. What it returns is stored as the advisory `citation_instance.lookup` — a
+  **finding, never a check**. Self-test: `node kernel/cite-resolve.js`.
+- **`kernel/trust.js`** → `k.trust`. Consumed by **28-books**, which calls it through the same
+  presence-checked indirection (`fn(trustFacade(k), 'threeWayCheck')` etc.) and **falls back to
+  its own inline arithmetic** when the facade does not expose it — so both implementations are
+  still in the tree and must stay in agreement. 28-books deliberately hands in its **own**
+  narrowed `{ledger:{balances}}` view (`trustView`), because the facade may standardise the
+  arithmetic but not the visibility rule. Self-test: `node kernel/trust.js`.
+- The ICS feed `GET /r/calendar/feed/:token` **is now reachable without a session cookie.**
+  `server.js` admits exactly `GET /r/calendar/feed/<one segment>` (`FEED_ROUTE`) with an
+  opaque-shaped token (`FEED_TOKEN`) and builds a kernel **for the feed's owner**, so every
+  wall, shred and matter filter binding that user binds the request. Every rejection — bad
+  shape, unknown token, deleted or deactivated owner — answers the **same constant 404**, so
+  the route cannot be walked to enumerate tokens or accounts; no flash is carried, and no
+  audit line is written per fetch (an unauthenticated caller must not be able to grow the
+  hash-chained log). **DOC DRIFT:** 21-calendar's own "Integration note" card still says the
+  feed is unreachable without a cookie. The room text is stale; server.js is the truth.
 
 ---
 
@@ -971,8 +1101,10 @@ newest-wins (`affidavitMeta` by `createdAt`, `clientUpdate` by `sentOn`, engagem
    const { html, redirect, send } = require('../kernel/http.js');
    ```
    No `fs`, `net`, `http`, `crypto`, `child_process`, no npm, no `fetch`, no other kernel
-   module — **including `cite-resolve.js` and `trust.js`**. All state and all outbound work
-   goes through `ctx.kernel`. Verified: no room in the tree requires anything else.
+   module — **including `cite-resolve.js` and `trust.js`**, which are reachable only as
+   `ctx.kernel.citeResolve` / `ctx.kernel.trust` (§d). Check for their presence and degrade
+   gracefully when absent, the way 08-citations and 28-books do. All state and all outbound
+   work goes through `ctx.kernel`. Verified: no room in the tree requires anything else.
 2. **`esc()` every user string, every time.** `tag/empty/input/textarea/select` escape
    internally; `table` and `kv` take **raw HTML cells**, so escape before you hand them over.
    Never interpolate a stored value into an `href`/`src` without the `/^https?:\/\//i`

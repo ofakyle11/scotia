@@ -1,8 +1,8 @@
 const fs=require('fs'),os=require('os');
 process.env.CHAMBERS_DATA=fs.mkdtempSync(os.tmpdir()+'/seam-');
 process.env.PORT=String(26000+Math.floor(Math.random()*3000));
-const {app,makeCtx,store,auth}=require('/home/user/scotia/app/server.js');
-const {hashPassword}=require('/home/user/scotia/app/kernel/crypto.js');
+const {app,makeCtx,store,auth}=require('../server.js');
+const {hashPassword}=require('../kernel/crypto.js');
 const admin=store.firm.put('user',{email:'s@f',name:'S',role:'admin',active:true,pw:hashPassword('a-long-password-here')},'t');
 const m=store.createMatter({title:'Seam v. Seam',client:'C',jurisdiction:'on',status:'open'},admin.id);
 const sc=store.matterScope(m.id);

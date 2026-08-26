@@ -51,6 +51,20 @@ jobs:
           fi
           echo "OK: no package.json, no lockfile, no node_modules under app/"
 
+      # A require() of an absolute developer path passes locally (it silently
+      # resolves to the ORIGINAL working tree, so the test exercises the wrong
+      # source) and then dies with MODULE_NOT_FOUND on any other checkout.
+      # test/seam.test.js and test/pleadcite.test.js both shipped this way.
+      - name: No absolute developer paths in the source
+        run: |
+          if grep -rn "require('/\|require(\"/" app --include='*.js'; then
+            echo "FAIL: absolute require() path above — use a path relative to the file."; exit 1
+          fi
+          if grep -rn '/home/user/' app --include='*.js'; then
+            echo "FAIL: hard-coded developer home path above."; exit 1
+          fi
+          echo "OK: no absolute developer paths under app/"
+
       - name: Syntax check every .js under app/
         run: |
           n=0

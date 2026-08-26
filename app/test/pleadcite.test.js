@@ -2,8 +2,8 @@
 const fs=require('fs'),os=require('os'),assert=require('assert');
 process.env.CHAMBERS_DATA=fs.mkdtempSync(os.tmpdir()+'/plead-');
 process.env.PORT=String(29000+Math.floor(Math.random()*2000));
-const {app,makeCtx,store,auth}=require('/home/user/scotia/app/server.js');
-const {hashPassword}=require('/home/user/scotia/app/kernel/crypto.js');
+const {app,makeCtx,store,auth}=require('../server.js');
+const {hashPassword}=require('../kernel/crypto.js');
 const admin=store.firm.put('user',{email:'p@f',name:'P',role:'admin',active:true,pw:hashPassword('a-long-password-here')},'t');
 const m=store.createMatter({title:'Plead v. Cite',client:'C',jurisdiction:'on',status:'open'},admin.id);
 const session=auth.createSession(admin.id);
