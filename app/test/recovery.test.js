@@ -98,6 +98,40 @@ const freshUser = (id) => store.firm.get('user', id);
     fails.push('an admin deactivated themselves — the firm can now be locked out with nobody left');
   }
 
+  // --- 4. a deployment nobody enrolled in must still be enterable ---------
+  // The first-boot block mints seat invites only when there are zero users AND
+  // zero unused invites — but it never checked EXPIRY, while the door refuses an
+  // expired code. So if both seven-day links lapsed before anyone enrolled, the
+  // unused-but-expired records blocked the mint forever and the deployment could
+  // not be entered by anyone, ever.
+  {
+    const { spawnSync } = require('child_process');
+    const path = require('path');
+    const dir = fs.mkdtempSync(os.tmpdir() + '/firstboot-');
+    const APP = path.join(__dirname, '..');
+    const boot = (p) => spawnSync(process.execPath, ['-e',
+      `process.env.CHAMBERS_DATA=${JSON.stringify(dir)};process.env.PORT=${JSON.stringify(String(p))};` +
+      `require(${JSON.stringify(path.join(APP, 'server.js'))});setTimeout(()=>process.exit(0),300);`],
+      { cwd: APP, encoding: 'utf8', timeout: 20000 });
+
+    const first = boot(39501);
+    if (!/FIRST BOOT/.test(first.stdout || '')) fails.push('first boot did not mint seat invites at all');
+
+    // Age every invite past its expiry, as a fortnight of nobody enrolling would.
+    const { Keyring } = require('../kernel/crypto.js');
+    const { Store } = require('../kernel/store.js');
+    const st = new Store(dir, new Keyring(dir));
+    for (const inv of st.firm.list('invite')) st.firm.put('invite', { ...inv, exp: Date.now() - 1000 }, 'test');
+    if (!st.firm.list('invite', (i) => !i.used && Date.now() >= i.exp).length) fails.push('could not age the invites for the test');
+
+    const second = boot(39502);
+    if (!/FIRST BOOT/.test(second.stdout || '')) {
+      fails.push('LOCKOUT: both seat invites expired unredeemed and no fresh ones were minted — the deployment cannot be entered by anyone');
+    }
+    const live = new Store(dir, new Keyring(dir)).firm.list('invite', (i) => !i.used && Date.now() < i.exp);
+    if (!live.length) fails.push('no live invite exists after the re-mint');
+  }
+
   server.close();
   if (fails.length) { console.error('RECOVERY FAIL:\n  ' + fails.join('\n  ')); process.exit(1); }
   console.log('RECOVERY: ALL PASS (password change, wall removal, seat re-issue — each guarded)');

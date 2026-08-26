@@ -25,7 +25,15 @@ const app = new App();
 
 // First boot: mint one invite per locked seat. Each person supplies their
 // own email, password, and 2FA — nothing is pre-shared.
-if (store.firm.list('user').length === 0 && store.firm.list('invite', (i) => !i.used).length === 0) {
+//
+// The invite test must count only LIVE invites (unused AND unexpired). Counting
+// merely-unused ones meant that if both seven-day seat links lapsed before
+// anyone enrolled, the expired records blocked this mint forever while the door
+// refused them as expired — a deployment nobody could ever enter, with no way
+// back except deleting the data directory. Re-minting is safe precisely because
+// this branch only runs when the firm has no users at all.
+if (store.firm.list('user').length === 0
+    && store.firm.list('invite', (i) => !i.used && Date.now() < i.exp).length === 0) {
   const seats = auth.createSeatInvites();
   console.log('\n  FIRST BOOT — seat invites (single use each, 7 days):');
   for (const s2 of seats) console.log(`  ${s2.name} (${s2.role}):  http://localhost:${PORT}/invite/${s2.code}`);

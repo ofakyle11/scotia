@@ -76,7 +76,7 @@
     </div>
     <div class="meta">
       Every room, every control, every gate — checked against the source.<br>
-      9 chapters · 43 surfaces documented · 2026-08-26<br><br>
+      9 chapters · 50 surfaces documented · 2026-08-26<br><br>
       This manual describes what the software enforces and, just as importantly,
       what it does not. Where a control is a safety gate, both are stated.
     </div>
@@ -85,210 +85,378 @@
   <div class="toc">
     <h2>Contents</h2>
     <ol>
-  <li><span class="tocnum">1</span><span class="toctitle"></span>
-    <ul><li>First boot — the two seat invites (server console)</li><li>Enrolment — the invite link</li><li>The front door — sign in</li><li>The authenticator step (TOTP)</li><li>Account security</li><li>Firm administration</li><li>Signing out</li></ul>
+  <li><span class="tocnum">1</span><span class="toctitle">Getting in, and running the firm</span>
+    <ul><li>First boot and the two seat invites</li><li>Enrolling on a seat</li><li>Signing in</li><li>The authenticator step</li><li>Account security — the Password card</li><li>Account security — the Two-factor card</li><li>Firm administration — People and seat release</li><li>Firm administration — Invites</li><li>Firm administration — Ethical walls</li><li>Firm administration — the Model gateway</li><li>Firm administration — the Audit chain panel</li><li>Signing out</li><li>The two-seat lock</li><li>Recovery: lost authenticator, forgotten password, departure</li></ul>
   </li>
-  <li><span class="tocnum">2</span><span class="toctitle"></span>
+  <li><span class="tocnum">2</span><span class="toctitle">Opening a file</span>
     <ul><li>Intake Desk</li><li>Ethics &amp; Conflicts</li><li>Retainer</li><li>Case Value</li></ul>
   </li>
-  <li><span class="tocnum">3</span><span class="toctitle"></span>
+  <li><span class="tocnum">3</span><span class="toctitle">Facts, research and authority</span>
     <ul><li>Client Desk (Room 05)</li><li>Chronology (Room 06)</li><li>Research Desk (Room 07)</li><li>Citation Check (Room 08)</li></ul>
   </li>
-  <li><span class="tocnum">4</span><span class="toctitle"></span>
+  <li><span class="tocnum">4</span><span class="toctitle">Pleadings and discovery</span>
     <ul><li>Jurisdiction Desk</li><li>Pleadings</li><li>Court Book</li><li>Discovery Desk</li></ul>
   </li>
-  <li><span class="tocnum">5</span><span class="toctitle"></span>
+  <li><span class="tocnum">5</span><span class="toctitle">Evidence</span>
     <ul><li>Document Review</li><li>Depositions</li><li>Experts</li><li>Evidence Room</li><li>Tools ×20</li></ul>
   </li>
-  <li><span class="tocnum">6</span><span class="toctitle"></span>
+  <li><span class="tocnum">6</span><span class="toctitle">Advocacy, deadlines and filing</span>
     <ul><li>Brief Writer (room 18)</li><li>Moot Room (room 19)</li><li>Trial Book (room 20)</li><li>Trial Calendar (room 21)</li><li>Filing Room (room 22)</li><li>Mediation &amp; ADR (room 23)</li></ul>
   </li>
-  <li><span class="tocnum">7</span><span class="toctitle"></span>
+  <li><span class="tocnum">7</span><span class="toctitle">Money: trust, billing and closing</span>
     <ul><li>Settlement Waterfall</li><li>Judgment &amp; Enforcement</li><li>Closing Room</li><li>Trust &amp; Books</li><li>Billing</li></ul>
   </li>
-  <li><span class="tocnum">8</span><span class="toctitle"></span>
+  <li><span class="tocnum">8</span><span class="toctitle">Research connectors and the daily desk</span>
     <ul><li>CanLII</li><li>PACER / RECAP</li><li>EDGAR</li><li>Sources</li><li>Workflow (the daily desk)</li></ul>
   </li>
-  <li><span class="tocnum">9</span><span class="toctitle"></span>
+  <li><span class="tocnum">9</span><span class="toctitle">Production, affidavits and the client portal</span>
     <ul><li>Production</li><li>Affidavit of Documents</li><li>Client Portal</li></ul>
   </li></ol>
   </div>
 
   
   <div class="chapter">
-    <h2><span class="chnum">1</span></h2>
+    <h2><span class="chnum">1</span>Getting in, and running the firm</h2>
     
     <section class="unit">
-      <h3>First boot — the two seat invites (server console) <span class="route">(no web page; printed to the server console / systemd journal)</span></h3>
-      <div class="purpose"><p>This is how Chambers comes into existence with exactly two people in it. The very first time the server starts against an empty data directory, it mints one single-use enrolment invite per locked seat — one for Dan G, one for Matt D — and prints the links to the console. Nothing is pre-shared: no password, no email, no 2FA secret exists anywhere until each of you sets your own at enrolment. These two links are the only way anybody ever gets into the system, so treat each one as a live credential.</p></div>
+      <h3>First boot and the two seat invites <span class="route">node server.js (first run) · createSeatInvites() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>Chambers ships with no accounts and no signup page. The very first time the server starts against an empty data directory it mints exactly one single-use enrolment link per named seat and prints them to the console. Those two links are the only way anyone ever gets into the system for the first time.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>Start the service (in the shipped deployment that is `sudo bash deploy/install.sh`, which runs the app as the `chambers` systemd unit with its data in /var/lib/chambers). On an empty store the console prints a block headed `FIRST BOOT — seat invites (single use each, 7 days):` followed by one line per seat, in the form `Dan G (admin):  http://localhost:8028/invite/&lt;code&gt;`. The printed host is always localhost because that is what the app binds to; substitute your real address, e.g. https://chambers.yourfirm.ca/invite/&lt;code&gt;. Send each person their own link over a channel you actually trust — not email, not chat, not a ticket. If the terminal has already scrolled away, the runbook's recovery is `sudo journalctl -u chambers | grep /invite/`. Each seat link is single-use and expires seven days after first boot. Once both are redeemed the firm is closed: no further account can be created.</p></div>
+      <div class="howto"><p>Start the application with `node server.js` from /home/user/scotia/app. It listens on port 8028 unless PORT says otherwise, and binds to 127.0.0.1 only unless CHAMBERS_HOST is set, so nothing on the network can reach it without the TLS proxy in front. Its encrypted files live in /home/user/scotia/app/data unless CHAMBERS_DATA points elsewhere. On the first run the console prints a block headed 'FIRST BOOT — seat invites (single use each, 7 days):' followed by one line per seat, for example 'Dan G (admin):  http://localhost:8028/invite/&lt;code&gt;'. Send Dan his line and Matt his line, by whatever channel you would use for a password — anyone holding a link can enrol on that seat. The seats themselves are fixed in code as 'Dan G:admin,Matt D:admin' and can only be changed by setting CHAMBERS_SEATS before the first boot.</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>Exactly two seats are minted, named 'Dan G' and 'Matt D', both with the admin role (kernel/auth.js SEATS, overridable only by setting CHAMBERS_SEATS before first boot). Each invite carries a 24-byte random code and is marked used the moment it is redeemed, so replaying the same link returns a bare 404. The seat cap is the number of named seats, and both auth.createInvite() and auth.redeemInvite() refuse outright once the count of active users reaches it — the seat lock is enforced in the kernel, not in the page, so there is no form to bypass. Minting is logged to the audit chain as 'invite.seat.created'.</p></div>
+        <div class="callout-body"><p>Each seat link is single-use and expires seven days after it is minted. Nothing about either lawyer is pre-shared: the seat invite carries only a name and a role, and the person supplies their own email, their own password and their own authenticator secret at enrolment. There is no default account, no default password, and no public route by which a stranger can create one — every route except the front door, the login posts, /healthz, /robots.txt and the /invite/ links requires a session cookie.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>It does not deliver the links to anyone. It does not re-mint them: the first-boot block only fires when the store holds zero users AND zero unused invites, and an EXPIRED invite still counts as unused — so if both seat links lapse after seven days with nobody enrolled, restarting the service will never print new ones. It does not protect the links from the system log: at first boot they are written to the journal in plaintext, and the runbook itself tells you to go read them there. It does not tell you which seat is which beyond the printed name; nothing binds Dan's link to Dan except your own care in sending it.</p></div>
+        <div class="callout-body"><p>It does not re-print the links on later restarts while they are still live, and it does not email anything: the console is the only place the links appear. If you lose that console output while the links are still valid, redeem or re-issue them from the server with tools/invite.js rather than waiting.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>Redemption of a seat invite creates the `user` record that everything else keys off: the People table on /admin, the actor id on every audit-chain entry, the 'Screen' dropdown on the ethical-wall form, and the second-lawyer tick on limitation dates in the Workflow room.</p></div>
+        <div class="callout-body"><p>Enrolling on a seat</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>If both seat links are lost or lapse before anyone enrols, the web UI cannot help you — /admin needs a session and nobody has one. The way back in is the server console: `node tools/invite.js dan@firm.ca admin "Dan G"` (run as the chambers user with CHAMBERS_DATA pointing at /var/lib/chambers). That mints a fresh single-use invite, but note it is an ordinary invite, not a seat invite: it expires in 24 HOURS, not seven days, and the email is fixed at mint time rather than chosen at enrolment. The tool refuses if an active account already exists for that email, and refuses once the seat cap is reached.</p></div>
+        <div class="callout-body"><p>Redeem both links well inside the seven days. If they do lapse before anyone enrols, restarting Chambers mints a fresh pair and prints them again — the boot check counts only live invites, so a lapsed deployment is recoverable by a restart, and re-minting is safe because it happens only while the firm has no accounts at all. The printed URL says localhost:8028; if the firm reaches Chambers through its TLS proxy, substitute the real hostname and keep the /invite/&lt;code&gt; path exactly as printed.</p></div>
       </div>
     </section>
 
     <section class="unit">
-      <h3>Enrolment — the invite link <span class="route">/invite/:code</span></h3>
-      <div class="purpose"><p>The one-page screen where a person turns an invite link into an account. This is where you choose your own sign-in email and your own password; nobody at the firm and nobody who installed the software ever knows either. It is a single screen with no navigation, no branding beyond a rule, and no way to reach anything else — an unredeemed or expired code renders nothing at all.</p></div>
+      <h3>Enrolling on a seat <span class="route">GET /invite/:code · POST /invite/:code · enrollPage() in kernel/html.js · redeemInvite() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>This is where a lawyer turns an invite link into an account: chooses the email address that will be their sign-in, and sets their password twice so a typo cannot become permanent.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>Open your link. The page reads 'Provisioned access for Dan G (admin).' — for a seat invite that is the name from the seat; for an invite minted at /admin it is the email it was addressed to. If this is a seat invite you get a field 'Your email (becomes your sign-in)': type the address you will sign in with from now on. Everyone gets 'Choose a password (12+ characters)' — the browser enforces the minimum, and so does the server. Press 'Enroll &amp; enter'. You are signed in immediately and dropped on /account with a banner reading 'Enrolled. Next: enable two-factor authentication below — it takes thirty seconds.' Do that now, before you close the tab. If something is wrong the page redraws with a red banner naming the problem: 'Password must be at least 12 characters.', 'Enter a valid email — it becomes your sign-in.', 'That email is already enrolled.', or 'Seat lock: every seat in this build is already enrolled.'</p></div>
+      <div class="howto"><p>Open the invite link. The page is a single bare panel that reads 'Provisioned access for Dan G (admin).' and shows three boxes: 'Your email (becomes your sign-in)', 'Choose a password (12+ characters)', and 'Type it again'. Fill all three and press 'Enroll &amp; enter'. If the two passwords differ, the page comes straight back with a red banner reading 'The two passwords do not match.' and nothing has been written. Other refusals appear the same way: 'Password must be at least 12 characters.', 'Enter a valid email — it becomes your sign-in.', and 'That email is already enrolled.' On success you are signed in immediately and land on the Account security page with the banner 'Enrolled. Next: enable two-factor authentication below — it takes thirty seconds.' Do exactly that before you do anything else.</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>The code is checked as unused and unexpired on both the GET and the POST, so the link dies the instant it is redeemed — reloading it afterwards returns a plain 404 with no hint that it ever existed. Passwords are stored only as an scrypt hash (N=16384, r=8, p=1, 16-byte random salt) in the encrypted firm log; the plaintext is never written anywhere. The seat cap is re-checked at redemption, so even a valid, unexpired link cannot create an account once both seats are filled. A seat invite refuses an email that is already enrolled and refuses anything that is not shaped like an email address. Enrolment is written to the audit chain as 'user.enrolled'.</p></div>
+        <div class="callout-body"><p>The server compares the two password boxes before the password is hashed or stored, so a mistyped password can never become your live credential. Passwords are stored only as scrypt hashes (N=16384, r=8, p=1) with a random salt — the plaintext is never written anywhere. The invite is marked used at the moment it is redeemed and cannot be replayed. The email you type is checked against a real address pattern and, on a seat invite, against every other active account.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>It does not ask you to confirm the password — there is one password field, no 'repeat password', so a typo becomes your password and you will not find out until you try to sign in. It does not set up 2FA; you arrive at /account with two-factor still off and you can walk away from the screen without ever turning it on. It does not let you change the email later. Most seriously: it is the ONLY place in the entire product where a password is ever set. There is no change-password screen, no reset link, and no console tool for it. If you forget your password after enrolling, neither you nor the other admin can recover the account through any supported path.</p></div>
+        <div class="callout-body"><p>It does not check password strength beyond the twelve-character minimum — twelve spaces would be accepted. It does not set up two-factor authentication; you arrive with password-only access and must enable 2FA yourself on the page you land on. It does not let anyone else, including the other administrator, see or later reset what you typed. And it does not verify that you own the email address you entered: there is no confirmation message, so a typo in the email means you have enrolled under an address you cannot be reached at, though you can still sign in with it exactly as typed.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>Creates the `user` record (email, name, role, active, password hash) read by sign-in, /account, the People table and the wall form on /admin, and by every audit entry that names you as the actor.</p></div>
+        <div class="callout-body"><p>Signing in</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>A seat invite lasts seven days; an invite minted at /admin or by tools/invite.js lasts only 24 hours. The runbook's step 1 says 'single-use and expires in 7 days', which is true of the first-boot seat links only — do not rely on it for a re-issued invite. Also note that a wrong or expired code and a genuinely non-existent URL both answer with the same bare 'Not found.', so a 404 tells you nothing about which of the two went wrong.</p></div>
+        <div class="callout-body"><p>Have your password manager open and write the password into it before you press the button. Nobody in the firm can read it back to you afterwards. The email is fixed at enrolment — there is no screen anywhere in Chambers that changes an account's email address.</p></div>
       </div>
     </section>
 
     <section class="unit">
-      <h3>The front door — sign in <span class="route">GET / , POST /login</span></h3>
-      <div class="purpose"><p>The unmarked sign-in page. It is the only public surface in the product besides the health probe: there is no signup link, no 'forgot password', no firm name, no logo — a stranger who finds the address learns nothing. Everything else in Chambers redirects here when you have no session.</p></div>
+      <h3>Signing in <span class="route">GET / · POST /login · login() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>The front door. It is deliberately bare — no firm name, no logo, no hint about whether an email is known to the system.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>Go to the site root. If you are already signed in you are bounced straight to /r/desk (the Workflow room). Otherwise you get a narrow card with 'Email', 'Password' and a full-width 'Sign in' button. Type the email you chose at enrolment and your password, then press Sign in. If you have two-factor enabled, the page that comes back is the authenticator step (see the next unit). If you do not, you land directly in the Workflow room, signed in. Anything that goes wrong returns you to this same card with one red banner reading 'Access denied.' and nothing else.</p></div>
+      <div class="howto"><p>Go to the site root. You get a small panel with 'Email' and 'Password' and a full-width 'Sign in' button. If the credentials are good and you have no authenticator enrolled, you land straight on the Desk (/r/desk). If they are not good, you are returned to the same panel with a red banner reading exactly 'Access denied.' and nothing else.</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>An unknown account and a wrong password are indistinguishable in both the response and the time it takes: verifyPassword() runs a full scrypt against a dummy hash when no user matches, so the door cannot be used to discover whether an address is enrolled. Only an active account can sign in — userByEmail() filters on `active`. Every failed attempt writes 'login.denied' to the tamper-evident audit chain with the submitted address (truncated to 254 characters) and the client IP; successes write 'login.ok' or 'login.await2fa'. Attempts are rate-limited to 20 per IP per 15-minute window, and the first time a bucket trips it records 'login.ratelimited'. Behind the shipped Caddy proxy the limiter and the audit attribution use the right-most X-Forwarded-For hop — the one your own proxy appended — so a client cannot forge a fresh bucket by prepending addresses. The session cookie is HttpOnly, SameSite=Strict and Secure by default, with an 8-hour sliding lifetime.</p></div>
+        <div class="callout-body"><p>An unknown email and a wrong password are indistinguishable: the server runs the full scrypt computation either way, so the two cases take the same time and return the same page. Every attempt lands in the audit chain — 'login.denied' on failure, 'login.ok' on success, 'login.await2fa' when a code is required — recording the actor and the client address only, never the password. The session cookie is HttpOnly, SameSite=Strict and Secure, lives eight hours, and slides forward with each request you make. Sessions exist only in server memory: restarting Chambers signs everybody out. A released seat cannot sign in, because the session lookup rejects any account that is not active.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>It does not tell you why you were refused. Wrong password, unknown email, deactivated account and rate-limit lockout all produce the identical 'Access denied.' banner — so if you have fat-fingered your password twenty times in a quarter hour, the screen will keep saying 'Access denied.' for up to fifteen minutes with no indication that waiting is the fix. It does not offer any password recovery: there is no reset flow anywhere in the codebase. It does not require 2FA — a user who never enabled it signs in on a password alone, and nothing on this screen or anywhere else nags them.</p></div>
+        <div class="callout-body"><p>'Access denied.' is not diagnostic and is not meant to be. The same banner covers a wrong password, an unknown email, a released seat, and being rate-limited — you cannot tell which from the screen. There is no 'forgot password' link, because there is no password reset; see the recovery playbook. There is no lockout counter shown, no 'last signed in' notice, and no list of your active sessions anywhere in the application.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>A successful sign-in mints the `s` session cookie that every room and every POST in the product depends on; the audit lines it writes are counted by the Audit chain panel on /admin and the chain tile in the Workflow room.</p></div>
+        <div class="callout-body"><p>The authenticator step</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>The rate-limit bucket is incremented before the credentials are checked, so successful sign-ins count against the same 20-per-15-minutes budget, and the authenticator step shares the bucket with the password step. Sessions live in server memory only: any restart of the service — including a deploy or an update — signs both of you out immediately. That is deliberate, and /account says so, but it means a mid-afternoon update will drop you at this door.</p></div>
+        <div class="callout-body"><p>Sign-in attempts are rate limited to twenty requests per fifteen minutes per client address, and successful sign-ins are counted in that twenty as well. If the firm's proxy is not correctly identified to Chambers through CHAMBERS_TRUSTED_PROXY, every user shares one bucket and both seats can be shut out for fifteen minutes at once. When the limit trips you see the ordinary 'Access denied.' banner with no explanation; wait fifteen minutes rather than hammering the form.</p></div>
       </div>
     </section>
 
     <section class="unit">
-      <h3>The authenticator step (TOTP) <span class="route">POST /login/totp</span></h3>
-      <div class="purpose"><p>The second factor. If your account has two-factor enabled, the password screen hands you to this card instead of signing you in. It looks like the same bare door and, like the door, it confirms nothing about who you are or whether you got close.</p></div>
+      <h3>The authenticator step <span class="route">POST /login/totp · verifyTotp() and consumeTotp() in kernel/auth.js · kernel/totp.js</span></h3>
+      <div class="purpose"><p>The second factor at sign-in, shown only to an account that has enrolled an authenticator.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>After a correct password you get a card with one field, 'Authenticator code', which accepts exactly six digits, and a 'Continue' button. Open your authenticator app, read the current code for Chambers, type it, press Continue. On success you land in the Workflow room, signed in for eight hours. On failure you are sent back to the plain email/password door with 'Access denied.' — not back to this code box — so you will have to type your password again before you get another try at the code.</p></div>
+      <div class="howto"><p>After a correct email and password, the door is replaced by an identical-looking panel with one box, 'Authenticator code', which accepts exactly six digits, and a 'Continue' button. Read the current code from your authenticator app and enter it. On success you land on the Desk with a full eight-hour session.</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>Standard RFC 6238 TOTP: 30-second steps, six digits, and a one-step tolerance either side of now so a slightly slow clock still works. The comparison is timing-safe. Critically, a verified code is BURNED: the matched time-step is stored on your user record and any code at that step or earlier is refused thereafter, with 'totp.replay.denied' written to the audit chain — so a code shoulder-surfed or captured in transit cannot be used a second time, even inside its own 30-second window. The pending hand-off token from the password step is held in server memory only, hashed, and expires five minutes after the password was accepted. Failures log 'login.2fa.denied'; success logs 'login.ok+2fa'.</p></div>
+        <div class="callout-body"><p>This is standard TOTP: thirty-second steps, six digits, and a tolerance of one step either side, so a code that has just rolled over still works. A code that has granted access once can never grant it again — the matching time step is recorded on your account and any code from that step or earlier is refused, with 'totp.replay.denied' written to the audit chain. The half-finished login is held on the server for five minutes only, keyed by a token that is never stored in a cookie. Failed codes are audited as 'login.2fa.denied'.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>There are no backup codes, no recovery codes, no SMS fallback and no admin override. If you lose the device holding your authenticator secret, that account cannot be signed into again by any route in this product — and because there is also no password reset and no way to deactivate a user and free the seat, that is a permanent lockout at the application level. It does not verify a code against a server clock you can adjust from the UI; if the box's clock drifts more than about thirty seconds from your phone's, every code will be refused and the screen will simply say 'Access denied.'</p></div>
+        <div class="callout-body"><p>There are no backup codes, no recovery codes, no SMS fallback and no administrator override. If your authenticator is gone, this screen cannot be passed by any means, and the only route back into the firm is for the other administrator to release your seat and re-invite you. It also does not re-issue a code page on failure: a wrong or expired code drops you back to the email-and-password door with 'Access denied.', and you must type your password again before you get another chance at the code box.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>Produces the same session cookie as the password-only path; the resulting session is what /account, /admin and every room read.</p></div>
+        <div class="callout-body"><p>Account security — the Password card</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>The failure path throwing you back to the password door is easy to misread as 'my password is wrong' — it usually is not; it is the code. If you are repeatedly bounced, check your phone's clock before you start doubting the password, and remember that each round trip burns two attempts out of the shared 20-per-15-minutes rate-limit budget.</p></div>
+        <div class="callout-body"><p>The five-minute window between password and code is real. If you walk away mid-login you will be re-typing your password. Because the code page and the password page carry the same 'Access denied.' banner, a wrong code and a wrong password look identical on screen.</p></div>
       </div>
     </section>
 
     <section class="unit">
-      <h3>Account security <span class="route">/account</span></h3>
-      <div class="purpose"><p>Your own security page, reachable by every signed-in user from the 'account' link in the top bar. In this build it does exactly one operational thing: turn two-factor authentication on or off. The second card is read-only and tells you who the server thinks you are and how long your session lasts. This is the screen you land on the moment you enrol, and the banner there is right — do the 2FA setup before you do anything else.</p></div>
+      <h3>Account security — the Password card <span class="route">GET /account · POST /account/password · changePassword() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>The only way any password in Chambers is ever changed. It is yours alone: you change your own, and nobody changes it for you.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>The left card is headed 'Two-factor authentication' and shows either a red 'not enabled' tag or a green 'enabled — required at every sign-in' tag. To turn it on, press 'Begin enrollment'. The page redraws with a freshly generated base32 secret printed in monospace and, under it, the full otpauth:// URI. Add the secret to your authenticator app by manual entry (Google Authenticator, 1Password and Aegis are the apps named on the page), then type a current code into 'Current 6-digit code' and press 'Confirm &amp; enable'. A bad code gives you 'That code did not verify — try again with a fresh one.' and leaves you mid-enrolment; a good one gives you 'Two-factor authentication enabled. It is now required at every sign-in.' To turn it off, type a current code into 'Current code to disable' and press the red 'Disable 2FA'. The right-hand 'Session' card lists Signed in as, Email, Role, and Session policy ('8h sliding · HttpOnly · SameSite=Strict').</p></div>
+      <div class="howto"><p>Click 'account' in the top bar of any page. The middle card is headed 'Password' and has three boxes — 'Current password', 'New password (12+ characters)', and 'New password again' — and a 'Change password' button. Fill all three and press it. On success the page returns with the banner 'Password changed.' On refusal you get a red banner naming the reason: 'Current password is wrong.', 'Choose a password of at least 12 characters.', or 'The two new passwords do not match.'</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>Enrolment only completes when you have proved a working code — the secret sits in `pendingTotp` and is promoted to the live `totp` field only after a match, so you can never lock yourself out by walking away half-way through. The code you enrol with is immediately burned as the last-used step, so it cannot also be used to sign in. Disabling requires a current, unburned code (it goes through the same consumeTotp path as sign-in), so someone who has your unlocked browser session but not your phone cannot strip the second factor off your account. Both events are written to the audit chain as 'user.2fa.enabled' and 'user.2fa.disabled'. Sessions really are memory-only — the note on the card is accurate, and a restart signs everyone out.</p></div>
+        <div class="callout-body"><p>The current password is required, so somebody who has stolen an open session on an unlocked laptop still cannot take the account over. The length is checked and the two new entries are compared before anything is hashed or stored, so a typo cannot silently become your new password. Both outcomes are audited: 'password.changed' on success and 'password.change.denied' on a wrong current password, so a run of denials against your account is visible in the chain.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>It does not let you change your password. There is no password field on this page and no other route in the product that sets one after enrolment. It does not let you rename yourself, change your sign-in email, change your role, or see or revoke your other sessions. It does not show a QR code — the secret and the otpauth URI are printed as text and you must type the secret into your authenticator by hand. It does not issue backup or recovery codes of any kind. It does not let an administrator reset anyone else's 2FA: even the other admin, on /admin, has no control over your second factor.</p></div>
+        <div class="callout-body"><p>It does not sign out your other sessions. A session already open on another device keeps working for its full sliding eight hours after you change the password, and there is no 'sign out everywhere' control anywhere in Chambers. It does not check the new password against the old one, against a breach list, or for any complexity beyond the twelve-character floor. And it cannot be used by an administrator on someone else's behalf — the note on the card says so, and it is accurate: /admin has no control over anybody's credentials.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>Setting `totp` on your user record is what makes POST /login divert to the authenticator step instead of issuing a session directly.</p></div>
+        <div class="callout-body"><p>Account security — the Two-factor card</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>Copy the secret carefully and confirm it works before you leave the page — once you press 'Confirm &amp; enable' the secret is no longer displayed anywhere, and if it never made it into your authenticator you are locked out with no recovery path. If you need to move authenticator apps or change phones, disable 2FA first (while you can still produce a code) and re-enrol on the new device; there is no 'reset 2FA' button and no way to re-display an existing secret.</p></div>
+        <div class="callout-body"><p>If you believe a device has been stolen, changing your password is not enough on its own. Either have the other administrator release your seat (which kills your sessions on the next request from any device) or have the server restarted, which drops every session in the firm.</p></div>
       </div>
     </section>
 
     <section class="unit">
-      <h3>Firm administration <span class="route">/admin</span></h3>
-      <div class="purpose"><p>The one kernel-level administration page — it is not one of the 36 rooms and does not appear in the left-hand room list. It does four things: shows who is enrolled and mints invites, raises ethical walls, points the model gateway at an endpoint (or turns it off), and reports whether the audit chain still verifies. Both of you hold admin, so both of you can reach it; it is invisible to anyone who does not.</p></div>
+      <h3>Account security — the Two-factor card <span class="route">POST /account/totp-start · POST /account/totp-confirm · POST /account/totp-disable</span></h3>
+      <div class="purpose"><p>Where you attach an authenticator app to your account, and where you detach it.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>Reach it from the Workflow room's 'Firm administration →' link, from the 'Raise an ethical wall' button in Ethics &amp; Conflicts, or by typing /admin. The left card, 'People', lists every account with Name, Email, Role and Status, and under it a form with 'Email', 'Name' and a 'Role' dropdown (Lawyer / Law clerk / Administrator) and a 'Create invite' button. If any unused, unexpired invites exist, an 'Open invites' table appears listing Email, Role and 'Link (single use)' — the path is shown as text, e.g. /invite/AbC…; copy it, prefix your firm's domain, and send it. The right card, 'Ethical walls', lists existing walls (Matter, Screened, Basis) and carries a form: pick the matter, pick the person under 'Screen (deny all access)', type a 'Basis' such as 'prior retainer at former firm', and press 'Raise wall'. You get back 'Wall raised. The screened user can no longer see or decrypt this matter.' Below that, 'Model gateway' shows either a green 'configured' tag with the model and endpoint or a red 'off — no endpoint' tag, plus three fields — 'OpenAI-compatible endpoint (blank to disable)', 'Model name', 'API key (only if the endpoint needs one)' — and a 'Save gateway' button. Last, 'Audit chain' shows an 'intact' or 'BROKEN' tag and the number of hash-chained entries.</p></div>
+      <div class="howto"><p>On /account the first card is headed 'Two-factor authentication' and shows either 'not enabled' or 'enabled — required at every sign-in'. To enable it, press 'Begin enrollment'. The page comes back showing a long base-32 secret in monospace and, beneath it, the full otpauth:// URI. Type or paste either into your authenticator app (Google Authenticator, 1Password and Aegis are all fine), then enter the app's current code in the 'Current 6-digit code' box and press 'Confirm &amp; enable'. You will see 'Two-factor authentication enabled. It is now required at every sign-in.' To turn it off, use the second form on the card: enter a current code in 'Current code to disable' and press the red 'Disable 2FA' button.</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>Every route under /admin re-checks isAdmin() server-side and answers a non-admin with a plain 404, so the page is not merely hidden. Creating an invite is refused once the active-account count reaches the seat cap, with the flash 'Seat lock: this build is limited to 2 enrolled accounts.' and an audit line 'invite.refused.seatlock' — a third account cannot be created from this form. The walls table is drawn from kernel.walls(), which deliberately omits any wall screening the person looking at the page: the point of an ethical wall is that the screened lawyer never learns the firm acts in the matter, and that holds on /admin as it does everywhere else. Once raised, a wall is enforced in the kernel before any key unwrap — the screened user's matter list, ledger reads, blob reads and matter lookups all exclude it, and an attempt writes 'wall.denied'. The model gateway is the only door to any language model: it rejects an endpoint that is not a full http(s) URL, its settings are stored encrypted at rest under the tenant key, every call through it is audited, and the gateway refuses to follow redirects, so privileged text can only ever reach the exact host you typed. Both gateway states are audited as 'ai.gateway.configured' / 'ai.gateway.disabled'. The audit chain's verify() is genuinely tamper-evident: links are HMAC-keyed with a secret file, so the chain cannot be recomputed by anyone who can merely write the log, and a separately-stored keyed head means deleting entries off the tail shows up as BROKEN rather than as a shorter, tidy chain.</p></div>
+        <div class="callout-body"><p>Enrolment only completes after you have proved a working code, so you cannot lock yourself out by scanning a secret into the wrong app. Disabling also requires a live code, so an intruder with a hijacked session cannot strip the second factor off your account. Both events are audited as 'user.2fa.enabled' and 'user.2fa.disabled'. The confirming code is burned in the same way a login code is, so it cannot be replayed.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>There is no way to lower or delete an ethical wall — POST /admin/wall only ever creates. Nothing in the product removes one. Raise a wall in error and it is permanent through the UI; note also that the 'Screen' dropdown lists every user including yourself, so an admin can wall themselves out of a matter and then cannot see the wall to complain about it. There is no way to deactivate, disable, delete or rename a user, so the 'Status' column can only ever read 'active' — 'disabled' is rendered for `!active`, but no code path in the product ever sets that. Consequently a seat can never be re-issued to a different person: the cap counts active users, and the count never goes down. There is no way to revoke an open invite; once created it is live until it is redeemed or expires. There is no password reset and no 2FA reset for anybody, including from here. The Audit chain panel does NOT show you the chain — there is no list of entries on this page and no export; it shows only intact/BROKEN and a count, and it discards the reason verify() returns, so 'BROKEN' will not tell you whether entries were removed, rewritten, or the head file was forged. Raising a wall does not decide the conflict for you: it records a screen, it does not check whether a screen is ethically available on these facts.</p></div>
+        <div class="callout-body"><p>There is no QR code — the page gives you the secret text and the otpauth URI, and you enter one of them by hand. Two-factor authentication is optional and nothing enforces it: an account with 2FA off signs in on a password alone, and no screen nags about it after the one banner at enrolment. There is no way to see or revoke enrolled devices, and no backup codes are generated at any point. Disabling requires a working code, which means a lost authenticator cannot be cleared here.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>Invites created here become the /invite/:code enrolment screen. Walls raised here are read by kernel.matters(), kernel.matter(), kernel.scope() and kernel.ledger in every one of the 36 rooms, and by the Ethics &amp; Conflicts room's screens list. The model-gateway setting is what k.ai.enabled() and k.ai.chat() read, so it switches model features on and off in the Moot Room, Brief Writer and anywhere else that calls a model. The audit-chain verdict is mirrored as a tile in the Workflow room.</p></div>
+        <div class="callout-body"><p>Firm administration — People and seat release</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>The Model gateway form renders all three fields EMPTY every time the page loads — it never pre-fills what is saved. Because the handler writes `model: &lt;blank&gt; || null` and `apiKey: &lt;blank&gt; || null`, re-saving with only the endpoint typed silently wipes the model name and the API key, and the gateway stops working. If you touch that form, retype all three fields. Second: submitting the wall form twice creates two separate wall records for the same matter and person (each save mints a new record), and the table will list the matter twice with no way to tidy it. Third: the open-invite link is displayed as text, not as a clickable link, and it carries no host — you must prepend your own domain. Fourth: model use can also be forbidden per matter, and that switch is not here — it lives in the Moot Room (room 19), which writes `aiPolicy` on the matter; a 'configured' gateway on this page does not mean a model may be used on the file in front of you.</p></div>
+        <div class="callout-body"><p>Once you press 'Begin enrollment' there is no cancel button; the card keeps showing the pending secret and its confirm box until you confirm with a valid code. That is harmless — the secret stays visible on the page — but the only way out of the pending state is to complete enrolment. Enable 2FA on both seats: it is the single largest difference between a stolen password being an incident and being a disaster.</p></div>
       </div>
     </section>
 
     <section class="unit">
-      <h3>Signing out <span class="route">GET /logout-form → POST /logout</span></h3>
-      <div class="purpose"><p>Ends your session on the server and clears the cookie in your browser. It is the 'sign out' link at the right of the top bar on every page. Because the session lives in server memory rather than in the cookie, signing out genuinely destroys it — the cookie cannot be replayed afterwards.</p></div>
+      <h3>Firm administration — People and seat release <span class="route">GET /admin · POST /admin/deactivate · deactivate() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>The roster of the firm and the one control that frees a seat so a replacement can be invited.</p></div>
       <h4>How to use it</h4>
-      <div class="howto"><p>Click 'sign out' in the top bar. You are taken to a blank dark page that immediately submits a form for you and lands you back at the sign-in door. There is no confirmation prompt and no 'are you sure' — the click is the confirmation. Nothing is saved or discarded by signing out beyond the session itself; work in the rooms is written as you go.</p></div>
+      <div class="howto"><p>Go to /admin. The left card is headed 'People' and lists Name, Email, Role and Status for every account ever enrolled. An active account other than your own carries a red 'Release seat' button; your own row simply reads 'you'. Press 'Release seat' on the person whose seat is to be freed. On success the banner reads 'Seat released. You can now invite a replacement.' and their Status changes from 'active' to 'released'.</p></div>
       
       <div class="callout guarantee">
         <div class="callout-label">Guarantees</div>
-        <div class="callout-body"><p>The session token is removed from the server's session map, so it is dead everywhere, not merely forgotten by this browser, and the `s` cookie is overwritten with an empty value and Max-Age=0. The two-step form exists because the actual logout is a POST, which is subject to the app's same-origin check — a link on someone else's site cannot sign you out, and cannot be turned into a state-changing request against your session. The auto-submit script runs under a per-response CSP nonce; the policy admits no other inline script.</p></div>
+        <div class="callout-body"><p>You cannot release your own seat: the attempt is refused with 'You cannot release your own seat — ask the other administrator.', so the firm can never be left with nobody able to invite anybody. A seat that is already released is refused with 'That seat is already released.' Releasing takes effect immediately and everywhere — the released account's sessions stop resolving on their very next request, on every device, and any calendar feed subscription they own starts answering 404. The release is written to the audit chain as 'seat.released'. Most importantly, the seat lock counts active people, so a release genuinely frees a seat for a new invite.</p></div>
       </div>
       <div class="callout limit">
         <div class="callout-label">Does <em>not</em> do</div>
-        <div class="callout-body"><p>It does not sign you out of your other browsers or devices — only the session behind this cookie is destroyed, and there is no 'sign out everywhere' anywhere in the product. It does not lock or re-encrypt anything: matter keys are unwrapped server-side and cached in the running process regardless of who is signed in. It does not write an audit entry — logout, unlike login, is not recorded on the chain. It does not clear the matter-selection cookie, so the matter you had open is still selected when you sign back in (that cookie lasts 30 days).</p></div>
+        <div class="callout-body"><p>It does not delete anything. The account record, its email and its name remain in the People table forever, and everything the person filed in matters stays exactly where it is. It does not restore: there is no 'reactivate' button anywhere in Chambers, so a seat released by mistake cannot simply be switched back on — the person must be invited again, and that produces a new account with a new internal identity. It does not touch ethical walls, matters, or anything else the released person was subject to.</p></div>
       </div>
       <div class="callout feeds">
         <div class="callout-label">Feeds into</div>
-        <div class="callout-body"><p>Returns you to GET /, the sign-in door.</p></div>
+        <div class="callout-body"><p>Firm administration — Invites</p></div>
       </div>
       <div class="callout gotcha">
         <div class="callout-label">Watch out</div>
-        <div class="callout-body"><p>If you are on a shared or borrowed machine, signing out is not the same as clearing the browser: the sign-in email will still be offered by the browser's autofill. Note too that a service restart has the same effect as everyone signing out at once, so 'I was signed out unexpectedly' after a deploy is normal and not a security event.</p></div>
+        <div class="callout-body"><p>Because re-enrolment creates a genuinely new account, any ethical wall that screened the old account does NOT screen the new one. If you release and re-invite a lawyer who was screened off a matter, go to the Ethical walls card and raise the wall again against the new account before they sign in. The /admin page is invisible to non-administrators — it answers a plain 404, not an error — but both Dan and Matt hold admin, so either can do this to the other.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Firm administration — Invites <span class="route">POST /admin/invite · createInvite() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>Issuing an enrolment link to fill a free seat — a replacement for a departed partner, or a law clerk if the build has been configured with a seat for one.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>On /admin, below the People table, fill 'Email', optionally 'Name', pick a 'Role' from Lawyer, Law clerk or Administrator, and press 'Create invite'. On success you see 'Invite created — share the single-use link from the open invites list.' and an 'Open invites' table appears showing Email, Role and the link as /invite/&lt;code&gt;. Copy that path onto the front of your real site address and send it to the person. If no seat is free, the attempt is refused with 'Seat lock: this build is limited to 2 enrolled accounts.'</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>An invite is single-use and expires twenty-four hours after it is created. The role is validated against the three names in the drop-down, so a hand-crafted request cannot invent a role. Creation is audited as 'invite.created'. The seat lock is checked both when the invite is created and again when it is redeemed, so even several outstanding invites cannot together push the firm past its seat count — the first person to redeem takes the free seat and any other invite then fails with 'Seat lock: every seat in this build is already enrolled.'</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>It does not send email; you deliver the link yourself. It does not let you revoke an invite — there is no delete button on the Open invites table, so a link you regret can only be waited out for its twenty-four hours. It does not show the full URL, only the path. It does not check the address you type: an invalid or already-used email is accepted at this stage, and an ordinary (non-seat) invite skips the duplicate-address check that a first-boot seat invite applies.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>The two-seat lock</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>An open invite link is a bearer credential to your firm's file system. Treat it exactly as you would a password, send it out of band, and tell the recipient to redeem it immediately. Note that the invite is unusable while both seats are filled, so the correct order is always: release the seat first, then create the invite.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Firm administration — Ethical walls <span class="route">POST /admin/wall · POST /admin/wall/remove · walls() and walledFrom() in kernel/api.js</span></h3>
+      <div class="purpose"><p>Screening one lawyer off one matter completely, and lifting that screen when the conflict is resolved or the wall was raised in error.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>On /admin, the right-hand card is headed 'Ethical walls'. Existing walls are listed with the matter title, who is screened, the basis, and a red 'Lift' button on each row. To raise one, pick a matter from the 'Matter' drop-down, pick a person from 'Screen (deny all access)', type a short 'Basis' such as 'prior retainer at former firm', and press 'Raise wall'. You will see 'Wall raised. The screened user can no longer see or decrypt this matter.' To remove one, press 'Lift' on its row; the banner reads 'Wall lifted.'</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>The wall is enforced in the kernel before any key is unwrapped, so the screened lawyer never reaches the matter's data encryption key at all — this is not a hidden menu item, it is a refusal to decrypt. The matter vanishes from their matter list, from the quick-open palette, from firm-wide ledger totals and from ledger exports, and any attempt to name it directly is refused and audited as 'wall.denied'. The wall is invisible to the person it screens: the /admin walls table is built from a list that omits any wall screening its own viewer, so a screened lawyer does not even learn that the firm acts in the matter. That same rule protects the Lift button — a screened lawyer cannot lift the wall that screens them, and an attempt is refused with 'That wall is not yours to lift.' Screening yourself is refused outright, with 'You cannot screen yourself — you would not be able to see the wall to lift it. Ask the other administrator.' Both raising and lifting are written to the audit chain.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>It does not stop the other administrator from lifting the wall — with two seats, the unscreened one holds that power alone, and there is no second signature, no notice period and no confirmation dialogue. Lifting is instant and complete. It does not retroactively conceal anything the screened lawyer saw before the wall went up, and it does not narrow access by document or by room: a wall is all-or-nothing on the whole matter. The basis you type is stored (truncated at 500 characters) and shown to everyone who is not screened.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>Firm administration — the Model gateway</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>With only two lawyers, a wall means one of you is running that matter alone. Raise it from the other seat: the screened person cannot raise their own wall and, once it exists, cannot see it, so all administration of it must happen from the unscreened seat. After any seat release and re-invite, check this card — walls attach to accounts, not to people, and a re-enrolled lawyer arrives unscreened.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Firm administration — the Model gateway <span class="route">POST /admin/ai · kernel/api.js ai.chat()</span></h3>
+      <div class="purpose"><p>The single, audited door through which any part of Chambers may talk to a language model. If it is off, nothing in the application can reach a model at all.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>On /admin, under 'Model gateway', the current state shows either 'off — no endpoint' or 'configured' with the model name and endpoint. Fill 'OpenAI-compatible endpoint (blank to disable)' — for example http://localhost:11434/v1 for a local Ollama — plus 'Model name' such as qwen2.5:14b, and 'API key (only if the endpoint needs one)'. Press 'Save gateway'. You will see 'Model gateway configured (settings encrypted at rest).' or, if you cleared the endpoint, 'Model gateway disabled.' A malformed endpoint is refused with 'Endpoint must be a full http(s) URL.'</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>There is exactly one code path to a model and it runs through this configuration; with no endpoint and model set, every request is answered 'No model endpoint configured (admin sets it at /admin).' Every call that does go out is written to the audit chain as 'ai.call' with the matter and the model name, and configuration changes are logged as 'ai.gateway.configured' or 'ai.gateway.disabled'. The settings, API key included, are stored in the firm's AES-256-GCM sealed log like everything else. A matter whose data-handling policy is set to forbidden (in the Moot Room) refuses model use entirely, and the refusal is audited as 'ai.denied.policy'.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>It does not make a remote endpoint private. Point it at a third-party service and client text goes to that third party; only a local endpoint keeps everything inside the building, and the note on the card says exactly that. It does not filter, redact or review what a room sends. It does not prevent an administrator from reconfiguring it at any time without notice to the other seat, beyond the audit entry.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>Firm administration — the Audit chain panel</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>The three boxes never pre-fill with what is already stored. Every save writes all three fields from the form as they stand, so saving a change to the model name while the endpoint and key boxes are empty will blank the stored endpoint and key and switch the gateway off. Re-type all three fields every time you touch this card.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Firm administration — the Audit chain panel <span class="route">GET /admin · auditTrail().verify() · kernel/audit.js</span></h3>
+      <div class="purpose"><p>A one-line statement of whether the firm's tamper-evident record of who did what is still whole.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>At the bottom of the right-hand card on /admin, read the line under 'Audit chain'. It shows 'intact' or 'BROKEN' followed by the number of entries. The same indicator appears as a tile on the Desk, so you see it whenever you sign in. Check it; if it ever reads BROKEN, stop and treat it as an incident.</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>Every entry is chained to the one before it with an HMAC under a secret key held in the data directory at 0600, so the chain cannot be recomputed by anyone who can merely write the file. The count and final hash are separately anchored in a keyed head file written under the same lock, which means deleting entries off the end — the realistic insider move — makes the chain disagree with what was last recorded and reports BROKEN rather than a shorter, plausible history. Verification walks every link on each page load, so the number you see is checked, not cached. The chain records logins, denials, rate-limit trips, password changes, 2FA changes, seat releases, invites, wall denials, key events, ledger posts and model calls.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>It records metadata only. No client content, no document text, no citation string and no password ever enters it — so it will tell you that a matter was read or destroyed and by whom, never what was in it. It is evidence of tampering, not prevention: someone with file-level access can still damage the log, and this panel's job is to make that damage impossible to hide. The panel shows only the verdict and the count — there is no screen in Chambers that lets you read the entries themselves; that requires access to the audit.log file on the server.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>Signing out</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>A 'BROKEN' verdict has three ordinary causes worth ruling out before you assume malice: a restored or partial backup of the data directory, a hand-edited log, and an audit.key that no longer matches the log it is being checked against. All three are still incidents — a chain you cannot verify is a chain you cannot rely on in a discovery dispute.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Signing out <span class="route">GET /logout-form · POST /logout</span></h3>
+      <div class="purpose"><p>Ending the session on the device in front of you.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>Click 'sign out' at the right-hand end of the top bar on any page. A blank page appears for an instant and submits itself, and you land back on the bare front door.</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>The session is deleted from the server's memory, not merely forgotten by the browser, so the cookie is worthless afterwards even if it was copied. The cookie itself is cleared with an immediate expiry. Because sign-out goes through a POST, and every state-changing request in Chambers is checked for same-origin, a link on another site cannot sign you out or act as you.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>It signs out this device only. Sessions on other browsers or machines keep running for their remaining eight sliding hours, and there is no control anywhere that ends them all. It does not lock the account, and it is not audited — sign-outs do not appear in the chain the way sign-ins do.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>The two-seat lock</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>Sessions slide: every request pushes the eight-hour expiry forward, so a tab left open on an unlocked machine stays valid indefinitely. Sign out, or lock the machine. If a device is genuinely lost, the reliable answers are a seat release from the other administrator or a restart of the server, which drops every session in the firm at once.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>The two-seat lock <span class="route">SEATS / seatCap() / activeCount() in kernel/auth.js</span></h3>
+      <div class="purpose"><p>The rule that makes Chambers a two-person firm and nothing else. It is the reason there is no signup page, and the reason a third simultaneous account is not merely discouraged but impossible.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>There is nothing to operate — the lock is simply a count. The build names its seats in code as 'Dan G:admin,Matt D:admin', giving a cap of two. Every attempt to create an invite compares the number of ACTIVE accounts against that cap and refuses if the firm is full, with 'Seat lock: this build is limited to 2 enrolled accounts.' Every attempt to redeem an invite checks the same thing again and refuses with 'Seat lock: every seat in this build is already enrolled.' To live within it, treat a seat as a thing that must be released before it can be re-issued.</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>With Dan and Matt both active, no third account can be brought into existence by any route in the application — not by an invite, not by an invite already outstanding, and certainly not by a stranger, because there is no signup page and no unauthenticated route that creates anything. The check happens twice, at issue and at redemption, so a stale invite cannot sneak past a filled firm. And because the count is of ACTIVE accounts rather than of accounts ever created, the lock is recoverable: releasing a seat lowers the count and immediately permits one new invite.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>It does not cap roles separately. The invite form offers Lawyer, Law clerk and Administrator, but the cap counts people, so while both seats are filled by Dan and Matt no clerk can be added either. It does not limit how many open invites can exist for one free seat, only how many can be redeemed. It does not stop an operator with shell access from changing CHAMBERS_SEATS and restarting to raise the cap — that is a deliberate, server-level act, and it is the only way to make Chambers a three-person firm.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>Recovery: lost authenticator, forgotten password, departure</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>The cap is read once at process start. Changing CHAMBERS_SEATS on a running deployment does nothing until a restart, and a restart also signs everybody out. Note too that adding a seat by that route does not mint a new seat invite — first-boot links are minted only once, so a third person would be brought in through an ordinary /admin invite.</p></div>
+      </div>
+    </section>
+
+    <section class="unit">
+      <h3>Recovery: lost authenticator, forgotten password, departure <span class="route">POST /account/password · POST /admin/deactivate · POST /admin/invite · POST /invite/:code</span></h3>
+      <div class="purpose"><p>The exact steps for the three things that will actually go wrong. Read this before you need it, because two of the three require the other lawyer to be reachable.</p></div>
+      <h4>How to use it</h4>
+      <div class="howto"><p>FORGOTTEN PASSWORD, while you can still sign in: go to /account and use the Password card. That is the whole procedure. FORGOTTEN PASSWORD, when you cannot sign in: there is no reset. Ask the other administrator to release your seat on /admin, then to create an invite for your email, and enrol again through the link exactly as you did the first time — new password, new authenticator. LOST OR WIPED AUTHENTICATOR: identical procedure, and the only procedure — the other administrator releases your seat, invites you again, and you enrol and re-enable 2FA. Do it in that order: the invite is refused while your seat is still active. DEPARTURE: the remaining administrator presses 'Release seat' on the departing lawyer's row, which ends their sessions everywhere on their next request and kills any calendar feed they subscribed to, and then invites the replacement. BOTH LAWYERS LOCKED OUT AT ONCE: there is no path back through the application at all. That is the scenario your offline password manager and your authenticator backups exist to prevent.</p></div>
+      
+      <div class="callout guarantee">
+        <div class="callout-label">Guarantees</div>
+        <div class="callout-body"><p>Each of these three mishaps is survivable so long as one of the two seats can still sign in. A password can be changed by its owner with the current password in hand; a wall raised on the wrong person can be lifted by the other administrator; and a seat can be released and re-issued, which is what makes a lost authenticator and a departure recoverable rather than terminal. Every step is audited — 'password.changed', 'seat.released', 'invite.created', 'user.enrolled' — so the recovery itself leaves a record.</p></div>
+      </div>
+      <div class="callout limit">
+        <div class="callout-label">Does <em>not</em> do</div>
+        <div class="callout-body"><p>Re-enrolment does not restore your old account. It creates a new one: new internal identity, same email if you choose, and none of the old account's ethical walls follow it. The old record stays in the People table marked 'released' and cannot be switched back on. No administrator can reset another person's password or clear another person's 2FA — release-and-re-invite is the only mechanism, and it is deliberately blunt. Nothing here recovers a destroyed matter: destroying a matter destroys its key and removes its records from the live store, and while pre-destruction backups still hold copies until they age out, there is no in-application undo.</p></div>
+      </div>
+      <div class="callout feeds">
+        <div class="callout-label">Feeds into</div>
+        <div class="callout-body"><p>Signing in</p></div>
+      </div>
+      <div class="callout gotcha">
+        <div class="callout-label">Watch out</div>
+        <div class="callout-body"><p>Three practical rules follow. First, keep both authenticator secrets backed up somewhere independent of the phone — an authenticator app with its own encrypted backup, or the secret text stored in your password manager at the moment you enrol. Second, never let both seats go to one device: the entire recovery model rests on one of you being able to sign in. Third, after any release-and-re-invite, an administrator must revisit the Ethical walls card on /admin and re-raise any wall that applied to the person who came back, because the wall was attached to the account you just retired.</p></div>
       </div>
     </section>
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">2</span></h2>
+    <h2><span class="chnum">2</span>Opening a file</h2>
     
     <section class="unit">
       <h3>Intake Desk <span class="route">/r/intake</span></h3>
@@ -388,7 +556,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">3</span></h2>
+    <h2><span class="chnum">3</span>Facts, research and authority</h2>
     
     <section class="unit">
       <h3>Client Desk (Room 05) <span class="route">/r/client</span></h3>
@@ -488,7 +656,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">4</span></h2>
+    <h2><span class="chnum">4</span>Pleadings and discovery</h2>
     
     <section class="unit">
       <h3>Jurisdiction Desk <span class="route">/r/jurisdiction</span></h3>
@@ -588,7 +756,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">5</span></h2>
+    <h2><span class="chnum">5</span>Evidence</h2>
     
     <section class="unit">
       <h3>Document Review <span class="route">/r/review</span></h3>
@@ -739,7 +907,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">6</span></h2>
+    <h2><span class="chnum">6</span>Advocacy, deadlines and filing</h2>
     
     <section class="unit">
       <h3>Brief Writer (room 18) <span class="route">/r/briefs</span></h3>
@@ -896,7 +1064,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">7</span></h2>
+    <h2><span class="chnum">7</span>Money: trust, billing and closing</h2>
     
     <section class="unit">
       <h3>Settlement Waterfall <span class="route">/r/waterfall</span></h3>
@@ -1020,7 +1188,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">8</span></h2>
+    <h2><span class="chnum">8</span>Research connectors and the daily desk</h2>
     
     <section class="unit">
       <h3>CanLII <span class="route">/r/canlii</span></h3>
@@ -1144,7 +1312,7 @@
   </div>
 
   <div class="chapter">
-    <h2><span class="chnum">9</span></h2>
+    <h2><span class="chnum">9</span>Production, affidavits and the client portal</h2>
     
     <section class="unit">
       <h3>Production <span class="route">/r/production</span></h3>
