@@ -1,0 +1,22 @@
+const fs=require('fs'),os=require('os');
+process.env.CHAMBERS_DATA=fs.mkdtempSync(os.tmpdir()+'/seam-');
+process.env.PORT=String(26000+Math.floor(Math.random()*3000));
+const {app,makeCtx,store,auth}=require('/home/user/scotia/app/server.js');
+const {hashPassword}=require('/home/user/scotia/app/kernel/crypto.js');
+const admin=store.firm.put('user',{email:'s@f',name:'S',role:'admin',active:true,pw:hashPassword('a-long-password-here')},'t');
+const m=store.createMatter({title:'Seam v. Seam',client:'C',jurisdiction:'on',status:'open'},admin.id);
+const sc=store.matterScope(m.id);
+sc.put('deadline',{desc:'Basic limitation period expires',due:'2027-01-05',rule:'Limitations Act, 2002, s. 4',trigger:'Claim discovered 2025-01-05',status:'open'},admin.id);
+sc.put('deadline',{desc:'Expert report due (ADR room)',due:'2026-12-01',rule:'ADR schedule',anchor:'trial',status:'open'},admin.id);
+const session=auth.createSession(admin.id);
+const server=app.listen(process.env.PORT,makeCtx,(e)=>{throw e;});
+const base='http://localhost:'+process.env.PORT;
+(async()=>{
+  const html=await (await fetch(base+'/r/desk',{headers:{cookie:`s=${session}; m=${m.id}`}})).text();
+  const flagged=/LIMITATION/i.test(html)&&html.includes('Basic limitation period expires');
+  console.log(flagged?'R-A PASS: legacy limitation deadline (no ruleId) IS flagged':'R-A FAIL: not flagged');
+  await fetch(base+'/r/calendar/trial',{method:'POST',redirect:'manual',headers:{cookie:`s=${session}; m=${m.id}`,'content-type':'application/x-www-form-urlencoded',origin:base},body:new URLSearchParams({trialDate:'2027-06-01'}).toString()}).then(x=>x.text()).catch(()=>{});
+  const foreign=store.matterScope(m.id).list('deadline').find(d=>d.desc&&d.desc.includes('ADR room'));
+  console.log(foreign?'R-D PASS: foreign anchor:trial deadline survived':'R-D FAIL: foreign deadline destroyed');
+  server.close();process.exit(flagged&&foreign?0:1);
+})().catch(e=>{console.error('err:',e.message);process.exit(1);});

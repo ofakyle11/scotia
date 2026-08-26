@@ -1,5 +1,6 @@
 'use strict';
-// Chambers — the 28-room firm, reference implementation.
+// Chambers — the 36-room firm, reference implementation (kernel/registry.js
+// is the authority on the room list; this file mounts whatever it lists).
 // Zero dependencies. `node server.js` and sign in. There is no public
 // surface and no signup: accounts exist only by provisioning.
 const path = require('path');
@@ -37,6 +38,42 @@ function takeFlash(req) { const t = (req._cookies || {}).s; const f = flashes.ge
 
 const PUBLIC = new Set(['GET /', 'POST /login', 'POST /login/totp', 'GET /healthz', 'GET /robots.txt']);
 
+// The one route whose credential is not a session cookie. 21-calendar's ICS
+// feed is authenticated by the unguessable `calfeed` id in the path, and a
+// phone's calendar app subscribes with no cookie jar at all — so requiring a
+// session made the feature unreachable by the only client it exists for.
+// EXACTLY this shape is admitted: GET, one path segment after /feed/, nothing
+// nested under it and no other method. Everything else still needs a session.
+const FEED_ROUTE = /^\/r\/calendar\/feed\/[^/]+$/;
+// Opaque-id shape only (store ids are crypto.randomUUID today). A token that is
+// not even shaped like one never reaches a lookup.
+const FEED_TOKEN = /^[A-Za-z0-9._~-]{16,128}$/;
+
+// Build the session-less context for the ICS feed, or answer and return null.
+// The token buys exactly one thing: a kernel built for the feed's OWNER, so
+// every ethical wall, shred and matter filter that binds that user binds this
+// request too — the feed can never show more than its owner could read signed
+// in. Every rejection (wrong shape, unknown token, owner deleted or
+// deactivated) answers with the SAME constant 404 that 21-calendar's own
+// handler gives an unknown token, so the route distinguishes nothing and
+// cannot be walked to enumerate live tokens or accounts. No flash is carried
+// in or out (a stale cookie must not surface another session's banner here),
+// and deliberately no audit line per fetch: a subscribed phone polls
+// unattended, and an unauthenticated caller must never be able to grow the
+// hash-chained audit log.
+function feedCtx(req, res, base) {
+  const notFound = () => { send(res, 404, 'Not found.'); return null; };
+  const tok = base.params && base.params.token;
+  if (!tok || !FEED_TOKEN.test(tok)) return notFound();
+  const feed = store.firm.get('calfeed', tok);
+  if (!feed) return notFound();
+  const owner = store.firm.get('user', feed.userId);
+  if (!owner || !owner.active) return notFound();
+  const user = { id: owner.id, name: owner.name, email: owner.email, role: owner.role };
+  const kernel = makeKernel({ store, audit, keyring }, user);
+  return { ...base, user, kernel, matters: kernel.matters(), matter: null, registry, flash: null, setFlash: () => {} };
+}
+
 async function makeCtx(req, res, base) {
   req._cookies = base.cookies;
   const routeKey = req.method + ' ' + base.pathname;
@@ -44,7 +81,12 @@ async function makeCtx(req, res, base) {
     return { ...base, user: null, registry };
   }
   const user = auth.resolve(base.cookies.s);
-  if (!user) { redirect(res, '/'); return null; }
+  if (!user) {
+    // Signed-in requests keep the ordinary path below, unchanged; only a
+    // request with no usable session falls through to the feed's own credential.
+    if (req.method === 'GET' && FEED_ROUTE.test(base.pathname)) return feedCtx(req, res, base);
+    redirect(res, '/'); return null;
+  }
   const kernel = makeKernel({ store, audit, keyring }, user);
   const matters = kernel.matters();
   let matter = null;
@@ -158,7 +200,7 @@ app.route('POST', '/account/totp-disable', (req, res, ctx) => {
   redirect(res, '/account');
 });
 
-// ---------- firm administration (kernel-level, not one of the 28) ----------
+// ---------- firm administration (kernel-level, not one of the rooms) ----------
 app.route('GET', '/admin', (req, res, ctx) => {
   if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
   const users = ctx.kernel.firm.list('user');
@@ -224,7 +266,7 @@ app.route('POST', '/admin/wall', (req, res, ctx) => {
   redirect(res, '/admin');
 });
 
-// ---------- the 28 rooms ----------
+// ---------- the rooms (36 in kernel/registry.js) ----------
 for (const meta of registry) {
   const file = path.join(__dirname, 'rooms', `${String(meta.num).padStart(2, '0')}-${meta.id}.js`);
   let mod = null;

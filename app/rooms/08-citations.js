@@ -2,7 +2,9 @@
 // Room 08 — Citation Check. The blocking gate: a draft does not clear this
 // room while any citation in it is unverified or failed. Extraction is a
 // deliberately over-broad reference-pattern pass; every row is cleared by a
-// human, one confirmation at a time. Nothing here auto-verifies anything.
+// human, one confirmation at a time. Nothing here auto-verifies anything —
+// the optional connector lookup reports what it found and pre-fills a URL;
+// the four confirmations that open the gate are always a person's.
 const { layout, esc, table, empty, tag, kv, input, textarea, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
@@ -276,7 +278,7 @@ function register(app) {
         ['Gate', gateTag(sel, selInst, selStale)],
       ])}
       <form method="POST" action="/r/citations/scan"><input type="hidden" name="draftId" value="${esc(sel.id)}"><button>Extract citations from draft</button></form>
-      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral, volume, rule-book and statutory cites) that over-captures on purpose; a human clears every row. eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07) — treatment classification stays human-confirmed (Gap 2).</p>
+      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral, volume, rule-book and statutory cites) that over-captures on purpose; a human clears every row. ${canResolve ? 'Resolution against the CanLII / CourtListener connectors is wired in per row below — it reports what it found and pre-fills the source URL, and promotes nothing.' : 'eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07).'} Treatment classification stays human-confirmed (Gap 2).</p>
     </div>
     <div class="card">
       <h2 class="sec" style="margin-top:0">Add a citation the extractor missed</h2>
@@ -372,6 +374,49 @@ function register(app) {
     redirect(res, roomUrl(draft.id));
   });
 
+  // Automated resolution — a LOOKUP, never a verification. It asks the kernel's
+  // connectors (CanLII / CourtListener) what this citation resolves to and
+  // records the answer beside the row so the verifier has something real to
+  // open. It writes only the advisory `lookup` field: `status`, `resolved`,
+  // `quoteOk` and `treatmentCurrent` are untouched, so the gate value cannot
+  // move here and regate() is deliberately NOT called (calling it would
+  // re-stamp gateStamp and wash out a staleness flag no one re-verified).
+  // Absent the facade this route only ever flashes — it never 500s.
+  app.route('POST', `/r/${ROOM.id}/resolve`, async (req, res, ctx) => {
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, roomUrl()); return; }
+    const s = ctx.kernel.scope(ctx.matter.id);
+    const inst = ctx.body.id ? s.get('citation_instance', ctx.body.id) : null;
+    if (!inst) { ctx.setFlash('Pick a citation from the queue to resolve.', 'err'); redirect(res, roomUrl()); return; }
+    const run = citeResolver(ctx.kernel);
+    if (!run) { ctx.setFlash('Automated resolution is not available on this installation — look the citation up and verify it by hand.', 'err'); redirect(res, roomUrl(inst.draftId)); return; }
+    if (inst.status === 'verified') { ctx.setFlash('That citation is already verified — re-queue it first if it needs looking at again.', 'err'); redirect(res, roomUrl(inst.draftId)); return; }
+    let out = null;
+    try { out = await run(String(inst.cite || '')); } catch (e) { out = null; }
+    if (!out || typeof out !== 'object') {
+      ctx.setFlash('The connector returned nothing for that citation — look it up and verify it by hand.', 'err');
+      redirect(res, roomUrl(inst.draftId)); return;
+    }
+    // Only an http(s) URL is stored: it is re-rendered as a link and esc()
+    // does not neutralise a javascript: URI.
+    const url = String(out.url || '');
+    const lookup = {
+      resolved: out.resolved === true,
+      source: String(out.source || '') || null,
+      title: String(out.title || ''),
+      url: /^https?:\/\//i.test(url) ? url : '',
+      note: String(out.note || ''),
+      at: today(),
+      by: ctx.user.name,
+    };
+    s.put('citation_instance', { ...inst, lookup });
+    ctx.kernel.audit('citation.lookup', ctx.matter.id + ':' + inst.id + ':' + (lookup.resolved ? 'match' : 'no-match'));
+    ctx.setFlash(lookup.resolved
+      ? `Connector matched ${lookup.title || inst.cite}. That is a lookup, NOT a verification — the source URL is pre-filled, but you still confirm all four points yourself.`
+      : `No automated match: ${lookup.note || 'the connector found nothing.'} The citation stays unverified — check it by hand.`,
+      lookup.resolved ? undefined : 'err');
+    redirect(res, roomUrl(inst.draftId));
+  });
+
   // Human verification: all four confirmations or nothing.
   app.route('POST', `/r/${ROOM.id}/verify`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, roomUrl()); return; }
@@ -458,7 +503,7 @@ function register(app) {
           date(i.checkedAt),
           source(i.resolvedUrl),
         ]))
-      : `<p><b>No citation-like strings were detected on extraction</b> (run ${date(draft.scannedAt)}). The over-capturing extractor found no citation-like string in this draft; there was nothing to verify.</p>`;
+      : `<p><b>No citation-like strings were detected on extraction</b> (run ${date(draft.scannedAt)}). The over-capturing extractor found no citation-like string in the <span class="num">${draftText(draft).length}</span> characters of this draft; there was nothing to verify. <b>${esc(NO_CITE_WARN)}</b> — this certificate attests that the pass found nothing, not that the draft was read and found to cite no authority.</p>`;
     const body = `
     <style>@media print{
       .side,.topbar,.roomsub,.flash,.no-print{display:none !important}
@@ -473,6 +518,7 @@ function register(app) {
       a{color:#000 !important;text-decoration:none !important}
     }</style>
     <p class="no-print" style="margin:0 0 16px"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; <a href="${esc(roomUrl(draft.id))}">← back to the gate</a></p>
+    ${noCitesFound(draft, inst) ? `<div class="flash err">${esc(NO_CITE_WARN)}. This draft cleared the gate with an empty queue — read the warning under “Authorities verified” before you sign or serve this certificate.</div>` : ''}
     <div class="card">
       ${kv([
         ['Matter', esc(ctx.matter.title)],

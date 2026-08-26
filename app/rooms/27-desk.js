@@ -10,7 +10,38 @@ const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 27, id: 'desk', title: 'Workflow', phase: 'Always on' };
 
-const isLimitation = (d) => /limitation|prescription/.test(String(d.ruleId || ''));
+// Robust deadline classification. `ruleId` is a kernel/rules.js id and ONLY
+// 21-calendar ever writes one; 01-intake, 12-discovery, 15-experts and 23-adr
+// write the citation string (`rule`) and `desc` alone. Keying either control
+// below off `ruleId` made 01-intake's limitation bar — the one date whose miss
+// is a claim — invisible to the LIMITATION flag and to the dual-diary tick.
+// So match on ANY of: the rules.js id, the citation string or description that
+// every writer sets, or the rules.js record standing behind the id (its
+// category, else its own desc/cite). Never on `ruleId` alone.
+//
+// The text test is case-INSENSITIVE by necessity, not by taste: 01-intake
+// stores `desc: 'Limitation period expires'` and cites such as 'Limitations
+// Act, 2002, s. 4' / 'CPLR 214(5)', so a case-sensitive /limitation/ (what
+// 09-jurisdiction falls back to) matches none of them and the bar stays dark.
+function classify(k, d, rx, category) {
+  if (!d) return false;
+  const ruleId = String(d.ruleId || '');
+  if (rx.test(ruleId)) return true;                                            // (a) rules.js id
+  if (rx.test(String(d.rule || '') + ' ' + String(d.desc || ''))) return true;  // (b) citation string / desc
+  if (!ruleId) return false;
+  let r = null;                                                                // (c) the rule behind the id
+  try { r = k && k.rules && typeof k.rules.rule === 'function' ? k.rules.rule(ruleId) : null; } catch { r = null; }
+  if (!r) return false;
+  if (category && r.category === category) return true;
+  return rx.test(String(r.desc || '') + ' ' + String(r.cite || ''));
+}
+
+const LIMITATION_RX = /limitation|prescription/i;
+const APPEAL_RX = /appeal/i;
+const isLimitation = (k, d) => classify(k, d, LIMITATION_RX, 'limitation');
+// The appeal clock counts as calendared however it was written — by 21-calendar
+// with a ruleId, or by hand with only 'Notice of appeal due' on it.
+const isAppealClock = (k, d) => classify(k, d, APPEAL_RX, null);
 
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
@@ -49,12 +80,16 @@ function register(app) {
       for (const b of bs) bfs.push({ matter: m, b });
       // Judgment on the record but no open appeal deadline anywhere on the
       // matter: the appeal clock is running with nothing calendared.
-      if (js.length && !ds.some((d) => String(d.ruleId || '').includes('appeal'))) appealAlarms.push(m);
+      if (js.length && !ds.some((d) => isAppealClock(k, d))) appealAlarms.push(m);
     }
     overdue.sort((a, b) => a.d.due.localeCompare(b.d.due));
     dueSoon.sort((a, b) => a.d.due.localeCompare(b.d.due));
     diary.sort((a, b) => String(a.d.due || '').localeCompare(String(b.d.due || '')));
     bfs.sort((a, b) => String(a.b.due || '').localeCompare(String(b.b.due || '')));
+
+    // Limitation bars still awaiting the second tick — the dual-diary control
+    // as a number, so a missed one is visible without reading the table.
+    const limUnticked = diary.filter((r) => isLimitation(k, r.d) && !r.d.verifiedBy).length;
 
     const inquiries = k.firm.list('inquiry', (i) => i.status === 'screening');
     const bal = k.ledger.balances();
@@ -67,10 +102,11 @@ function register(app) {
     // rows carry the second-lawyer tick; verified rows show who and when.
     const limCell = (m, d) => {
       const parts = [];
-      if (isLimitation(d)) parts.push(tag('LIMITATION', 'gate'));
+      const lim = isLimitation(k, d);
+      if (lim) parts.push(tag('LIMITATION', 'gate'));
       if (d.verifiedBy) {
         parts.push(tag('verified — ' + d.verifiedBy + ' ' + String(d.verifiedAt || '').slice(0, 10), 'ok'));
-      } else if (isLimitation(d)) {
+      } else if (lim) {
         parts.push(`<form method="POST" action="/r/desk/verify" style="margin:6px 0 0"><input type="hidden" name="matterId" value="${esc(m.id)}"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Verify date</button></form>`);
       }
       return parts.join(' ');
@@ -143,6 +179,7 @@ function register(app) {
       ${statCard(overdue.length, 'Overdue deadlines', overdue.length ? 'bad' : '')}
       ${statCard(dueSoon.length, 'Due within 14 days')}
       ${statCard(inquiries.length, 'In screening')}
+      ${statCard(limUnticked, 'Limitation bars unticked', limUnticked ? 'bad' : '')}
       ${statCard(money(trust), 'Held in trust')}
       ${statCard(chain.ok ? 'intact' : 'BROKEN', 'Audit chain — ' + chain.entries + ' entries', chain.ok ? '' : 'bad')}
     </div>

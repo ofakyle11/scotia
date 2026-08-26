@@ -117,12 +117,82 @@ function matterCleared(k, matter) {
   });
 }
 
+// Dates are round-tripped through Date so an impossible calendar day such as
+// '2026-02-31' is REFUSED rather than silently rolled forward to March 3.
+// A fee agreement must never carry an execution date that does not exist —
+// and the marker below hands that date straight to Trust & Books.
+function isoDay(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(s + 'T00:00:00Z');
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s ? null : s;
+}
+
+// Marker numerics are compared and formatted by the reader, so coerce here:
+// a legacy or hand-edited record can never hand it a string or a NaN. null
+// means "not applicable to this fee model" — the reader renders that as
+// "no rate recorded"; a 0 would read as a recorded zero.
+const num = (v) => {
+  if (v === null || v === undefined || String(v).trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
 // What the executed fee agreement commits the client to, where a single figure
 // is knowable — the flat fee. Hourly/contingency have no fixed sum yet, so the
 // marker records the model without inventing a number.
 function expectedRetainerOf(e) {
-  if (e.feeModel === 'flat' && Number.isFinite(Number(e.flatAmount))) return Number(e.flatAmount);
-  return null;
+  if (e.feeModel !== 'flat') return null;
+  const n = num(e.flatAmount);
+  return n != null && n > 0 ? n : null;
+}
+
+// ---- the firm-scope marker Trust & Books reads ----
+// Shape is fixed by CONTRACT-SHEET §(c) `engagementSigned`: matterId,
+// engagementId, version, feeModel, rate, flatAmount, contingencyPct,
+// expectedRetainer, signedAt, signedBy. Built entirely from the engagement
+// record that was stored, so the marker is self-sufficient — 28-books never
+// has to reopen the matter to know the governing terms.
+function signedMarker(matterId, e) {
+  return {
+    matterId,
+    engagementId: e.id || null,
+    version: num(e.version),
+    feeModel: e.feeModel || null,
+    rate: e.feeModel === 'hourly' ? num(e.rate) : null,
+    flatAmount: e.feeModel === 'flat' ? num(e.flatAmount) : null,
+    contingencyPct: e.feeModel === 'contingency' ? num(e.contingencyPct) : null,
+    expectedRetainer: expectedRetainerOf(e),
+    signedAt: isoDay(e.signedAt),
+    signedBy: e.signedBy ? String(e.signedBy) : null,
+  };
+}
+
+const markedVersions = (k, matterId) => new Set(
+  k.firm.list('engagementSigned', (r) => r && r.matterId === matterId).map((r) => String(num(r.version))));
+
+// Every path by which an engagement reaches 'signed' must leave the marker.
+// The live transition posts it; this backs it in for versions signed before
+// the marker existed, or whose firm write failed — those otherwise read
+// "signed and in force" here and "no signed engagement on file" in room 28.
+// It MIRRORS an existing signature and never performs one, so the conflicts
+// gate is untouched: only /status can move an engagement to 'signed'.
+function backfillMarkers(k, matterId, engagements) {
+  const signed = engagements.filter((e) => e && e.status === 'signed');
+  if (!signed.length) return 0;
+  let n = 0;
+  try {
+    const have = markedVersions(k, matterId);
+    for (const e of signed) {
+      const key = String(num(e.version));
+      if (have.has(key)) continue;
+      k.firm.put('engagementSigned', signedMarker(matterId, e));
+      k.audit('engagement.marker.backfill', matterId + ':v' + e.version);
+      have.add(key);
+      n++;
+    }
+  } catch (_) { /* the page must still render; the next open retries */ }
+  return n;
 }
 
 function register(app) {
@@ -133,6 +203,8 @@ function register(app) {
       body = empty('Open a matter to record its engagement terms.');
     } else {
       const all = k.scope(ctx.matter.id).list('engagement').sort((a, b) => (b.version || 0) - (a.version || 0));
+      // Repair any signed version that is missing its Trust & Books marker.
+      backfillMarkers(k, ctx.matter.id, all);
       const cur = all.find((e) => e.status !== 'superseded') || null;
       const next = cur && cur.status === 'draft' ? ['sent', 'Record sent'] : cur && cur.status === 'sent' ? ['signed', 'Record signed'] : null;
       const cleared = matterCleared(k, ctx.matter);
@@ -149,7 +221,7 @@ function register(app) {
             ['Fee', feeSummary(cur)],
             ['Drafted', date(cur.drafted)],
             ['Sent', cur.sentAt ? date(cur.sentAt) : '—'],
-            ['Signed', cur.signedAt ? date(cur.signedAt) : '—'],
+            ['Signed', cur.signedAt ? `${date(cur.signedAt)}${cur.signedBy ? ` <span class="note" style="display:inline">recorded by ${esc(cur.signedBy)}</span>` : ''}` : '—'],
           ])}
           ${next ? `${signBlocked ? `<p class="note">${tag('conflicts gate', 'gate')} No cleared conflict check on file for this matter. Run a clear or waiver in Ethics &amp; Conflicts (room 02) before the engagement can be signed.</p>` : ''}
           <form method="POST" action="/r/${ROOM.id}/status">
@@ -198,7 +270,8 @@ function register(app) {
       rate: feeModel === 'hourly' ? rate : null,
       flatAmount: feeModel === 'flat' ? flatAmount : null,
       contingencyPct: feeModel === 'contingency' ? pct : null,
-      status: 'draft', drafted: today(), sentAt: null, signedAt: null, supersededAt: null, supersededBy: null,
+      status: 'draft', drafted: today(), sentAt: null, signedAt: null, signedBy: null,
+      supersededAt: null, supersededBy: null,
     };
     e.letter = letterText(ctx.matter, ctx.user, e);
     sc.put('engagement', e);
@@ -217,8 +290,11 @@ function register(app) {
     const sc = k.scope(ctx.matter.id);
     const e = ctx.body.id ? sc.get('engagement', ctx.body.id) : null;
     if (!e) { ctx.setFlash('No such engagement version.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
-    const onRaw = String(ctx.body.on || '');
-    const on = /^\d{4}-\d{2}-\d{2}$/.test(onRaw) && !Number.isNaN(Date.parse(onRaw)) ? onRaw : today();
+    // A cleared date field means "not typed" and dates to today; anything typed
+    // must be a real calendar day. Refuse rather than roll forward or invent.
+    const onRaw = String(ctx.body.on || '').trim();
+    const on = onRaw ? isoDay(onRaw) : today();
+    if (!on) { ctx.setFlash('That is not a real calendar date — enter the date the engagement was actually sent or signed.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
     if (ctx.body.to === 'sent' && e.status === 'draft') {
       sc.put('engagement', { ...e, status: 'sent', sentAt: on });
       ctx.setFlash(`Engagement v${e.version} recorded as sent ${on}.`);
@@ -230,18 +306,22 @@ function register(app) {
         ctx.setFlash('Cannot sign — no cleared conflict check on file for this matter. Run a clear or waiver in Ethics & Conflicts (room 02) first.', 'err');
         redirect(res, `/r/${ROOM.id}`); return;
       }
-      sc.put('engagement', { ...e, status: 'signed', signedAt: on });
+      // The signer is recorded on the engagement itself, not only on the
+      // marker, so the marker stays derivable from the record it describes.
+      const signed = { ...e, status: 'signed', signedAt: on, signedBy: ctx.user.name };
+      sc.put('engagement', signed);
       // Wire into the money side: post a firm-scope marker Trust & Books can
       // see, so an executed fee agreement is not invisible to the ledger. No
       // funds have moved — this records the commitment/expectation, not a txn.
-      const expected = expectedRetainerOf(e);
-      k.firm.put('engagementSigned', {
-        matterId: ctx.matter.id, engagementId: e.id, version: e.version,
-        feeModel: e.feeModel, rate: e.rate, flatAmount: e.flatAmount, contingencyPct: e.contingencyPct,
-        expectedRetainer: expected, signedAt: on, signedBy: ctx.user.name,
-      });
+      const expected = expectedRetainerOf(signed);
+      let marked = true;
+      try {
+        if (!markedVersions(k, ctx.matter.id).has(String(num(signed.version)))) {
+          k.firm.put('engagementSigned', signedMarker(ctx.matter.id, signed));
+        }
+      } catch (_) { marked = false; } // signature stands; the GET backfill repairs the marker
       k.audit('engagement.signed', ctx.matter.id + ':v' + e.version + (expected != null ? ':expected ' + fmt(expected) : ':' + e.feeModel));
-      ctx.setFlash(`Engagement v${e.version} recorded as signed ${on} — retainer in force. Fee commitment posted to Trust & Books.`);
+      ctx.setFlash(`Engagement v${e.version} recorded as signed ${on} — retainer in force. ${marked ? 'Fee commitment posted to Trust & Books.' : 'Fee commitment not yet posted to Trust & Books — reopen this room to retry.'}`);
     } else {
       ctx.setFlash('Invalid status transition — engagements move draft to sent to signed.', 'err');
     }

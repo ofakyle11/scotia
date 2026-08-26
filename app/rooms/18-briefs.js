@@ -20,7 +20,8 @@ function register(app) {
     const words = d ? wordsOf(d) : 0;
     const over = d && d.wordLimit && words > Number(d.wordLimit);
     const editor = d ? `
-      <h2 class="sec">${esc(d.title)} ${tag(d.status, d.status === 'final' ? 'ok' : d.status === 'cite-check' ? 'navy' : '')} ${d.citeStatus === 'clear' ? tag('citations clear', 'ok') : tag('citations unverified', 'gate')}</h2>
+      <h2 class="sec">${esc(d.title)} ${tag(d.status, d.status === 'final' ? 'ok' : d.status === 'cite-check' ? 'navy' : '')} ${d.citeStatus === 'clear' ? (d.noCitationsFound ? tag('clear — no citations detected', 'gate') : tag('citations clear', 'ok')) : tag('citations unverified', 'gate')}</h2>
+      ${d.citeStatus === 'clear' && d.noCitationsFound ? '<p class="note">No citations were detected in this draft. Confirm that is correct and that extraction did not silently fail before filing.</p>' : ''}
       <form method="POST" action="/r/briefs/save">
         <input type="hidden" name="id" value="${esc(d.id)}">
         <div class="grid3">
@@ -38,7 +39,7 @@ function register(app) {
     ` : '';
     const listCard = `<div class="card">
         <h2 class="sec" style="margin-top:0">Drafts — ${esc(ctx.matter.title)}</h2>
-        ${drafts.length ? table(['Title', 'Type', 'Status', 'Citations', ''], drafts.map((x) => [esc(x.title), esc(x.type), tag(x.status, x.status === 'final' ? 'ok' : ''), x.citeStatus === 'clear' ? tag('clear', 'ok') : tag('unverified', 'gate'), `<a href="/r/briefs?d=${esc(x.id)}">open →</a>`])) : empty('No drafts on this matter yet — the first one starts beside this.')}
+        ${drafts.length ? table(['Title', 'Type', 'Status', 'Citations', ''], drafts.map((x) => [esc(x.title), esc(x.type), tag(x.status, x.status === 'final' ? 'ok' : ''), x.citeStatus === 'clear' ? (x.noCitationsFound ? tag('clear — none found', 'gate') : tag('clear', 'ok')) : tag('unverified', 'gate'), `<a href="/r/briefs?d=${esc(x.id)}">open →</a>`])) : empty('No drafts on this matter yet — the first one starts beside this.')}
       </div>`;
     const newCard = `<div class="card">
         <h2 class="sec" style="margin-top:0">New draft</h2>

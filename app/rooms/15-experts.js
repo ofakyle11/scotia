@@ -118,7 +118,12 @@ function register(app) {
     let deadlineId = null;
     if (reportDue) {
       deadlineId = sc.put('deadline', {
-        desc: `Expert report due — ${name}`, due: reportDue, rule: 'expert report',
+        // No kernel/rules.js rule computes a report date — counsel takes it from
+        // the scheduling / case-management order — so `ruleId` is explicitly null:
+        // this row is manual by design, not a legacy row missing the field. Readers
+        // (27-desk, 09-jurisdiction) may rely on that distinction; they may never
+        // rely on a placeholder id that resolves to no rule on file.
+        desc: `Expert report due — ${name}`, due: reportDue, rule: 'expert report', ruleId: null,
         trigger: `Expert file opened (${side})`, status: 'open',
       }).id;
     }
@@ -187,10 +192,13 @@ function register(app) {
     const sc = ctx.kernel.scope(ctx.matter.id);
     let deadlineId = x.deadlineId || null;
     const existing = deadlineId ? sc.get('deadline', deadlineId) : null;
-    if (existing) sc.put('deadline', { ...existing, due });
+    // Re-setting a date updates the existing deadline in place (never a duplicate).
+    // Stamp `ruleId` on the way through so a row written before the field existed
+    // is normalised to an explicit null — preserving any real id already on it.
+    if (existing) sc.put('deadline', { ...existing, due, ruleId: existing.ruleId || null });
     else {
       deadlineId = sc.put('deadline', {
-        desc: `Expert report due — ${x.name}`, due, rule: 'expert report',
+        desc: `Expert report due — ${x.name}`, due, rule: 'expert report', ruleId: null,
         trigger: `Report date set (${x.side})`, status: 'open',
       }).id;
     }
@@ -240,10 +248,18 @@ function register(app) {
     let disclosureDeadlineId = x.disclosureDeadlineId || null;
     const existing = disclosureDeadlineId ? sc.get('deadline', disclosureDeadlineId) : null;
     const trigger = `Expert disclosure (${x.side}) — ${ruleObj.label}`;
-    if (existing) sc.put('deadline', { ...existing, due, rule: ruleObj.cite, trigger, status: 'open' });
+    // `ruleId` is a kernel/rules.js id or nothing at all. DISCLOSURE_RULES is this
+    // room's own reference tranche (Ont. r. 53.03 / FRCP 26(a)(2)(D)) and the date
+    // is taken from the court's scheduling order rather than computed by
+    // k.rules.compute, so this resolves to null today — an honestly manual row, not
+    // a legacy one. Looking the id up (instead of hard-coding null) means the row
+    // starts carrying a real id the day the rulebook gains one, and can never carry
+    // an id that resolves to no rule on file.
+    const ruleId = ctx.kernel.rules.rule(ruleObj.id) ? ruleObj.id : null;
+    if (existing) sc.put('deadline', { ...existing, due, rule: ruleObj.cite, ruleId, trigger, status: 'open' });
     else {
       disclosureDeadlineId = sc.put('deadline', {
-        desc: `Expert disclosure served — ${x.name}`, due, rule: ruleObj.cite, trigger, status: 'open',
+        desc: `Expert disclosure served — ${x.name}`, due, rule: ruleObj.cite, ruleId, trigger, status: 'open',
       }).id;
     }
     sc.put('expert', { ...x, disclosureDeadlineId, disclosureRule: ruleObj.id });

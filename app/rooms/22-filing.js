@@ -18,7 +18,8 @@ function register(app) {
     <div class="card">
       <h2 class="sec" style="margin-top:0">Prepare a filing</h2>
       ${clearDrafts.length ? `<form method="POST" action="/r/filing/prepare">
-        ${select('draftId', 'Draft (final + citations clear only)', clearDrafts.map((d) => [d.id, d.title]))}
+        ${select('draftId', 'Draft (final + citations clear only)', clearDrafts.map((d) => [d.id, d.title + (d.noCitationsFound ? '  [no citations detected]' : '')]))}
+        ${clearDrafts.some((d) => d.noCitationsFound) ? '<p class="note">A draft marked <b>[no citations detected]</b> cleared the gate with zero citations found. Confirm extraction did not silently fail before you sign.</p>' : ''}
         ${courts.length ? select('court', 'Court', courts.map((c) => [c.name || c.court || c.id, c.name || c.court || c.id])) : input('court', 'Court', { required: true })}
         ${input('style', 'Style of cause', { required: true, placeholder: 'Harness Holdings v. Fixture Corp.' })}
         ${input('fileNo', 'Court file no.', { placeholder: 'CV-26-000123' })}

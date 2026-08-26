@@ -169,7 +169,9 @@ function engagementCard(ctx, k) {
   const hasExpected = Number.isFinite(expected) && expected > 0;
   const short = hasExpected && needsReplenishment(ctx, k, ctx.matter.id, expected);
   const rows = [
-    ['Engagement', `${tag('signed ' + esc(String(sig.signedAt || '').slice(0, 10)), 'ok')} v${esc(String(sig.version ?? '?'))}${sig.signedBy ? ' — recorded by ' + esc(sig.signedBy) : ''}`],
+    // tag() escapes internally — hand it the raw string, esc() only the values
+    // that go straight into the kv cell's raw HTML.
+    ['Engagement', `${tag('signed ' + String(sig.signedAt || '').slice(0, 10), 'ok')} v${esc(String(sig.version ?? '?'))}${sig.signedBy ? ' — recorded by ' + esc(sig.signedBy) : ''}`],
     ['Fee model', feeTerms(sig)],
   ];
   if (hasExpected) {
@@ -274,7 +276,7 @@ function register(app) {
       <button>Record time</button>
     </form></div>
     ${time.length ? table(['Date', 'Hours', 'Rate', 'Value', 'Code', 'Narrative', 'State'], time.slice().reverse().map((t) => [
-      date(t.createdAt), `<span class="num">${num(t.hours).toFixed(1)}</span>`, money(num(t.rate)), money(num(t.hours) * num(t.rate)),
+      date(t.createdAt), `<span class="num">${num(t.hours)}</span>`, money(num(t.rate)), money(num(t.hours) * num(t.rate)),
       esc((t.utbms || '').slice(0, 4)), esc(t.narrative),
       t.lint ? tag('lint: ' + t.lint, 'gate') : tag(t.state || 'draft'),
     ])) : empty('No time recorded on this matter.')}

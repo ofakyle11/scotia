@@ -24,6 +24,29 @@ function readingGrade(text) {
 const usd = (n) => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const slug = (s) => String(s || 'matter').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'matter';
 
+// Has the client already answered a decision we posed? 05-client's decisionMemo
+// IS the answer — that room refuses to write one without a decision — so a memo
+// never represents an outstanding decision; it represents one that came back.
+// A memo on the same question, RECORDED AFTER the request was posed, is that
+// answer: the request stays open until the lawyer closes it, but the pack must
+// not ask the client a second time. Matching is deliberately conservative — the
+// same question text (case- and spacing-insensitive) and both `createdAt`
+// stamps present, compared at full store precision rather than by day — so a
+// question re-posed after an earlier answer is asked again, never silently
+// dropped. `decidedOn` is hand-entered and may be backdated, so it is displayed
+// but never used to decide the ordering.
+const normQ = (q) => String(q || '').toLowerCase().replace(/\s+/g, ' ').replace(/[.?!:;,]+$/, '').trim();
+const onDay = (d) => String(d || '').slice(0, 10);
+const answeredMemos = (s) => s.list('decisionMemo').filter((d) => String(d.decision || '').trim());
+function answeredBy(memos, req) {
+  const posed = String(req.createdAt || '');
+  if (!posed) return null;
+  return memos.find((mm) => {
+    const at = String(mm.createdAt || '');
+    return !!at && at > posed && normQ(mm.question) === normQ(req.question);
+  }) || null;
+}
+
 // Assemble the pack from what other rooms already compute. Reads only; every
 // figure is derived, none invented. Returns a self-contained snapshot so a
 // recorded pack renders exactly as it was on the day it was shared.
@@ -51,13 +74,15 @@ function assemblePack(k, m, user) {
   const hasBudget = figure > 0;
   const over = hasBudget && remaining < -0.005;
   const nearing = hasBudget && !over && actual > figure * 0.8;
-  // Decisions awaiting the client: portal-posed requests still open, plus any
-  // Client Desk decision memo recorded without an answer.
-  const reqs = s.list('decisionRequest', (d) => d.status === 'open')
+  // Decisions genuinely awaiting the client: portal-posed requests still open
+  // that the client has not already answered on the Client Desk. (The old
+  // second source here — decisionMemos with an empty `decision` — could never
+  // match: 05-client refuses to record a memo without the client's decision, so
+  // every memo it writes is an answer, not an open question.)
+  const memos = answeredMemos(s);
+  const decisions = s.list('decisionRequest', (d) => d.status === 'open')
+    .filter((d) => !answeredBy(memos, d))
     .map((d) => ({ question: d.question, options: d.options || '' }));
-  const openMemos = s.list('decisionMemo').filter((d) => !String(d.decision || '').trim())
-    .map((d) => ({ question: d.question, options: d.options || '' }));
-  const decisions = reqs.concat(openMemos);
   return {
     matterTitle: m.title, client: m.client || '', jurisdiction: m.jurisdiction || '',
     preparedBy: user.name,
@@ -150,7 +175,7 @@ ${decisionsBlock}
 
 // Internal (dark-theme) preview of the same snapshot, so the lawyer sees
 // exactly what the client will receive before generating or delivering it.
-function previewBlock(snap) {
+function previewBlock(snap, held = []) {
   const dateRows = snap.dates.length
     ? table(['Date', 'What it is', 'Reference'], snap.dates.map((d) => [date(d.due), esc(d.desc), `<span class="note">${esc(d.rule || '')}</span>`]))
     : empty('No open key dates on this matter.');
@@ -175,7 +200,8 @@ function previewBlock(snap) {
     ['Held in trust for client', money(b.trustHeld)],
   ])}</div>
   <h2 class="sec">Decision awaiting the client</h2>
-  ${decisions}`;
+  ${decisions}
+  ${held.length ? `<p class="note">${held.length} open request${held.length > 1 ? 's are' : ' is'} held back from the pack — the client’s answer is already recorded on the Client Desk (room 05). Mark ${held.length > 1 ? 'them' : 'it'} answered below so the record matches.</p>` : ''}`;
 }
 
 function register(app) {
@@ -186,15 +212,19 @@ function register(app) {
       body = empty('Open a matter to prepare and share a client status pack.');
     } else {
       const m = ctx.matter;
+      const s = k.scope(m.id);
       const snap = assemblePack(k, m, ctx.user);
-      const openReqs = k.scope(m.id).list('decisionRequest', (d) => d.status === 'open')
-        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-      const packs = k.scope(m.id).list('clientPack').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      const memos = answeredMemos(s);
+      const openReqs = s.list('decisionRequest', (d) => d.status === 'open')
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+        .map((d) => ({ req: d, memo: answeredBy(memos, d) }));
+      const held = openReqs.filter((x) => x.memo);
+      const packs = s.list('clientPack').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
       body = `
       <div class="grid2">
         <div>
-          ${previewBlock(snap)}
+          ${previewBlock(snap, held)}
           <form method="POST" action="/r/portal/generate" style="margin-top:8px">
             <button>Generate &amp; record client pack</button>
           </form>
@@ -208,12 +238,13 @@ function register(app) {
               ${textarea('options', 'Options explained (one per line)', { placeholder: 'Accept — funds in ~30 days, matter closes\nCounter at $95,000 — adds 2-3 months\nRefuse and proceed to trial' })}
               <button>Add to pack</button>
             </form>
-            <p class="note">These appear under “A decision we need from you.” Record the client’s answer in Client Desk (room 05) when it comes back.</p>
+            <p class="note">These appear under “A decision we need from you.” Record the client’s answer in Client Desk (room 05) when it comes back — a decision memo on the same question stops the pack asking twice, and marking the request answered closes it here.</p>
           </div>
-          ${openReqs.length ? `<div class="card"><h2 class="sec" style="margin-top:0">Open decision requests</h2>${openReqs.map((d) => `
+          ${openReqs.length ? `<div class="card"><h2 class="sec" style="margin-top:0">Open decision requests</h2>${openReqs.map(({ req: d, memo }) => `
             <div style="border-bottom:1px solid var(--rule-soft);padding:8px 0">
               <b>${esc(d.question)}</b>
               <form method="POST" action="/r/portal/resolve" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Mark answered</button></form>
+              ${memo ? `<div class="note">${tag('answered on the Client Desk', 'ok')} “${esc(memo.decision)}” — recorded ${esc(onDay(memo.decidedOn || memo.createdAt))}. Held back from new packs; mark it answered to clear it.</div>` : ''}
             </div>`).join('')}</div>` : ''}
         </div>
       </div>

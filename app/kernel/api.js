@@ -6,6 +6,12 @@ const canlii = require('./canlii.js');
 const uscourts = require('./uscourts.js');
 const edgar = require('./edgar.js');
 const ai = require('./ai.js');
+// Rooms may require only ../kernel/html.js and ../kernel/http.js, so these two
+// kernel modules can reach a room ONLY through this facade (see CONTRACT-SHEET
+// §g.1). Both take the kernel as their first argument; both are bound to the
+// live facade at the bottom of makeKernel().
+const citeResolve = require('./cite-resolve.js');
+const trustControls = require('./trust.js');
 
 function makeKernel({ store, audit, keyring }, user) {
   function walledFrom(matterId) {
@@ -91,7 +97,7 @@ function makeKernel({ store, audit, keyring }, user) {
       return bal;
     },
   };
-  return {
+  const k = {
     user,
     matters, matter, requireMatter, scope, firm, ledger,
     createMatter: (meta) => firm.put('matter', meta),
@@ -145,6 +151,59 @@ function makeKernel({ store, audit, keyring }, user) {
     isShredded: (matterId) => keyring.isShredded(matterId),
     isAdmin: () => user.role === 'admin',
   };
+
+  // ---- kernel/trust.js — LSO By-Law 9 s.7 / s.18 controls -------------------
+  // Pure, read-only helpers whose only input is kernel.ledger.balances(). Bound
+  // to this facade, so a caller gets the wall-filtered ledger for free.
+  // A caller may still hand in its OWN kernel-like object as the first argument
+  // when it needs the standard arithmetic over a NARROWER ledger view than the
+  // facade's (28-books does exactly that, restricting the legs to matters that
+  // caller may see). Anything exposing .ledger.balances() is honoured as the
+  // kernel; anything else is the helper's first real argument and this facade
+  // is used. That can only ever narrow visibility — the facade's own ledger is
+  // already the widest view this user is entitled to.
+  const kernelLike = (v) => !!(v && typeof v === 'object' && v.ledger && typeof v.ledger.balances === 'function');
+  const overLedger = (fn) => (...args) => (kernelLike(args[0]) ? fn(...args) : fn(k, ...args));
+  k.trust = {
+    perMatterTrustBalance: overLedger(trustControls.perMatterTrustBalance),
+    wouldNotOverdraw: overLedger(trustControls.wouldNotOverdraw),
+    wouldNoverdraw: overLedger(trustControls.wouldNoverdraw), // documented alias
+    replenishmentNeeded: overLedger(trustControls.replenishmentNeeded),
+    threeWayCheck: overLedger(trustControls.threeWayCheck),
+  };
+
+  // ---- kernel/cite-resolve.js — citation resolution over the connectors -----
+  // `detect` is a pure offline classifier and is exposed as-is. `resolve` is
+  // exposed in its ONE-ARGUMENT, kernel-already-bound form.
+  //
+  // OUTBOUND ACCOUNTABILITY: cite-resolve reaches the network through exactly
+  // two calls — canlii.fetchCase and uscourts.search. Both are wrapped here so
+  // an audit line is written at the moment a request actually leaves, and never
+  // for the offline branches (unrecognized cite, no API key, link-out only),
+  // which would otherwise record egress that never happened. The audit fires
+  // BEFORE the request, so a failure to record fails closed — no unlogged call
+  // to a third party. The citation string itself is deliberately NOT logged:
+  // the audit chain is plaintext metadata and a cite read off a client's draft
+  // is not metadata (rooms/08-citations.js logs its lookups the same way).
+  k.citeResolve = {
+    detect: citeResolve.detect,
+    US_CITE_RX: citeResolve.US_CITE_RX,
+    resolve: (cite) => {
+      let jur = 'unrecognized';
+      try { jur = (citeResolve.detect(cite) || {}).jurisdiction || 'unrecognized'; } catch (_) { /* classifier is best-effort */ }
+      const egress = (who) => audit.log(user.id, 'cite.resolve.egress', who + ':' + jur);
+      const view = {
+        ...k,
+        // Delegate through the facade's own connectors, not the raw modules, so
+        // anything the facade layers onto them travels with this path too.
+        canlii: { ...k.canlii, fetchCase: (ids, key) => { egress('canlii'); return k.canlii.fetchCase(ids, key); } },
+        uscourts: { ...k.uscourts, search: (q, type, token) => { egress('courtlistener'); return k.uscourts.search(q, type, token); } },
+      };
+      return citeResolve.resolve(view, cite);
+    },
+  };
+
+  return k;
   function auditVerify() { return audit.verify(); }
   function auditTail(n) { return audit.tail(n); }
 }

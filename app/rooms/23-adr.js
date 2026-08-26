@@ -82,7 +82,14 @@ function register(app) {
     if (!provider || !ctx.body.date) { ctx.setFlash('Provider and date are required.', 'err'); redirect(res, '/r/adr'); return; }
     const s = ctx.kernel.scope(ctx.matter.id);
     s.put('adrSession', { process: ctx.body.process, provider, date: ctx.body.date, briefDue: ctx.body.briefDue });
-    if (ctx.body.briefDue) s.put('deadline', { desc: `${ctx.body.process} brief due (${provider})`, due: ctx.body.briefDue, rule: 'ADR schedule', trigger: 'Session ' + ctx.body.date, status: 'open' });
+    // A brief-due date is set by the ADR schedule the parties agree with the
+    // neutral — no kernel/rules.js rule computes it — so `ruleId` is written as an
+    // explicit null rather than omitted. 27-desk's limitation flag and dual-diary
+    // tick, 09-jurisdiction's recompute list and the appeal watchdog all resolve a
+    // deadline's source through `ruleId`; null tells them this row is manual by
+    // design, where a missing field would only mean "written before the field
+    // existed". Never a placeholder id: it would read as a rule on file that isn't.
+    if (ctx.body.briefDue) s.put('deadline', { desc: `${ctx.body.process} brief due (${provider})`, due: ctx.body.briefDue, rule: 'ADR schedule', ruleId: null, trigger: 'Session ' + ctx.body.date, status: 'open' });
     ctx.setFlash('Session scheduled' + (ctx.body.briefDue ? ' — brief deadline calendared.' : '.'));
     redirect(res, '/r/adr');
   });

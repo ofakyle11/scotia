@@ -1,0 +1,30 @@
+// Prove the pleading -> citation gate seam end to end over HTTP.
+const fs=require('fs'),os=require('os'),assert=require('assert');
+process.env.CHAMBERS_DATA=fs.mkdtempSync(os.tmpdir()+'/plead-');
+process.env.PORT=String(29000+Math.floor(Math.random()*2000));
+const {app,makeCtx,store,auth}=require('/home/user/scotia/app/server.js');
+const {hashPassword}=require('/home/user/scotia/app/kernel/crypto.js');
+const admin=store.firm.put('user',{email:'p@f',name:'P',role:'admin',active:true,pw:hashPassword('a-long-password-here')},'t');
+const m=store.createMatter({title:'Plead v. Cite',client:'C',jurisdiction:'on',status:'open'},admin.id);
+const session=auth.createSession(admin.id);
+const server=app.listen(process.env.PORT,makeCtx,(e)=>{throw e;});
+const base='http://localhost:'+process.env.PORT;
+const H={cookie:`s=${session}; m=${m.id}`,'content-type':'application/x-www-form-urlencoded',origin:base};
+const post=async(p,f)=>{const r=await fetch(base+p,{method:'POST',redirect:'manual',headers:H,body:new URLSearchParams(f).toString()});await r.text();return r;};
+(async()=>{
+  await post('/r/pleadings/draft',{title:'Statement of Claim',ptype:'claim',body:'The plaintiff relies on Dunsmuir v. New Brunswick, 2008 SCC 9.'});
+  const sc=()=>store.matterScope(m.id);
+  const p=sc().list('pleading')[0];
+  assert(p,'pleading not saved');
+  const rr=await post('/r/pleadings/tocite',{id:p.id});
+  console.log('tocite status:',rr.status,'loc:',rr.headers.get('location'));
+  console.log('drafts now:',JSON.stringify(sc().list('draft').map(d=>({t:d.title,pid:d.pleadingId,st:d.status}))));
+  const d=sc().list('draft',(x)=>x.pleadingId===p.id)[0];
+  assert(d,'pleading did not register as a draft');
+  assert.strictEqual(d.status,'draft','R-B shape: registered draft must carry status');
+  await post('/r/citations/scan',{draftId:d.id});
+  const inst=sc().list('citation_instance',(i)=>i.draftId===d.id);
+  assert(inst.length>=1,'citation extractor found nothing in the pleading');
+  console.log(`PLEADING->GATE PASS: pleading registered as draft (status=${d.status}), ${inst.length} citation(s) extracted: ${inst.map(i=>i.cite).join(', ')}`);
+  server.close();process.exit(0);
+})().catch(e=>{console.error('FAIL:',e.message);process.exit(1);});

@@ -7,8 +7,24 @@ const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 34, id: 'billing', title: 'Billing', phase: 'Always on' };
 
-const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+// R-G — money arithmetic. Every figure that reaches a total, a comparison, the
+// ledger or the page is coerced here first. 28-books stored `hours`/`rate` from
+// the form without validating them for a long time, so a legacy timeEntry can
+// hold NaN, undefined or a string; a NaN that reaches a sum poisons the whole
+// bill, and one that reaches the page prints "NaN" on a client's invoice.
+// num() makes any of them zero. Comparisons against the ledger are made in
+// integer cents, which is how kernel/api.js ledger.post checks balance.
+const num = (v) => Number(v) || 0;
+const r2 = (n) => Math.round(num(n) * 100) / 100;
+const cents = (n) => Math.round(num(n) * 100);
 const today = () => new Date().toISOString().slice(0, 10);
+
+// BILLED-ONCE, the gathering half. "Unbilled" is `state !== 'billed'` everywhere
+// in the app, and that stays true — but this room adds the second half for its
+// own gathering: an entry that already carries an `invoiceId` was claimed by an
+// invoice that has been issued (nothing sets invoiceId before issue), so even if
+// its state somehow reads 'draft' it must never be swept into a second bill.
+const isUnbilled = (r) => r.state !== 'billed' && !r.invoiceId;
 
 // Pre-bill lint. A narrative a client should never see on a bill: empty, too
 // thin to justify the time, or one of the boilerplate phrases that read as
@@ -23,30 +39,41 @@ function narrativeLint(n) {
 }
 
 // The fee model comes from the signed engagement letter (room 03, scope type
-// 'engagement'); newest signed version wins, else newest draft, else hourly.
+// 'engagement'); newest signed version wins, else newest of any status, else
+// hourly. The fallback deliberately carries NO rate: an hourly invoice takes the
+// rate from each timeEntry, because that is where the rate actually charged for
+// that piece of work is recorded. There is no phantom firm-wide rate field here
+// and there must never be one — inventing a rate would silently re-price time
+// that was recorded at another rate.
+const FEE_MODELS = ['hourly', 'flat', 'contingency'];
 function feeModelFor(k, matterId) {
   let eng = null;
   try {
     const all = k.scope(matterId).list('engagement');
-    const signed = all.filter((e) => e.status === 'signed').sort((a, b) => (b.version || 0) - (a.version || 0));
-    eng = signed[0] || all.slice().sort((a, b) => (b.version || 0) - (a.version || 0))[0] || null;
+    const signed = all.filter((e) => e.status === 'signed').sort((a, b) => num(b.version) - num(a.version));
+    eng = signed[0] || all.slice().sort((a, b) => num(b.version) - num(a.version))[0] || null;
   } catch (e) { eng = null; }
   if (!eng) return { feeModel: 'hourly', flatAmount: 0, contingencyPct: 0, source: 'default (no engagement on file)' };
   return {
-    feeModel: eng.feeModel || 'hourly', flatAmount: Number(eng.flatAmount) || 0,
-    contingencyPct: Number(eng.contingencyPct) || 0, source: 'engagement v' + (eng.version || '?'),
+    // An engagement carrying an unrecognised feeModel reads as hourly — which is
+    // what recompute() already does with one — so the invoice stores the model it
+    // will actually be billed under rather than an out-of-domain string.
+    feeModel: FEE_MODELS.includes(eng.feeModel) ? eng.feeModel : 'hourly',
+    flatAmount: r2(eng.flatAmount),
+    contingencyPct: num(eng.contingencyPct),
+    source: 'engagement v' + (eng.version || '?'),
   };
 }
 
 // Fees per the model; disbursements and totals from the invoice's own lines.
 function recompute(inv) {
-  const gross = (inv.lineItems || []).reduce((s, l) => s + (Number(l.amount) || 0), 0);
-  const wd = (inv.lineItems || []).reduce((s, l) => s + (Number(l.writeDown) || 0), 0);
+  const gross = (inv.lineItems || []).reduce((s, l) => s + num(l.amount), 0);
+  const wd = (inv.lineItems || []).reduce((s, l) => s + num(l.writeDown), 0);
   let fees;
-  if (inv.feeModel === 'flat') fees = Math.max(0, (Number(inv.flatAmount) || 0) - wd);
+  if (inv.feeModel === 'flat') fees = Math.max(0, num(inv.flatAmount) - wd);
   else if (inv.feeModel === 'contingency') fees = 0; // taken from recovery in room 24, not billed hourly
-  else fees = Math.max(0, gross - wd);
-  const disb = (inv.disbLines || []).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+  else fees = Math.max(0, gross - wd); // hourly: each line's own hours x its own rate
+  const disb = (inv.disbLines || []).reduce((s, d) => s + num(d.amount), 0);
   inv.fees = r2(fees); inv.disbursements = r2(disb); inv.writeDowns = r2(wd); inv.total = r2(fees + disb);
   return inv;
 }
@@ -55,7 +82,7 @@ function recompute(inv) {
 // so it leaks nothing across the ethical wall. Never reuses a number.
 function nextNumber(k) {
   const cur = k.firm.get('invoiceSeq', 'counter') || { id: 'counter', n: 0 };
-  const n = (Number(cur.n) || 0) + 1;
+  const n = num(cur.n) + 1;
   k.firm.put('invoiceSeq', { id: 'counter', n });
   return new Date().getFullYear() + '-' + String(n).padStart(3, '0');
 }
@@ -94,13 +121,13 @@ function statusTag(s) {
 function lineRows(inv, editable) {
   return (inv.lineItems || []).map((l) => {
     const lint = narrativeLint(l.narrative);
-    const net = r2((Number(l.amount) || 0) - (Number(l.writeDown) || 0));
+    const net = r2(num(l.amount) - num(l.writeDown));
     const wdCell = editable
-      ? `<input type="number" step="0.01" min="0" name="wd:${esc(l.timeEntryId)}" value="${esc(r2(l.writeDown))}" style="margin:0;padding:4px 6px;max-width:110px">`
+      ? `<input type="number" step="0.01" min="0" max="${esc(r2(l.amount))}" name="wd:${esc(l.timeEntryId)}" value="${esc(r2(l.writeDown))}" style="margin:0;padding:4px 6px;max-width:110px">`
       : money(l.writeDown);
     return [
-      `${esc(l.narrative)} ${lint ? tag('lint: ' + lint, 'gate') : ''}<br><span class="note">${esc((l.utbms || '').slice(0, 4))}</span>`,
-      `<span class="num">${esc(String(l.hours))}</span>`,
+      `${esc(l.narrative)} ${lint ? tag('lint: ' + lint, 'gate') : ''}<br><span class="note">${esc(String(l.utbms || '').slice(0, 4))}</span>`,
+      `<span class="num">${esc(String(num(l.hours)))}</span>`,
       money(l.rate), money(l.amount), wdCell, money(net),
     ];
   });
@@ -126,7 +153,7 @@ function invoiceSheet(ctx, inv) {
     ${kv([
       ['Matter', esc(m.title)],
       ['Client', esc(m.client || '')],
-      ['Fee model', esc(inv.feeModel || 'hourly') + (inv.feeModel === 'flat' ? ' — ' + money(inv.flatAmount) : inv.feeModel === 'contingency' ? ' — ' + esc(String(inv.contingencyPct)) + '%' : '')],
+      ['Fee model', esc(inv.feeModel || 'hourly') + (inv.feeModel === 'flat' ? ' — ' + money(inv.flatAmount) : inv.feeModel === 'contingency' ? ' — ' + esc(String(num(inv.contingencyPct))) + '%' : '')],
       ['Issued', inv.issuedDate ? date(inv.issuedDate) : '<span class="note">not yet issued</span>'],
       inv.paidDate ? ['Paid', date(inv.paidDate)] : null,
     ].filter(Boolean))}
@@ -137,7 +164,7 @@ function invoiceSheet(ctx, inv) {
     ${disbRows.length ? table(['Item', 'Amount'], disbRows) : empty('No disbursements on this invoice.')}
     ${kv([
       ['Fees', money(inv.fees)],
-      ['Write-downs', inv.writeDowns > 0 ? '−' + money(inv.writeDowns).replace('<span class="num">', '<span class="num">') : money(0)],
+      ['Write-downs', num(inv.writeDowns) > 0 ? '−' + money(inv.writeDowns) : money(0)],
       ['Disbursements', money(inv.disbursements)],
       ['Total due', `<b>${money(inv.total)}</b>`],
     ])}
@@ -161,6 +188,35 @@ function invoiceSheet(ctx, inv) {
   </div>`;
 }
 
+// BILLED-ONCE, the issuing half. Resolve every frozen line on the draft back to
+// its live record BEFORE any money moves. A draft's lineItems are a snapshot
+// taken at /draft time; by the time it is issued the underlying entry may have
+// been billed by another invoice, or be gone. The old code did `if (te &&
+// te.state !== 'billed') put(...)` — it silently SKIPPED marking such a line
+// while still charging the client for its amount, which is a double bill with no
+// trace. Anything we cannot prove unbilled refuses the whole run instead.
+// An entry already stamped with THIS invoice's id is not a conflict: that is a
+// prior run of this same invoice that did not finish marking, and re-marking it
+// is idempotent.
+function resolveBillables(sc, inv) {
+  const time = [], disb = [], conflicts = [];
+  const claimedElsewhere = (r) => (r.invoiceId && r.invoiceId !== inv.id) || (r.state === 'billed' && r.invoiceId !== inv.id);
+  const label = (s) => String(s || '(no description)').slice(0, 40);
+  for (const l of inv.lineItems || []) {
+    const te = l.timeEntryId ? sc.get('timeEntry', l.timeEntryId) : null;
+    if (!te) { conflicts.push(`the time entry behind "${label(l.narrative)}" is no longer on file`); continue; }
+    if (claimedElsewhere(te)) { conflicts.push(`"${label(l.narrative)}" was already billed on invoice ${te.invoiceNumber || '(unnumbered)'}`); continue; }
+    time.push(te);
+  }
+  for (const d of inv.disbLines || []) {
+    const rec = d.disbId ? sc.get('disbursement', d.disbId) : null;
+    if (!rec) { conflicts.push(`the disbursement behind "${label(d.desc)}" is no longer on file`); continue; }
+    if (claimedElsewhere(rec)) { conflicts.push(`disbursement "${label(d.desc)}" was already billed on invoice ${rec.invoiceNumber || '(unnumbered)'}`); continue; }
+    disb.push(rec);
+  }
+  return { time, disb, conflicts };
+}
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -172,16 +228,16 @@ function register(app) {
     const sc = k.scope(ctx.matter.id);
     const fm = feeModelFor(k, ctx.matter.id);
     const time = sc.list('timeEntry');
-    const unbilledTime = time.filter((t) => t.state !== 'billed');
+    const unbilledTime = time.filter(isUnbilled);
     const disb = sc.list('disbursement');
-    const unbilledDisb = disb.filter((d) => d.state !== 'billed');
+    const unbilledDisb = disb.filter(isUnbilled);
     const invoices = sc.list('invoice').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const openDraft = invoices.find((i) => i.status === 'draft');
     const selId = ctx.query.get('inv');
     const selected = selId ? sc.get('invoice', selId) : (openDraft || null);
 
-    const grossUnbilled = unbilledTime.reduce((s, t) => s + (Number(t.hours) || 0) * (Number(t.rate) || 0), 0);
-    const disbUnbilled = unbilledDisb.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const grossUnbilled = unbilledTime.reduce((s, t) => s + num(t.hours) * num(t.rate), 0);
+    const disbUnbilled = unbilledDisb.reduce((s, d) => s + num(d.amount), 0);
     const feePreview = fm.feeModel === 'flat' ? money(fm.flatAmount)
       : fm.feeModel === 'contingency' ? '<span class="note">from recovery (room 24)</span>'
       : money(grossUnbilled);
@@ -220,8 +276,13 @@ function register(app) {
 
     <h2 class="sec">Unbilled time</h2>
     ${unbilledTime.length ? table(['Date', 'Hours', 'Rate', 'Value', 'Narrative', 'Lint'], unbilledTime.slice().reverse().map((t) => {
-      const lint = t.lint || narrativeLint(t.narrative);
-      return [date(t.createdAt), `<span class="num">${esc(String(t.hours))}</span>`, money(t.rate), money((Number(t.hours) || 0) * (Number(t.rate) || 0)), esc(t.narrative), lint ? tag(lint, 'gate') : tag('clean', 'ok')];
+      // R-G — this room's narrativeLint IS the gate; 28-books' stored `lint` is
+      // advisory. Show the gate's own verdict, so a row tagged clean here really
+      // will issue, and surface a stale stored lint (written before 28 aligned to
+      // this list) as a note rather than dressing it up as a blocking gate.
+      const gate = narrativeLint(t.narrative);
+      const stale = !gate && t.lint ? ` <span class="note">${esc(String(t.lint))} (room 28, advisory)</span>` : '';
+      return [date(t.createdAt), `<span class="num">${esc(String(num(t.hours)))}</span>`, money(t.rate), money(num(t.hours) * num(t.rate)), esc(t.narrative), (gate ? tag(gate, 'gate') : tag('clean', 'ok')) + stale];
     })) : empty('No unbilled time — record time in Trust & Books (room 28).')}
 
     <h2 class="sec">Unbilled disbursements</h2>
@@ -240,10 +301,11 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/disb`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/billing'); return; }
     const desc = String(ctx.body.desc || '').trim();
-    const amt = Number(ctx.body.amount);
+    const amt = num(ctx.body.amount); // garbage, empty and NaN all land on 0 and are refused below
     const incurred = String(ctx.body.incurred || '').trim() || today();
     if (!desc) { ctx.setFlash('Describe the disbursement.', 'err'); redirect(res, '/r/billing'); return; }
     if (!(amt > 0)) { ctx.setFlash('Enter a positive disbursement amount.', 'err'); redirect(res, '/r/billing'); return; }
+    if (!(r2(amt) > 0)) { ctx.setFlash('That amount rounds to zero — enter at least one cent.', 'err'); redirect(res, '/r/billing'); return; }
     ctx.kernel.ledger.post(ctx.matter.id, {
       date: incurred, memo: 'Disbursement — ' + desc, kind: 'disbursement',
       lines: [{ account: 'operating:expense:disbursements', dr: r2(amt) }, { account: 'operating:bank', cr: r2(amt) }],
@@ -259,16 +321,19 @@ function register(app) {
     const invoices = sc.list('invoice');
     const openDraft = invoices.find((i) => i.status === 'draft');
     if (openDraft) { ctx.setFlash(`A draft invoice (${openDraft.number}) is already open — issue or discard it first.`, 'err'); redirect(res, '/r/billing?inv=' + encodeURIComponent(openDraft.id)); return; }
-    const unbilledTime = sc.list('timeEntry').filter((t) => t.state !== 'billed');
-    const unbilledDisb = sc.list('disbursement').filter((d) => d.state !== 'billed');
+    const unbilledTime = sc.list('timeEntry').filter(isUnbilled);
+    const unbilledDisb = sc.list('disbursement').filter(isUnbilled);
     if (!unbilledTime.length && !unbilledDisb.length) { ctx.setFlash('Nothing unbilled to invoice on this matter.', 'err'); redirect(res, '/r/billing'); return; }
     const fm = feeModelFor(k, ctx.matter.id);
     const inv = recompute({
       number: nextNumber(k), matterId: ctx.matter.id,
       feeModel: fm.feeModel, flatAmount: fm.flatAmount, contingencyPct: fm.contingencyPct,
+      // Hourly fees are hours x THIS entry's rate — the engagement carries no
+      // rate and none is invented here. Both factors are coerced so a legacy
+      // NaN contributes a zero line instead of a NaN total.
       lineItems: unbilledTime.map((t) => ({
-        timeEntryId: t.id, narrative: String(t.narrative || ''), hours: Number(t.hours) || 0,
-        rate: Number(t.rate) || 0, utbms: t.utbms || '', amount: r2((Number(t.hours) || 0) * (Number(t.rate) || 0)), writeDown: 0,
+        timeEntryId: t.id, narrative: String(t.narrative || ''), hours: num(t.hours),
+        rate: num(t.rate), utbms: t.utbms || '', amount: r2(num(t.hours) * num(t.rate)), writeDown: 0,
       })),
       disbLines: unbilledDisb.map((d) => ({ disbId: d.id, desc: String(d.desc || ''), amount: r2(d.amount) })),
       status: 'draft', issuedDate: null, paidDate: null,
@@ -290,7 +355,11 @@ function register(app) {
       if (raw === undefined) continue;
       let wd = Number(raw);
       if (!Number.isFinite(wd) || wd < 0) wd = 0;
-      if (wd > l.amount) wd = l.amount; // cannot write down more than the line is worth
+      // Clamp against a COERCED line value. Comparing against a raw l.amount let
+      // a line whose amount was NaN or undefined escape the clamp entirely (every
+      // comparison with NaN is false), so an unbounded write-down could be stored.
+      const cap = r2(l.amount);
+      if (wd > cap) wd = cap; // cannot write down more than the line is worth
       l.writeDown = r2(wd);
     }
     recompute(inv);
@@ -305,36 +374,66 @@ function register(app) {
     const k = ctx.kernel, sc = k.scope(ctx.matter.id);
     const inv = ctx.body.inv ? sc.get('invoice', ctx.body.inv) : null;
     if (!inv) { ctx.setFlash('Select an invoice to issue.', 'err'); redirect(res, '/r/billing'); return; }
-    if (inv.status !== 'draft') { ctx.setFlash(`Invoice ${inv.number} has already been issued.`, 'err'); redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id)); return; }
+    const back = '/r/billing?inv=' + encodeURIComponent(inv.id);
+    // BILLED-ONCE, refusal of re-issue. Only a draft may be issued: a 'sent' or
+    // 'paid' invoice has already posted its receivable and marked its time, and
+    // running it again would double both.
+    if (inv.status !== 'draft') { ctx.setFlash(`Invoice ${inv.number} has already been issued (${inv.status}) — an issued invoice cannot be issued again.`, 'err'); redirect(res, back); return; }
     // Pre-bill lint gate: no vague/blocked narrative reaches a client's bill.
     const bad = (inv.lineItems || []).map((l) => narrativeLint(l.narrative) ? l.narrative : null).filter(Boolean);
     if (bad.length) {
       k.audit('billing.issue.blocked', ctx.matter.id + ':' + inv.number + ':lint');
       ctx.setFlash(`Cannot issue ${inv.number} — ${bad.length} narrative${bad.length === 1 ? '' : 's'} failed pre-bill lint. Fix them in Trust & Books (room 28) first.`, 'err');
-      redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id)); return;
+      redirect(res, back); return;
+    }
+    // BILLED-ONCE, per line. Resolve the frozen lines back to live records first.
+    const { time, disb, conflicts } = resolveBillables(sc, inv);
+    if (conflicts.length) {
+      k.audit('billing.issue.blocked', ctx.matter.id + ':' + inv.number + ':billed-once');
+      ctx.setFlash(`Cannot issue ${inv.number} — ${conflicts.length} line${conflicts.length === 1 ? '' : 's'} cannot be proved unbilled: ${conflicts.slice(0, 3).join('; ')}. Discard this draft and generate a fresh one.`, 'err');
+      redirect(res, back); return;
     }
     recompute(inv);
-    if (!(inv.total > 0)) { ctx.setFlash('Nothing billable to issue — total is zero.', 'err'); redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id)); return; }
+    if (!(num(inv.total) > 0)) { ctx.setFlash('Nothing billable to issue — total is zero.', 'err'); redirect(res, back); return; }
     // Record the receivable: client owes the total; fees to income, disbursements
     // recovered against the expense that funded them.
     const lines = [{ account: 'ar:client', dr: inv.total }];
     if (inv.fees > 0) lines.push({ account: 'operating:income:fees', cr: inv.fees });
     if (inv.disbursements > 0) lines.push({ account: 'operating:expense:disbursements', cr: inv.disbursements });
-    k.ledger.post(ctx.matter.id, { date: today(), memo: 'Invoice ' + inv.number, kind: 'invoice', lines });
-    // Mark the included time and disbursements billed so they can never be re-billed.
-    for (const l of inv.lineItems || []) {
-      const te = sc.get('timeEntry', l.timeEntryId);
-      if (te && te.state !== 'billed') sc.put('timeEntry', { ...te, state: 'billed', invoiceId: inv.id, invoiceNumber: inv.number });
+    // kernel/api.js ledger.post throws on <2 lines, on an unbalanced entry and on
+    // a zero-value one. Prove all three here, in the same integer cents it uses,
+    // so a rounding slip flashes a refusal instead of throwing a 500 (and, worse,
+    // throwing it part-way through the transition below).
+    const drc = lines.reduce((s, l) => s + cents(l.dr), 0);
+    const crc = lines.reduce((s, l) => s + cents(l.cr), 0);
+    if (lines.length < 2 || drc !== crc || drc === 0) {
+      k.audit('billing.issue.blocked', ctx.matter.id + ':' + inv.number + ':unbalanced');
+      ctx.setFlash(`Cannot issue ${inv.number} — fees plus disbursements do not balance against the total. Re-apply the write-downs and try again.`, 'err');
+      redirect(res, back); return;
     }
-    for (const d of inv.disbLines || []) {
-      const dr = sc.get('disbursement', d.disbId);
-      if (dr && dr.state !== 'billed') sc.put('disbursement', { ...dr, state: 'billed', invoiceId: inv.id, invoiceNumber: inv.number });
-    }
+    // THE TRANSITION. Everything above is read-only, so every refusal leaves the
+    // draft exactly as it was. From here it is one synchronous run with no await
+    // and therefore no interleaving: mark each resolved record billed, claim the
+    // invoice as 'sent' (which is what makes the re-issue refusal above bite),
+    // then post the receivable last, once it has been proved postable. Ordered
+    // this way, a failure at any point leaves the money un-posted and the records
+    // marked — never a posted receivable on an invoice still open to re-issue.
+    for (const te of time) sc.put('timeEntry', { ...te, state: 'billed', invoiceId: inv.id, invoiceNumber: inv.number });
+    for (const d of disb) sc.put('disbursement', { ...d, state: 'billed', invoiceId: inv.id, invoiceNumber: inv.number });
     inv.status = 'sent'; inv.issuedDate = today();
     sc.put('invoice', inv);
+    try {
+      k.ledger.post(ctx.matter.id, { date: today(), memo: 'Invoice ' + inv.number, kind: 'invoice', lines });
+    } catch (e) {
+      // Pre-validated, so this should be unreachable — but a swallowed 500 here
+      // would hide a missing receivable, so say so plainly and audit it.
+      k.audit('billing.issue.unposted', ctx.matter.id + ':' + inv.number + ':' + e.message);
+      ctx.setFlash(`Invoice ${inv.number} issued and its time marked billed, but the ledger refused the receivable (${e.message}) — check Trust & Books before sending it.`, 'err');
+      redirect(res, back); return;
+    }
     k.audit('billing.issue', ctx.matter.id + ':' + inv.number + ':' + inv.total);
-    ctx.setFlash(`Invoice ${inv.number} issued — receivable recorded and its time marked billed.`);
-    redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id));
+    ctx.setFlash(`Invoice ${inv.number} issued — receivable recorded, ${time.length} time entr${time.length === 1 ? 'y' : 'ies'} and ${disb.length} disbursement${disb.length === 1 ? '' : 's'} marked billed.`);
+    redirect(res, back);
   });
 
   app.route('POST', `/r/${ROOM.id}/status`, (req, res, ctx) => {
@@ -345,15 +444,18 @@ function register(app) {
     const want = String(ctx.body.status || '');
     if (want !== 'paid') { ctx.setFlash('Unknown status.', 'err'); redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id)); return; }
     if (inv.status !== 'sent') { ctx.setFlash('Only an issued invoice can be marked paid.', 'err'); redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id)); return; }
-    if (inv.total > 0) {
+    // Coerced: a legacy invoice with a missing or NaN total must not reach the
+    // ledger, which throws on a zero-value or unbalanced entry and would 500.
+    const paidTotal = r2(inv.total);
+    if (paidTotal > 0) {
       k.ledger.post(ctx.matter.id, {
         date: today(), memo: 'Payment — invoice ' + inv.number, kind: 'payment',
-        lines: [{ account: 'operating:bank', dr: inv.total }, { account: 'ar:client', cr: inv.total }],
+        lines: [{ account: 'operating:bank', dr: paidTotal }, { account: 'ar:client', cr: paidTotal }],
       });
     }
     inv.status = 'paid'; inv.paidDate = today();
     sc.put('invoice', inv);
-    k.audit('billing.paid', ctx.matter.id + ':' + inv.number + ':' + inv.total);
+    k.audit('billing.paid', ctx.matter.id + ':' + inv.number + ':' + paidTotal);
     ctx.setFlash(`Invoice ${inv.number} marked paid — receivable cleared to operating.`);
     redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id));
   });
@@ -384,22 +486,26 @@ function register(app) {
     L.push('Matter:  ' + (ctx.matter.title || ''));
     L.push('Client:  ' + (ctx.matter.client || ''));
     L.push('Status:  ' + inv.status + (inv.issuedDate ? '  issued ' + inv.issuedDate : '') + (inv.paidDate ? '  paid ' + inv.paidDate : ''));
-    L.push('Fee model: ' + inv.feeModel);
+    L.push('Fee model: ' + (inv.feeModel || 'hourly'));
     L.push('');
     L.push('PROFESSIONAL FEES');
     L.push(pad('Narrative', 44) + pad('Hours', 8) + pad('Rate', 12) + pad('Amount', 12) + pad('Write-down', 12) + 'Net');
+    // Every figure below is coerced: the statement is the document a client
+    // actually receives, so a legacy field that is missing or NaN must print
+    // 0.00, not "NaN" — and `inv.fees.toFixed()` on an invoice written without a
+    // fees field threw a TypeError, 500ing this download outright.
     for (const l of inv.lineItems || []) {
-      const net = r2((Number(l.amount) || 0) - (Number(l.writeDown) || 0));
-      L.push(pad(String(l.narrative || '').slice(0, 42), 44) + pad(String(l.hours), 8) + pad(Number(l.rate).toFixed(2), 12) + pad(Number(l.amount).toFixed(2), 12) + pad(Number(l.writeDown || 0).toFixed(2), 12) + net.toFixed(2));
+      const net = r2(num(l.amount) - num(l.writeDown));
+      L.push(pad(String(l.narrative || '').slice(0, 42), 44) + pad(String(num(l.hours)), 8) + pad(r2(l.rate).toFixed(2), 12) + pad(r2(l.amount).toFixed(2), 12) + pad(r2(l.writeDown).toFixed(2), 12) + net.toFixed(2));
     }
     L.push('');
     L.push('DISBURSEMENTS');
-    for (const d of inv.disbLines || []) L.push(pad(String(d.desc || '').slice(0, 42), 44) + Number(d.amount).toFixed(2));
+    for (const d of inv.disbLines || []) L.push(pad(String(d.desc || '').slice(0, 42), 44) + r2(d.amount).toFixed(2));
     L.push('');
-    L.push('Fees:          ' + inv.fees.toFixed(2));
-    L.push('Write-downs:   ' + inv.writeDowns.toFixed(2));
-    L.push('Disbursements: ' + inv.disbursements.toFixed(2));
-    L.push('TOTAL DUE:     ' + inv.total.toFixed(2));
+    L.push('Fees:          ' + r2(inv.fees).toFixed(2));
+    L.push('Write-downs:   ' + r2(inv.writeDowns).toFixed(2));
+    L.push('Disbursements: ' + r2(inv.disbursements).toFixed(2));
+    L.push('TOTAL DUE:     ' + r2(inv.total).toFixed(2));
     ctx.kernel.audit('billing.download', ctx.matter.id + ':' + inv.number);
     res.writeHead(200, {
       'Content-Type': 'text/plain; charset=utf-8',

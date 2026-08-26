@@ -183,11 +183,16 @@ function register(app) {
     if (!type || !served) { ctx.setFlash('Pick a type and a valid served date.', 'err'); redirect(res, '/r/discovery'); return; }
     const jur = ctx.matter.jurisdiction || 'on';
     const rule = ruleFor(k, jur, type);
-    let due = null, dueCite = null;
+    // `dueCite` is the rule's citation string; `ruleId` is the kernel/rules.js id
+    // behind it. Both are set together or neither is: a row may never claim a rule
+    // it did not compute from. If compute() throws we fall through to the typed
+    // date and the row is manual.
+    let due = null, dueCite = null, ruleId = null;
     if (rule) {
-      try { due = k.rules.compute(rule, served); dueCite = rule.cite; } catch (e) { due = null; }
+      try { due = k.rules.compute(rule, served); dueCite = rule.cite; ruleId = rule.id; }
+      catch (e) { due = null; dueCite = null; ruleId = null; }
     }
-    if (!due) due = isoDate(ctx.body.due); // manual fallback
+    if (!due) { due = isoDate(ctx.body.due); dueCite = null; ruleId = null; } // manual fallback
     const items = String(ctx.body.items || '').split('\n').map((t) => t.trim()).filter(Boolean)
       .map((text, idx) => ({ n: idx + 1, text, answered: false }));
     const inst = k.scope(ctx.matter.id).put('instrument', {
@@ -197,7 +202,13 @@ function register(app) {
     if (due) {
       k.scope(ctx.matter.id).put('deadline', {
         desc: `${typeLabel(type)} — responses due`, due, rule: dueCite || 'By agreement / manual',
-        trigger: 'Served ' + served, status: 'open',
+        // The diary controls downstream (27-desk's limitation flag and dual-diary
+        // tick, 09-jurisdiction's recompute list, the appeal watchdog) resolve the
+        // deadline's source through `ruleId` — the rules.js id — not the citation
+        // string. Carry it whenever a rule computed this date; write an explicit
+        // null when counsel typed the date, so a reader can tell a deliberately
+        // manual row from a legacy row that predates the field.
+        ruleId, trigger: 'Served ' + served, status: 'open',
       });
     }
     ctx.setFlash(`Tracked ${typeLabel(type)}${due ? ` — responses due ${due}${dueCite ? ` (${dueCite})` : ''}, calendared.` : ' — no due date set.'}`);

@@ -82,6 +82,21 @@ stated intent (Opus quality over the Fable work) far better than re-typing code.
 Cost if wrong: the files keep their current structure rather than being re-derived;
 every proven defect is still eliminated and every seam verified.
 
+**R6 — Director closes cross-file residuals agents cannot own.**
+T1a agents correctly refused to edit files they did not own and reported the gaps
+instead (the right behaviour). Three seams therefore had no owner: the zero-citation
+warning was invisible in `18-briefs`/`22-filing`; pleadings were never citation-
+scannable because `10-pleadings` writes `pleading`, not `draft`; and the billing
+agent died mid-response. I closed the first two directly and verified the third's
+work survived (161 insertions, syntax valid, harness green). Cost if wrong: small,
+localised UI/route changes, all covered by new tests.
+
+**R7 — Behavioural tests, not just harness passes, gate this build.**
+Evidence: my own `tocite` route passed `node --check` AND `node test/harness.js
+pleadings` while silently returning 404, because it had been inserted into a helper
+function instead of `register()`. Only an end-to-end HTTP test caught it. Both new
+proofs are promoted into `app/test/` so they run in every future gate.
+
 ---
 
 ## Completions
@@ -92,4 +107,5 @@ every proven defect is still eliminated and every seam verified.
 | P2 | 10 improved files, malpractice seams | suite green + `improve.test.js` handshakes | `e4d81d2` |
 | P3 | 4 new rooms + 2 kernel engines, 36 rooms | 36-room harness + 9 test files green | `fc55abf` |
 | Plan | 10-agent Fable-5 panel → approved blueprint | `PLAN-PANEL.json`, plan approved | — |
-| T0 | Contract sheet — 954 lines, 17 cross-room defects proved | `docs/CONTRACT-SHEET.md` on disk, 64KB | pending |
+| T0 | Contract sheet — 954 lines, 17 cross-room defects proved | `docs/CONTRACT-SHEET.md` on disk, 64KB | `a4553b8`… |
+| T1 | 13 Opus-5 agents fixed the proven defects + director closed 3 residual seams | 36-room harness + 8 suites green; new `seam.test.js` and `pleadcite.test.js` prove R-A/R-D and the pleading→gate path | this commit |

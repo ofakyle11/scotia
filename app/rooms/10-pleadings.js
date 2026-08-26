@@ -209,7 +209,8 @@ function register(app) {
       d.ptype === 'claim' ? tag('claim', 'navy') : tag(esc(d.ptype)),
       date(d.createdAt),
       `<span class="note">${esc(String(d.body || '').slice(0, 160))}${String(d.body || '').length > 160 ? '…' : ''}</span>`,
-      `<form method="POST" action="/r/pleadings/deldraft" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:0">drop</button></form>`,
+      `<form method="POST" action="/r/pleadings/tocite" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet" style="padding:4px 10px;margin-top:0">to citation check</button></form>` +
+      `<form method="POST" action="/r/pleadings/deldraft" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:0">drop</button></form>`,
     ])) : empty('No pleading drafts yet — save one from the form above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
@@ -411,6 +412,25 @@ function register(app) {
     });
     res.end(text);
   });
+  // A pleading cites authority like any other filing, but 08-citations only
+  // scans 'draft' records — so registering one mints a draft carrying the
+  // pleading's text in the R-B shape (status:'draft'), linked back by pleadingId.
+  app.route('POST', `/r/${ROOM.id}/tocite`, (req, res, ctx) => {
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
+    const s = ctx.kernel.scope(ctx.matter.id);
+    const p = ctx.body.id ? s.get('pleading', String(ctx.body.id)) : null;
+    if (!p) { ctx.setFlash('Pick a pleading to send.', 'err'); redirect(res, `/r/${ROOM.id}`); return; }
+    const already = s.list('draft', (d) => d.pleadingId === p.id)[0];
+    if (already) {
+      s.put('draft', { ...already, text: p.body, title: p.title, citeStatus: 'unchecked', scannedAt: null });
+      ctx.setFlash(`Re-sent "${p.title}" to Citation Check — open room 08 to extract and verify.`);
+    } else {
+      s.put('draft', { title: p.title, type: p.ptype || 'pleading', text: p.body, status: 'draft', citeStatus: 'unchecked', pleadingId: p.id });
+      ctx.setFlash(`"${p.title}" registered in Citation Check — open room 08 to extract and verify its authorities.`);
+    }
+    ctx.kernel.audit('pleading.tocite', ctx.matter.id + ':' + p.id);
+    redirect(res, `/r/${ROOM.id}`);
+  });
 }
 
 function fullyCovered(c) {
@@ -522,6 +542,8 @@ function registerText(matter, causes, defences, facts) {
   }
   lines.push('');
   return lines.join('\n');
+
+
 }
 
 module.exports = { ...ROOM, register };

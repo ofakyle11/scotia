@@ -32,6 +32,21 @@ const PRETRIAL_TEMPLATE = {
 };
 function pretrialTemplate(jur) { return PRETRIAL_TEMPLATE[jur] || PRETRIAL_TEMPLATE._default; }
 
+// Marker stamped on every deadline the trial cascade creates. Recompute clears
+// the old chain STRICTLY by this marker and never by the anchor: a deadline
+// another room hangs off the trial date (an expert report date, say) carries
+// anchor:'trial' too, and sweeping by anchor destroyed it silently.
+const CASCADE_SOURCE = 'trial-cascade';
+
+// Every deadline this room writes carries BOTH `rule` (the citation string all
+// rooms write) and `ruleId` (the kernel/rules.js id, or the cascade's own id).
+// 27-desk's LIMITATION flag, its dual-diary tick and the appeal-clock watchdog
+// key off `ruleId`; a row written without one is invisible to those controls.
+// ruleId is a positional argument here so no future write path can forget it.
+function putDeadline(s, ruleId, fields) {
+  return s.put('deadline', { ...fields, ruleId });
+}
+
 // Back-calculate each milestone from the trial date using the SAME procedural
 // roll as forward deadlines: a synthetic negative-offset rule fed to
 // k.rules.compute() subtracts the offset then rolls a weekend/holiday landing
@@ -89,6 +104,11 @@ function register(app) {
     // date recomputes the whole chain in one place.
     const anchor = s.list('trialAnchor')[0] || null;
     const trialDeadlines = deadlines.filter((d) => d.anchor === 'trial');
+    // Only the stamped rows are the cascade's to manage; anything else anchored
+    // to the trial belongs to another writer (or predates the stamp) and is
+    // shown, never touched.
+    const cascadeRows = trialDeadlines.filter((d) => d.source === CASCADE_SOURCE);
+    const unmanaged = trialDeadlines.filter((d) => d.source !== CASCADE_SOURCE);
     const preview = anchor && anchor.trialDate ? computeCascade(k, jur, anchor.trialDate) : [];
     const cascadeCard = `<div class="card">
       <h2 class="sec" style="margin-top:0">Trial-anchored cascade ${tag('BACK-COMPUTED', 'navy')}</h2>
@@ -98,13 +118,14 @@ function register(app) {
         <button>${anchor ? 'Recompute the cascade' : 'Compute & calendar the cascade'}</button>
       </form>
       ${anchor && anchor.trialDate ? `
-      <p class="note" style="margin-top:14px">Trial ${date(anchor.trialDate)} — cascade for ${esc(jur)} (${trialDeadlines.length} milestone${trialDeadlines.length === 1 ? '' : 's'} on the calendar):</p>
+      <p class="note" style="margin-top:14px">Trial ${date(anchor.trialDate)} — cascade for ${esc(jur)} (${cascadeRows.length} milestone${cascadeRows.length === 1 ? '' : 's'} on the calendar):</p>
       ${table(['Before', 'Milestone', 'Computed date', 'Basis'], pretrialTemplate(jur).map((m, i) => [
         `<span class="num">${m.before}d</span>`, esc(m.label), date(preview[i] && preview[i].due),
         `<span class="note">${esc(m.cite)}${m.firm ? ' ' : ''}</span>${m.firm ? tag('firm default', '') : tag('rule', 'ok')}`,
       ]))}
       <p class="note">Offsets roll off weekends/holidays to the next business day via the same procedural rule engine as forward deadlines. Firm-default milestones are the firm's backward-planning template, not statutory — confirm each against the court's scheduling/case-management order. FRCP-fixed milestones cite the rule. Build Sheet: per-court scheduling templates wire in here.</p>`
       : `<p class="note" style="margin-top:14px">No trial date set — the cascade is empty until you anchor it.</p>`}
+      ${unmanaged.length ? `<p class="note"><b>${unmanaged.length} trial-anchored deadline${unmanaged.length === 1 ? '' : 's'} on this calendar ${unmanaged.length === 1 ? 'was' : 'were'} not created by this cascade</b> — no <span class="num">trial-cascade</span> stamp, so ${unmanaged.length === 1 ? 'it is' : 'they are'} another writer's row${unmanaged.length === 1 ? '' : 's'} (an expert or discovery date hung off the trial, or a row predating the stamp). Recompute leaves ${unmanaged.length === 1 ? 'it' : 'them'} alone by design: this room deletes only what it stamped. ${unmanaged.length === 1 ? 'It is' : 'They are'} tagged <i>not cascade-managed</i> in the calendar below — close or supersede ${unmanaged.length === 1 ? 'it' : 'them'} in the room that owns ${unmanaged.length === 1 ? 'it' : 'them'} if ${unmanaged.length === 1 ? 'it duplicates' : 'they duplicate'} a milestone.</p>` : ''}
     </div>`;
 
     const body = `
@@ -128,7 +149,7 @@ function register(app) {
     <h2 class="sec">Calendar — ${esc(ctx.matter.title)}</h2>
     ${deadlines.length ? table(['Due', 'Deadline', 'Trigger', 'Authority', 'Status', ''], deadlines.map((d) => [
       date(d.due) + (d.due < today && d.status === 'open' ? ' ' + tag('OVERDUE', 'gate') : (daysOut(d.due) <= 14 && d.status === 'open' ? ' ' + tag(daysOut(d.due) + 'd', 'navy') : '')),
-      esc(d.desc) + (d.anchor === 'trial' ? ' ' + tag('trial', 'navy') : ''), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`,
+      esc(d.desc) + (d.anchor === 'trial' ? ' ' + tag('trial', 'navy') + (d.source === CASCADE_SOURCE ? '' : ' ' + tag('not cascade-managed', '')) : ''), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`,
       d.status === 'done' ? tag('done', 'ok') : tag('open'),
       d.status === 'open' ? `<form method="POST" action="/r/calendar/done" style="margin:0"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Done</button></form>` : '',
     ])) : empty('No deadlines calendared for this matter yet — pick a rule and trigger date above; one click computes and calendars it.')}
@@ -161,8 +182,10 @@ function register(app) {
     const rule = k.rules.rule(ctx.body.rule);
     if (!rule || !ctx.body.trigger) { ctx.setFlash('Pick a rule and a trigger date.', 'err'); redirect(res, '/r/calendar'); return; }
     const due = k.rules.compute(rule, ctx.body.trigger);
-    k.scope(ctx.matter.id).put('deadline', {
-      desc: rule.desc, due, rule: rule.cite, trigger: rule.trigger + ' ' + ctx.body.trigger, status: 'open', ruleId: rule.id,
+    // rule.cite is the citation string every room writes; rule.id is what
+    // 27-desk's limitation flag and the appeal watchdog read. Both, always.
+    putDeadline(k.scope(ctx.matter.id), rule.id, {
+      desc: rule.desc, due, rule: rule.cite, trigger: rule.trigger + ' ' + ctx.body.trigger, status: 'open',
     });
     ctx.setFlash(`Calendared: ${rule.desc} — ${due} (${rule.cite}).`);
     redirect(res, '/r/calendar');
@@ -182,24 +205,29 @@ function register(app) {
     }
     const s = k.scope(ctx.matter.id);
     const jur = ctx.matter.jurisdiction || 'on';
-    // Clear the old trial-anchored chain, then rebuild from the trial date.
-    for (const d of s.list('deadline', (x) => x.anchor === 'trial')) s.del('deadline', d.id);
+    // Clear ONLY the rows this cascade created — they carry the trial-cascade
+    // stamp. Deleting by anchor:'trial' instead swept away any other room's
+    // trial-anchored deadline (15-experts' report date, 12-discovery's cutoff)
+    // on every recompute; a room may destroy its own records and no others.
+    const stale = s.list('deadline', (x) => x.source === CASCADE_SOURCE);
+    for (const d of stale) s.del('deadline', d.id);
     const existing = s.list('trialAnchor')[0];
     s.put('trialAnchor', { ...(existing || {}), trialDate, jurisdiction: jur, setBy: ctx.user.id });
     // The trial date itself sits on the calendar (no roll — it is the anchor).
-    s.put('deadline', {
+    putDeadline(s, 'trial-date', {
       desc: 'Trial commences', due: trialDate, rule: 'Trial date (anchor)', trigger: 'Set trial date ' + trialDate,
-      status: 'open', ruleId: 'trial-date', anchor: 'trial', milestone: 'trial', trialDate,
+      status: 'open', anchor: 'trial', milestone: 'trial', trialDate, source: CASCADE_SOURCE,
     });
     const cascade = computeCascade(k, jur, trialDate);
     for (const m of cascade) {
-      s.put('deadline', {
+      putDeadline(s, 'trial-back-' + m.key, {
         desc: m.label, due: m.due, rule: m.cite, trigger: 'Trial ' + trialDate + ' minus ' + m.before + 'd',
-        status: 'open', ruleId: 'trial-back-' + m.key, anchor: 'trial', milestone: m.key, trialDate,
+        status: 'open', anchor: 'trial', milestone: m.key, trialDate, source: CASCADE_SOURCE,
       });
     }
-    k.audit('calendar.trial.cascade', ctx.matter.id + ':' + trialDate + ':' + cascade.length);
-    ctx.setFlash(`Trial-anchored cascade ${existing ? 'recomputed' : 'calendared'} from ${trialDate} — ${cascade.length} pretrial milestones back-calculated. Confirm firm-default dates against the scheduling order.`);
+    k.audit('calendar.trial.cascade', ctx.matter.id + ':' + trialDate + ':' + cascade.length + ':replaced=' + stale.length);
+    const orphans = s.list('deadline', (x) => x.anchor === 'trial' && x.source !== CASCADE_SOURCE).length;
+    ctx.setFlash(`Trial-anchored cascade ${existing ? 'recomputed' : 'calendared'} from ${trialDate} — ${cascade.length} pretrial milestones back-calculated${stale.length ? `, ${stale.length} superseded cascade date${stale.length === 1 ? '' : 's'} cleared` : ''}. Confirm firm-default dates against the scheduling order.${orphans ? ` ${orphans} trial-anchored deadline${orphans === 1 ? '' : 's'} not created by this cascade ${orphans === 1 ? 'was' : 'were'} left untouched — review ${orphans === 1 ? 'it' : 'them'} in the calendar.` : ''}`);
     redirect(res, '/r/calendar');
   });
 
@@ -256,6 +284,13 @@ function register(app) {
   // server.js must change before a cookie-less phone can actually reach it.
   app.route('GET', `/r/${ROOM.id}/feed/:token`, (req, res, ctx) => {
     const k = ctx.kernel;
+    // Verified against server.js: makeCtx's PUBLIC set is
+    // {GET /, POST /login, POST /login/totp, GET /healthz, GET /robots.txt}
+    // plus the /invite/ prefix, and its public branch returns a ctx with NO
+    // kernel. So a cookie-less phone is 303'd to sign-in before this runs, and
+    // the day server.js admits this prefix it must also build the kernel for
+    // the calfeed's userId. Answer plainly rather than throwing in between.
+    if (!k) { send(res, 503, 'Calendar feed not enabled: this token-authenticated route needs server.js to build a kernel for the feed owner. See the Phone feed note in the Trial Calendar.'); return; }
     const feed = k.firm.get('calfeed', ctx.params.token);
     if (!feed) { send(res, 404, 'Not found.'); return; }
     const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';

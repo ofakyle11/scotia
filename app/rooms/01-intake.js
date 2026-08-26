@@ -52,6 +52,14 @@ function register(app) {
     const jur = ctx.body.jurisdiction || 'on';
     const claimType = ctx.body.claimType || 'Other';
     const discovered = String(ctx.body.discovered || '').trim();
+    // A limitation clock is only as good as the date it runs from. '2026-02-31'
+    // parses and rolls forward to March 3 — starting the statutory clock from a
+    // day the client never lived is worse than not starting it. Refuse, flash,
+    // never 500.
+    if (discovered && !isRealDate(discovered)) {
+      ctx.setFlash(`"${discovered}" is not a real calendar date — the limitation clock will not be run from a date that does not exist.`, 'err');
+      redirect(res, '/r/intake'); return;
+    }
     // Key the clock to the claim type the inquiry collected — not the first
     // rule whose id contains 'limitation'. Where the jurisdiction has no
     // limitation rule on file, the clock is recorded as unknown, not silently
@@ -62,7 +70,9 @@ function register(app) {
       limNote = NO_RULE;
     } else if (discovered) {
       try { limitation = k.rules.compute(limRule, discovered); }
-      catch (e) { limitation = null; } // garbage date — leave clock unset, no 500
+      catch (e) { limitation = null; limNote = NO_DATE; } // no 500; unset clock stays explicit
+    } else {
+      limNote = NO_DATE; // rule on file, no trigger date yet — say so, do not leave a silent null
     }
     k.firm.put('inquiry', {
       client, adverse: (ctx.body.adverse || '').split(',').map((s) => s.trim()).filter(Boolean),
@@ -97,10 +107,24 @@ function register(app) {
       });
       k.firm.put('inquiry', { ...inq, status: 'accepted', matterId: m.id });
       if (inq.limitation) {
-        k.scope(m.id).put('deadline', {
-          desc: 'Limitation period expires', due: inq.limitation, rule: inq.limCite || 'limitation',
+        // The firm-wide diary (27-desk) identifies a limitation bar — and hangs
+        // the LawPRO dual-diary tick on it — by the rules.js rule ID, not by the
+        // citation string. Carry the id of the rule that produced this date
+        // alongside its cite, or the single most consequential date in the file
+        // is invisible to the control built to catch it.
+        // Legacy inquiries screened before limRuleId existed carry only the
+        // cite, so fall back to the same claim-type lookup that produced them.
+        const limRule = (inq.limRuleId && k.rules.rule(inq.limRuleId))
+          || limitationRuleFor(k, inq.jurisdiction, inq.claimType);
+        const dl = {
+          desc: 'Limitation period expires', due: inq.limitation,
+          rule: inq.limCite || (limRule ? limRule.cite : 'limitation'),
           trigger: 'Claim discovered ' + inq.discovered, status: 'open',
-        });
+        };
+        // Only ever a real rules.js id — never a placeholder, which would read
+        // as a rule on file that is not.
+        if (limRule) dl.ruleId = limRule.id;
+        k.scope(m.id).put('deadline', dl);
       }
       k.audit('intake.accept', inq.id + ' -> ' + m.id);
       ctx.setFlash(`Matter opened: ${m.title}. Its encryption key was minted on creation.`);
@@ -117,6 +141,15 @@ function register(app) {
 }
 
 const NO_RULE = 'none — no rule on file, counsel to diary manually';
+const NO_DATE = 'not run — no discovery date recorded, counsel to diary manually';
+
+// Round-trip an ISO date so a non-existent day ('2026-02-31') is refused rather
+// than silently rolled forward by Date to a day the client never gave us.
+function isRealDate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
 
 // A rule is a limitation/prescription rule when it says so (category, per the
 // shared rules contract) or, for the reference tranche that pre-dates that
@@ -167,7 +200,7 @@ function screeningCard(k, i) {
       ['Discovered', date(i.discovered)],
       ['Limitation', i.limitation
         ? `${date(i.limitation)} ${soon ? tag('under 90 days', 'gate') : ''} <span class="note">${esc(i.limCite || '')}</span>`
-        : (i.limNote ? `${tag('no rule', 'gate')} <span class="note">${esc(i.limNote)}</span>` : '—')],
+        : (i.limNote ? `${tag(i.limRuleId ? 'clock not run' : 'no rule', 'gate')} <span class="note">${esc(i.limNote)}</span>` : '—')],
       ['Summary', esc(i.summary || '')],
     ])}
     <form method="POST" action="/r/intake/decide" style="display:inline"><input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="decision" value="accept"><button>Accept — open matter</button></form>
