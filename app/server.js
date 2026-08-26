@@ -12,6 +12,8 @@ const { Audit } = require('./kernel/audit.js');
 const { Auth } = require('./kernel/auth.js');
 const { makeKernel } = require('./kernel/api.js');
 const ui = require('./kernel/html.js');
+const barbench = require('./kernel/barbench.js');
+const { chat: aiChat } = require('./kernel/ai.js');
 const registry = require('./kernel/registry.js');
 
 const DATA = process.env.CHAMBERS_DATA || path.join(__dirname, 'data');
@@ -307,6 +309,29 @@ app.route('GET', '/admin', (req, res, ctx) => {
         ${ui.input('apiKey', 'API key (only if the endpoint needs one)')}
         <button>Save gateway</button>
       </form>
+      ${(() => {
+        // The competence bench — Chambers' own bar. The gateway accepts any
+        // model, including a small local one; this measures whether THAT model
+        // can answer bar-style black-letter law before the firm leans on it.
+        const c = ctx.kernel.ai.config();
+        if (!c || !c.endpoint || !c.model) return '';
+        const b = ctx.kernel.firm.get('setting', 'bench');
+        const stale = b && (b.model !== c.model || b.endpoint !== c.endpoint);
+        const running = b && b.status === 'running' && (Date.now() - (b.startedAt || 0)) < 30 * 60 * 1000;
+        let status;
+        if (running) status = `<p>${ui.tag('bench running', '')} started ${ui.esc(new Date(b.startedAt).toISOString().slice(11, 16))} UTC — refresh in a few minutes.</p>`;
+        else if (b && b.status === 'done' && !stale) {
+          const rows = Object.entries(b.bySubject || {}).map(([k, v]) => [ui.esc(k), `<span class="num">${v.correct}/${v.total}</span>`]);
+          status = `<p>${b.passed ? ui.tag(`passed — ${b.pct}% (line ${b.passLine}%)`, 'ok') : ui.tag(`FAILED — ${b.pct}% (line ${b.passLine}%)`, 'gate')} <span class="num">${ui.esc(b.model)}</span>, benched ${ui.esc(String(b.finishedAt || '').slice(0, 10))}</p>
+          ${ui.table(['Subject', 'Score'], rows)}
+          ${b.passed ? '' : `<p class="note">This model failed Chambers' own bar. Do not rely on it for drafting or research suggestions — every gate still applies, but a failing model wastes the verifier's time with confident wrong answers.</p>`}`;
+        }
+        else if (b && b.status === 'failed' && !stale) status = `<p>${ui.tag('bench errored', 'gate')} ${ui.esc(b.message || '')}</p>`;
+        else status = `<p>${ui.tag('never benched', 'gate')} This exact model has not been measured. Run the bench before relying on drafting or research assistance.</p>`;
+        return `<h2 class="sec">Competence bench</h2>${status}
+        ${running ? '' : `<form method="POST" action="/admin/bench"><button>Bench this model — 48 bar-style questions</button></form>`}
+        <p class="note">Original Ontario/Canadian black-letter questions, independently reviewed, sent through the same gateway the rooms use and graded strictly (an unparseable answer is wrong). Passing means the model clears Chambers' ${''}own line — it does not make the model a lawyer, and no score moves responsibility off the licensee: the citation gate and human verification apply to every output regardless.</p>`;
+      })()}
       <p class="note">The gateway is the only door to any model. Local endpoint = nothing leaves the building. Every call is audited; matters can forbid model use entirely (set in the Moot Room). Client content never trains anything.</p>
       <h2 class="sec">Audit chain</h2>
       <p>${chain.ok ? ui.tag('intact', 'ok') : ui.tag('BROKEN', 'gate')} <span class="num">${chain.entries}</span> entries, hash-chained.</p>
@@ -329,6 +354,32 @@ app.route('POST', '/admin/ai', (req, res, ctx) => {
   ctx.kernel.firm.put('setting', { id: 'ai', endpoint: endpoint || null, model: String(ctx.body.model || '').trim() || null, apiKey: String(ctx.body.apiKey || '').trim() || null });
   ctx.kernel.audit('ai.gateway.' + (endpoint ? 'configured' : 'disabled'), endpoint || 'off');
   ctx.setFlash(endpoint ? 'Model gateway configured (settings encrypted at rest).' : 'Model gateway disabled.');
+  redirect(res, '/admin');
+});
+app.route('POST', '/admin/bench', (req, res, ctx) => {
+  if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
+  const cfg = ctx.kernel.ai.config();
+  if (!cfg || !cfg.endpoint || !cfg.model) { ctx.setFlash('Configure the model gateway first.', 'err'); redirect(res, '/admin'); return; }
+  const existing = ctx.kernel.firm.get('setting', 'bench');
+  if (existing && existing.status === 'running' && (Date.now() - (existing.startedAt || 0)) < 30 * 60 * 1000) {
+    ctx.setFlash('A bench is already running — refresh in a few minutes.', 'err'); redirect(res, '/admin'); return;
+  }
+  // The run is fire-and-forget in-process: 48 sequential model calls against a
+  // local model can take minutes, and an admin POST must not hang for that.
+  // The result lands in the 'bench' setting; /admin shows it on refresh. The
+  // questions are fixed public doctrine — never client content — so the run is
+  // audited as ONE action rather than 48 lines of chain noise.
+  const by = ctx.user.id;
+  store.firm.put('setting', { id: 'bench', status: 'running', startedAt: Date.now(), model: cfg.model, endpoint: cfg.endpoint }, by);
+  audit.log(by, 'ai.bench.started', cfg.model);
+  barbench.run(cfg, aiChat).then((r) => {
+    if (!r.ok) { store.firm.put('setting', { id: 'bench', status: 'failed', startedAt: Date.now(), finishedAt: new Date().toISOString(), model: cfg.model, endpoint: cfg.endpoint, message: r.message }, by); return; }
+    store.firm.put('setting', { id: 'bench', status: 'done', finishedAt: new Date().toISOString(), model: cfg.model, endpoint: cfg.endpoint, total: r.total, correct: r.correct, pct: r.pct, passLine: r.passLine, passed: r.passed, bySubject: r.bySubject, wrong: r.wrong }, by);
+    audit.log(by, 'ai.bench.finished', `${cfg.model}:${r.correct}/${r.total}:${r.passed ? 'passed' : 'failed'}`);
+  }).catch((e) => {
+    store.firm.put('setting', { id: 'bench', status: 'failed', finishedAt: new Date().toISOString(), model: cfg.model, endpoint: cfg.endpoint, message: String(e.message || e) }, by);
+  });
+  ctx.setFlash('Bench started — 48 questions through the gateway. Refresh /admin in a few minutes for the score.');
   redirect(res, '/admin');
 });
 app.route('POST', '/admin/wall/remove', (req, res, ctx) => {
