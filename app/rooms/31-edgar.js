@@ -28,8 +28,12 @@ function register(app) {
 
   app.route('POST', `/r/${ROOM.id}/save`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter to save filings to its file.', 'err'); redirect(res, '/r/edgar'); return; }
-    const { company, form, date, description, url, adsh } = ctx.body;
+    const { company, form, date, description, adsh } = ctx.body;
+    const url = String(ctx.body.url || '').trim();
     if (!company || !url) { ctx.setFlash('Nothing to save.', 'err'); redirect(res, '/r/edgar'); return; }
+    // Scheme allowlist: the stored value is re-rendered as a clickable link on
+    // the shared matter view, and esc() cannot neutralize a javascript: URI.
+    if (!/^https?:\/\//i.test(url)) { ctx.setFlash('Refused: only http(s) links can be saved to the file.', 'err'); redirect(res, '/r/edgar'); return; }
     ctx.kernel.scope(ctx.matter.id).put('secFiling', { company, form, date, description, url, adsh, source: 'edgar' });
     ctx.setFlash(`Saved to ${ctx.matter.title}: ${company} ${form || ''}`);
     redirect(res, '/r/edgar');
@@ -78,7 +82,7 @@ function render(res, ctx, search) {
     </div>
   </div>
   ${ctx.matter ? `<h2 class="sec">On the file — ${esc(ctx.matter.title)}</h2>` + (saved.length
-    ? table(['Company', 'Form', 'Filed', 'Document'], saved.map((s) => [esc(s.company), tag(s.form || '?', 'navy'), esc(s.date || ''), `<a href="${esc(s.url)}" rel="noopener" target="_blank">${esc(s.description || s.adsh || 'open')} →</a>`]))
+    ? table(['Company', 'Form', 'Filed', 'Document'], saved.map((s) => [esc(s.company), tag(s.form || '?', 'navy'), esc(s.date || ''), /^https?:\/\//i.test(s.url || '') ? `<a href="${esc(s.url)}" rel="noopener" target="_blank">${esc(s.description || s.adsh || 'open')} →</a>` : esc(s.url || '')]))
     : empty('No SEC filings saved to this matter yet.')) : ''}
   `;
   html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'SEC filings — contracts, disclosures, and exhibits at the source', body }));

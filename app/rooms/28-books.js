@@ -44,6 +44,23 @@ function csvField(v) {
 }
 const csvRow = (fields) => fields.map(csvField).join(',');
 
+// Wall- and shred-aware ledger reads. The kernel's ledger.list keeps walled
+// matters out of firm-wide reads, but the transactions of a shredded
+// (destroyed) matter survive in the firm log — and this room must never
+// resurrect them, on screen or in the accountant CSVs. Belt and braces:
+// only transactions of matters this caller can see, and never a shredded one.
+function visibleTxns(ctx, k, matterId) {
+  const allowed = new Set((ctx.matters || []).map((m) => m.id));
+  return k.ledger.list(matterId).filter((t) => allowed.has(t.matterId) && !k.isShredded(t.matterId));
+}
+function visibleBalances(ctx, k, matterId) {
+  const bal = {};
+  for (const t of visibleTxns(ctx, k, matterId)) for (const l of t.lines) {
+    bal[l.account] = (bal[l.account] || 0) + (l.dr || 0) - (l.cr || 0);
+  }
+  return bal;
+}
+
 function exportCard(ctx) {
   const scopeOpts = [['firm', 'Whole firm'], ['matter', 'This matter']];
   const form = (report, labelTxt, btn) => `<div><form method="POST" action="/r/books/export">
@@ -63,11 +80,11 @@ function exportCard(ctx) {
 }
 
 function reconCard(ctx, k) {
-  const bal = k.ledger.balances();
+  const bal = visibleBalances(ctx, k);
   const ledgerTrust = bal['trust:bank'] || 0;
   // Client liabilities per matter: what the trust account owes, and to whom.
   const perMatter = new Map();
-  for (const t of k.ledger.list()) for (const l of t.lines) {
+  for (const t of visibleTxns(ctx, k)) for (const l of t.lines) {
     if (l.account === 'trust:client') {
       const cur = perMatter.get(t.matterId) || 0;
       perMatter.set(t.matterId, cur + (l.cr || 0) - (l.dr || 0));
@@ -109,8 +126,8 @@ function reconCard(ctx, k) {
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
-    const txns = k.ledger.list(ctx.matter ? ctx.matter.id : undefined).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const bal = k.ledger.balances(ctx.matter ? ctx.matter.id : undefined);
+    const txns = visibleTxns(ctx, k, ctx.matter ? ctx.matter.id : undefined).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const bal = visibleBalances(ctx, k, ctx.matter ? ctx.matter.id : undefined);
     const trustBank = bal['trust:bank'] || 0;
     const trustLiab = -(bal['trust:client'] || 0);
     const reconciled = Math.abs(trustBank - trustLiab) < 0.005;
@@ -201,10 +218,10 @@ function register(app) {
     const stmt = Number(ctx.body.statementBalance);
     const sdate = String(ctx.body.statementDate || '');
     if (!Number.isFinite(stmt) || !sdate) { ctx.setFlash('Statement balance and date are required.', 'err'); redirect(res, '/r/books'); return; }
-    const bal = k.ledger.balances();
+    const bal = visibleBalances(ctx, k);
     const ledger = bal['trust:bank'] || 0;
     let liabilities = 0;
-    for (const t of k.ledger.list()) for (const l of t.lines) if (l.account === 'trust:client') liabilities += (l.cr || 0) - (l.dr || 0);
+    for (const t of visibleTxns(ctx, k)) for (const l of t.lines) if (l.account === 'trust:client') liabilities += (l.cr || 0) - (l.dr || 0);
     const ok = Math.abs(stmt - ledger) < 0.005 && Math.abs(ledger - liabilities) < 0.005;
     k.firm.put('reconciliation', { statementDate: sdate, statementBalance: stmt, ledger, liabilities, ok, byName: ctx.user.name });
     k.audit('trust.reconciliation', sdate + ':' + (ok ? 'ok' : 'OUT-OF-BALANCE'));
@@ -246,7 +263,10 @@ function register(app) {
       }
     } else {
       header = ['txnId', 'date', 'matter', 'kind', 'memo', 'account', 'dr', 'cr'];
-      const txns = k.ledger.list(matterId);
+      // Same discipline as the time report: only matters visible to this
+      // caller, never a shredded one — the CSV is bulk disclosure, so the
+      // wall and the shredder both apply to it.
+      const txns = visibleTxns(ctx, k, matterId);
       for (const t of txns) {
         const m = k.firm.get('matter', t.matterId);
         const title = m ? m.title : t.matterId;

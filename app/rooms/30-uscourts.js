@@ -28,8 +28,12 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/save`, (req, res, ctx) => {
     const k = ctx.kernel;
     if (!ctx.matter) { ctx.setFlash('Open a matter to save results to its file.', 'err'); redirect(res, '/r/uscourts'); return; }
-    const { caseName, court, dateFiled, docketNumber, citation, url, kind } = ctx.body;
+    const { caseName, court, dateFiled, docketNumber, citation, kind } = ctx.body;
+    const url = String(ctx.body.url || '').trim();
     if (!caseName || !url) { ctx.setFlash('Nothing to save.', 'err'); redirect(res, '/r/uscourts'); return; }
+    // Scheme allowlist: the stored value is re-rendered as a clickable link on
+    // the shared matter view, and esc() cannot neutralize a javascript: URI.
+    if (!/^https?:\/\//i.test(url)) { ctx.setFlash('Refused: only http(s) links can be saved to the file.', 'err'); redirect(res, '/r/uscourts'); return; }
     if (kind === 'r') {
       k.scope(ctx.matter.id).put('docketRef', { caseName, court, dateFiled, docketNumber, url, source: 'recap' });
     } else {
@@ -86,7 +90,7 @@ function render(res, ctx, search) {
     </div>
   </div>
   ${ctx.matter ? `<h2 class="sec">On the file — ${esc(ctx.matter.title)}</h2>` + (saved.length
-    ? table(['Kind', 'Case', 'Court', 'Date', 'Link'], saved.map((s) => [tag(s._k, s._k === 'Opinion' ? 'navy' : ''), esc(s.title || s.caseName), esc(s.court || ''), esc(s.decisionDate || s.dateFiled || ''), `<a href="${esc(s.url)}" rel="noopener" target="_blank">open →</a>`]))
+    ? table(['Kind', 'Case', 'Court', 'Date', 'Link'], saved.map((s) => [tag(s._k, s._k === 'Opinion' ? 'navy' : ''), esc(s.title || s.caseName), esc(s.court || ''), esc(s.decisionDate || s.dateFiled || ''), /^https?:\/\//i.test(s.url || '') ? `<a href="${esc(s.url)}" rel="noopener" target="_blank">open →</a>` : esc(s.url || '')]))
     : empty('Nothing saved from US courts to this matter yet.')) : ''}
   `;
   html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'US federal court records — RECAP archive first, PACER linked', body }));

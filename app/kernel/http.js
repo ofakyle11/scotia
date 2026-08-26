@@ -2,9 +2,20 @@
 // Minimal HTTP router. No dependencies. Urlencoded + JSON bodies,
 // cookies, param routes, origin check on writes.
 const http = require('http');
+const crypto = require('crypto');
 const { URL } = require('url');
 
 const MAX_BODY = 25 * 1024 * 1024;
+
+// Placeholder that server-rendered pages put in their <script nonce="...">
+// attributes; html() swaps in a fresh per-response nonce and mirrors it in
+// the CSP header. User text can never turn this into script execution: esc()
+// strips the ability to open a <script> element at all.
+const NONCE = '%%CSP-NONCE%%';
+// The one inline event handler shipped (the print button in room 08):
+// sha256('window.print();return false'), allowed via 'unsafe-hashes' so the
+// policy can drop 'unsafe-inline' entirely.
+const PRINT_HANDLER_HASH = "'sha256-R7rXn9vB3Vz2GkaRq/qyiVxnqHXKCxP89N5/c+UFP0Q='";
 
 function parseCookies(req) {
   const out = {};
@@ -36,7 +47,7 @@ class App {
     }
     return null;
   }
-  listen(port, makeCtx, onError) {
+  listen(port, makeCtx, onError, host) {
     const server = http.createServer(async (req, res) => {
       try {
         const u = new URL(req.url, 'http://localhost');
@@ -63,7 +74,7 @@ class App {
         }
       }
     });
-    server.listen(port);
+    server.listen(port, host); // host omitted -> all interfaces (tests); server.js passes loopback
     return server;
   }
 }
@@ -103,16 +114,21 @@ function send(res, status, text) {
 }
 
 function html(res, body, status = 200, extraHeaders = {}) {
+  // script-src deliberately has no 'unsafe-inline': only <script> tags carrying
+  // this response's nonce run, plus the one hashed print onclick handler. That
+  // makes the browser refuse injected inline scripts AND javascript: URIs
+  // (e.g. a stored javascript: link clicked from a saved-authority table).
+  const nonce = crypto.randomBytes(16).toString('base64');
   res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'no-referrer',
     'X-Robots-Tag': 'noindex, nofollow',
-    'Content-Security-Policy': "default-src 'self'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'",
+    'Content-Security-Policy': `default-src 'self'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-${nonce}' 'unsafe-hashes' ${PRINT_HANDLER_HASH}; img-src 'self' data:; form-action 'self'`,
     ...extraHeaders,
   });
-  res.end(body);
+  res.end(String(body).split(NONCE).join(nonce));
 }
 
 function redirect(res, to, setCookie) {
@@ -124,8 +140,14 @@ function redirect(res, to, setCookie) {
 
 function cookie(name, value, opts = {}) {
   let c = `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict`;
+  // Secure by default: the session token must never transit plaintext HTTP,
+  // even when the port is reached directly instead of through the TLS proxy.
+  // Modern browsers accept Secure cookies on http://localhost, so local dev
+  // still works; set CHAMBERS_INSECURE_COOKIES=1 only for plain-http dev
+  // setups that truly need it.
+  if (process.env.CHAMBERS_INSECURE_COOKIES !== '1') c += '; Secure';
   if (opts.maxAge !== undefined) c += `; Max-Age=${opts.maxAge}`;
   return c;
 }
 
-module.exports = { App, send, html, redirect, cookie };
+module.exports = { App, send, html, redirect, cookie, NONCE };

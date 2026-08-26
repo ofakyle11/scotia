@@ -4,7 +4,7 @@
 // surface and no signup: accounts exist only by provisioning.
 const path = require('path');
 const fs = require('fs');
-const { App, html, send, redirect, cookie } = require('./kernel/http.js');
+const { App, html, send, redirect, cookie, NONCE } = require('./kernel/http.js');
 const { Keyring, token } = require('./kernel/crypto.js');
 const { Store } = require('./kernel/store.js');
 const { Audit } = require('./kernel/audit.js');
@@ -76,7 +76,7 @@ app.route('POST', '/login/totp', (req, res, ctx) => {
   redirect(res, '/r/desk', cookie('s', session, { maxAge: 8 * 3600 }));
 });
 app.route('GET', '/logout-form', (req, res) => {
-  html(res, `<!doctype html><meta charset="utf-8"><body style="background:#0B0E14"><form method="POST" action="/logout" id="f"></form><script>document.getElementById('f').submit()</script>`);
+  html(res, `<!doctype html><meta charset="utf-8"><body style="background:#0B0E14"><form method="POST" action="/logout" id="f"></form><script nonce="${NONCE}">document.getElementById('f').submit()</script>`);
 });
 app.route('POST', '/logout', (req, res, ctx) => {
   auth.logout(ctx.cookies.s);
@@ -243,8 +243,12 @@ for (const meta of registry) {
 }
 
 if (require.main === module) {
-  app.listen(PORT, makeCtx, (err) => console.error('error:', err.message));
-  console.log(`Chambers listening on http://localhost:${PORT} (data: ${DATA})`);
+  // Bind loopback only by default: TLS termination (Caddy) proxies to us on
+  // the same host, so :8028 should never be reachable from the network even
+  // when no firewall rule applies. Set CHAMBERS_HOST=0.0.0.0 to expose it.
+  const HOST = process.env.CHAMBERS_HOST || '127.0.0.1';
+  app.listen(PORT, makeCtx, (err) => console.error('error:', err.message), HOST);
+  console.log(`Chambers listening on http://localhost:${PORT} (bound to ${HOST}, data: ${DATA})`);
 }
 
 module.exports = { app, makeCtx, store, audit, auth, keyring, PORT };

@@ -46,6 +46,16 @@ function privTag(d) {
 const respTag = (d) => respOf(d) === 'yes' ? tag('responsive', 'ok') : tag('not responsive');
 
 // ---- tolerant RFC822 (.eml) parsing — small, in-room, never trusted ----
+// Hard ceilings on the intake: one hostile message stuffed with MIME stubs
+// must not fan out into unbounded encrypted blobs, document records and
+// append-only audit entries. Exceeding a cap throws a flagged error and
+// nothing is persisted — the caps live in the parser so the handler can
+// never write a single blob for an over-limit message.
+const EML_MAX_PARTS = 1000; // MIME parts examined per message
+const EML_MAX_ATTACHMENTS = 100; // attachments persisted per message
+const EML_MAX_ATTACH_BYTES = 25 * 1024 * 1024; // total decoded attachment bytes
+function emlLimit(msg) { const e = new Error(msg); e.limit = true; return e; }
+
 // Split at the first blank line; no blank line means the whole input is body.
 function splitAtBlank(src) {
   const m = /\r?\n\r?\n/.exec(src);
@@ -90,6 +100,7 @@ function splitMultipart(body, boundary) {
     if (pieces[i].startsWith('--')) break; // closing delimiter --boundary--
     const p = pieces[i].replace(/^[ \t]*\r?\n/, '').replace(/\r?\n$/, '');
     if (p.trim()) parts.push(p);
+    if (parts.length > EML_MAX_PARTS) throw emlLimit(`message has more than ${EML_MAX_PARTS} MIME parts`);
   }
   return parts;
 }
@@ -102,6 +113,7 @@ function parseEml(src) {
   const ct = h['content-type'] || '';
   const boundary = /^\s*multipart\//i.test(ct) ? headerParam(ct, 'boundary') : '';
   const parts = boundary ? splitMultipart(body, boundary) : [];
+  let attachBytes = 0;
   for (const part of parts) {
     const seg = splitAtBlank(part);
     const ph = parseHeaderBlock(seg.head);
@@ -109,8 +121,13 @@ function parseEml(src) {
     const disp = ph['content-disposition'] || '';
     const filename = headerParam(disp, 'filename') || headerParam(ph['content-type'] || '', 'name');
     const buf = decodeTransfer(seg.body, ph['content-transfer-encoding']);
-    if (filename || /^attachment/i.test(disp.trim())) out.attachments.push({ filename: filename || 'attachment', buf });
-    else if (!out.body && /^text\//i.test(pct)) out.body = buf;
+    if (filename || /^attachment/i.test(disp.trim())) {
+      if (!buf.length) continue; // empty attachment stubs carry no evidence — never persisted
+      if (out.attachments.length >= EML_MAX_ATTACHMENTS) throw emlLimit(`message has more than ${EML_MAX_ATTACHMENTS} attachments`);
+      attachBytes += buf.length;
+      if (attachBytes > EML_MAX_ATTACH_BYTES) throw emlLimit('decoded attachments exceed the size ceiling');
+      out.attachments.push({ filename: filename || 'attachment', buf });
+    } else if (!out.body && /^text\//i.test(pct)) out.body = buf;
   }
   if (!out.body) out.body = parts.length ? Buffer.from('', 'utf8') : decodeTransfer(body, h['content-transfer-encoding']);
   return out;
@@ -307,7 +324,9 @@ function register(app) {
         if (!Number.isNaN(t)) sentAt = new Date(t).toISOString();
       }
     } catch (e) {
-      ctx.setFlash('That could not be parsed as an email — nothing was stored.', 'err');
+      ctx.setFlash(e && e.limit
+        ? `Refused: ${e.message} — nothing was stored.`
+        : 'That could not be parsed as an email — nothing was stored.', 'err');
       redirect(res, '/r/review'); return;
     }
 

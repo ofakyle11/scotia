@@ -70,7 +70,19 @@ function makeKernel({ store, audit, keyring }, user) {
       audit.log(user.id, 'ledger.post', matterId + ':' + txn.id + ':' + kind);
       return txn;
     },
-    list: (matterId) => store.firm.list('ledgerTxn', matterId ? (t) => t.matterId === matterId : undefined),
+    // The ethical wall applies to ledger reads exactly as it does to posts:
+    // a named matter must be visible to this user (requireMatter throws
+    // NOMATTER, audited, for a walled one), and firm-wide aggregation
+    // silently excludes walled matters' transactions — otherwise a screened
+    // user could read a hidden matter's trust balances and memos via
+    // Trust & Books or its CSV exports.
+    list(matterId) {
+      if (matterId) {
+        requireMatter(matterId);
+        return store.firm.list('ledgerTxn', (t) => t.matterId === matterId);
+      }
+      return store.firm.list('ledgerTxn', (t) => !walledFrom(t.matterId));
+    },
     balances(matterId) {
       const bal = {};
       for (const t of ledger.list(matterId)) for (const l of t.lines) {

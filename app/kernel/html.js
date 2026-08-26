@@ -2,6 +2,7 @@
 // Server-rendered UI. One deliberate dark theme — this is a private tool,
 // not a website. Every room renders through layout(); helpers keep markup safe.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const { NONCE } = require('./http.js'); // per-response CSP nonce placeholder, filled in by http.html()
 
 const CSS = `
 :root{
@@ -129,7 +130,7 @@ function layout(ctx, { title, body, sub }) {
     <div class="qo-hint">&uarr;&darr; select &middot; Enter open &middot; Esc close &middot; / or Ctrl-K anywhere</div>
   </div>
 </div>
-<script>
+<script nonce="${NONCE}">
 (function () {
   'use strict';
   document.documentElement.classList.add('js');

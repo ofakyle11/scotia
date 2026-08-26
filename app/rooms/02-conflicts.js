@@ -23,13 +23,21 @@ function matchTokens(queryToks, name) {
   return queryToks.filter((t) => nt.includes(t));
 }
 
-// Every name the firm has ever touched, with where it came from.
+// Every name the firm has ever touched, with where it came from — as visible
+// to THIS caller. Matters enumerate wall-aware (k.matters(), never the raw
+// firm list), and parties attached to a screened matter stay behind the
+// screen: a conflict check must never read a walled matter's identity —
+// title, client, adverse parties — back to the very user the wall screens
+// off. Each hit carries the matter it came from (mid) so stored runs can be
+// wall-filtered again when rendered to a later viewer.
 function candidates(k) {
   const out = [];
-  for (const m of k.firm.list('matter')) {
+  const visible = new Set();
+  for (const m of k.matters()) {
+    visible.add(m.id);
     const from = `matter — ${m.title || m.client || m.id}`;
-    if (m.client) out.push({ name: m.client, via: 'client', from });
-    for (const a of m.adverse || []) if (a) out.push({ name: a, via: 'adverse party', from });
+    if (m.client) out.push({ name: m.client, via: 'client', from, mid: m.id });
+    for (const a of m.adverse || []) if (a) out.push({ name: a, via: 'adverse party', from, mid: m.id });
   }
   for (const i of k.firm.list('inquiry')) {
     const from = `inquiry — ${i.client || i.id} (${i.status || 'screening'})`;
@@ -37,9 +45,10 @@ function candidates(k) {
     for (const a of i.adverse || []) if (a) out.push({ name: a, via: 'adverse party', from });
   }
   for (const p of k.firm.list('party')) {
+    if (p.matterId && !visible.has(p.matterId)) continue; // screened matter — its parties stay behind the wall
     const from = partyWhere(k, p);
-    if (p.name) out.push({ name: p.name, via: `party — ${p.role || 'unspecified role'}`, from });
-    for (const a of p.aliases || []) if (a) out.push({ name: a, via: `alias of ${p.name}`, from });
+    if (p.name) out.push({ name: p.name, via: `party — ${p.role || 'unspecified role'}`, from, mid: p.matterId || undefined });
+    for (const a of p.aliases || []) if (a) out.push({ name: a, via: `alias of ${p.name}`, from, mid: p.matterId || undefined });
   }
   return out;
 }
@@ -61,7 +70,7 @@ function runCheck(k, name) {
   const hits = [];
   for (const c of candidates(k)) {
     const shared = matchTokens(qt, c.name);
-    if (shared.length) hits.push({ name: c.name, via: c.via, from: c.from, shared });
+    if (shared.length) hits.push({ name: c.name, via: c.via, from: c.from, shared, mid: c.mid });
   }
   return { qt, hits };
 }
@@ -92,7 +101,13 @@ function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
     const runs = k.firm.list('conflictRun').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    const parties = k.firm.list('party').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // What this viewer may see of the matter graph: parties attached to a
+    // matter they are screened from never render, and stored hit rows whose
+    // provenance is a screened matter are dropped before display.
+    const visibleMatters = new Set((ctx.matters || []).map((m) => m.id));
+    const viewHits = (hits) => (hits || []).filter((h) => !h.mid || visibleMatters.has(h.mid));
+    const parties = k.firm.list('party', (p) => !p.matterId || visibleMatters.has(p.matterId))
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const inquiries = k.firm.list('inquiry');
     const mattersAll = k.firm.list('matter');
     const letters = k.firm.list('letter', (l) => l.kind === 'conflict-waiver')
@@ -146,8 +161,8 @@ function register(app) {
     ${runs.length ? table(['Date', 'Name checked', 'Hits — and the matter they came from', 'Outcome'], runs.map((r) => [
       date(r.createdAt),
       esc(r.name),
-      (r.hits && r.hits.length)
-        ? r.hits.map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
+      viewHits(r.hits).length
+        ? viewHits(r.hits).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
         : '<span class="note">no hits</span>',
       outcomeTag(r.outcome) + (r.outcome === 'pending'
         ? '<br>' + OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(r.id)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join('')
@@ -180,7 +195,7 @@ function register(app) {
           const run = e.runId ? k.firm.get('conflictRun', e.runId) : null;
           return [
             esc(e.name),
-            (e.hits || []).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>'),
+            viewHits(e.hits).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>'),
             (run ? outcomeTag(run.outcome) : '') + '<br>' + OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(e.runId)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join(''),
           ];
         }))
