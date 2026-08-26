@@ -5,33 +5,34 @@ const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 28, id: 'books', title: 'Trust & Books', phase: 'Always on' };
 
-// Printing this page yields the trust statement: position, reconciliation
-// record and ledger survive; entry forms, export chrome and buttons drop out.
-const PRINT = `<style>.print-only{display:none}@media print{
-.print-only{display:block}
-.side,.topbar,.flash,.noprint,form,button,h1.room,.roomsub{display:none!important}
-.shell{display:block;min-height:0}.main{padding:0}
+// Printing this page yields the trust statement: the position, the
+// reconciliation record and the ledger survive; entry forms, the accountant
+// handoff and every button drop out through the shared print base in
+// kernel/html.js (chrome out, black on white, no card split across a page).
+// Only the two things that base cannot know are stated here — the room heading
+// has no place on a statement that goes in the file, and the two- and three-up
+// cards must read as one column on paper.
+const PRINT = `<style>@media print{
+h1.room,.roomsub{display:none}
 .grid2,.grid3{display:block}
-body{background:#fff;color:#111}
-.card{background:#fff;border-color:#bbb;color:#111;break-inside:avoid}
-.empty{background:#fff;border-color:#bbb;color:#444}
-table.t{background:#fff;border-color:#bbb}
-table.t th{background:#eee;color:#333;border-color:#bbb}
-table.t td{color:#111;border-color:#ddd}
-h1.room,h2.sec{color:#111;border-color:#bbb}
-.roomsub,.note,.kv dt{color:#444}.num,.kv dd{color:#111}
-.tag{color:#111;border-color:#111;background:none}
-a{color:#111}
 }</style>`;
 
-const ACCOUNTS = [
+// The firm's chart of accounts. The raw keys are what the ledger stores and
+// what the accountant CSVs carry; on screen a posting reads as its account
+// name, so a line scans without translating `operating:income:fees` in your
+// head. An unknown key falls through to itself rather than disappearing.
+const ACCOUNT_LABEL = new Map([
   ['trust:bank', 'Trust — bank'],
   ['trust:client', 'Trust — client liability'],
   ['operating:bank', 'Operating — bank'],
   ['operating:income:fees', 'Operating — fee income'],
   ['operating:expense:disbursements', 'Disbursements'],
   ['ar:client', 'Accounts receivable'],
-];
+]);
+const accountLabel = (a) => ACCOUNT_LABEL.get(a) || String(a || '');
+
+// A figure reads down a column: every money and count cell is right-aligned.
+const rcell = (h) => `<div style="text-align:right">${h}</div>`;
 
 // Money arithmetic. Every figure that reaches a total is coerced here first —
 // a stored NaN (an old timeEntry written before hours/rate were validated) must
@@ -184,20 +185,18 @@ function engagementCard(ctx, k) {
 }
 
 function exportCard(ctx) {
-  const scopeOpts = [['firm', 'Whole firm'], ['matter', 'This matter']];
-  const form = (report, labelTxt, btn) => `<div><form method="POST" action="/r/books/export">
-    <input type="hidden" name="report" value="${report}">
-    ${select('scope', labelTxt, scopeOpts, ctx.matter ? 'matter' : 'firm')}
-    <button>${btn}</button>
-  </form></div>`;
-  return `<div class="noprint"><h2 class="sec">Accountant handoff</h2>
+  // One scope, three reports: a single form with three submit buttons, so the
+  // scope is chosen once rather than three times — and one <select> means one
+  // `scope` id on the page instead of three colliding ones.
+  return `<div class="no-print"><h2 class="sec">Accountant handoff</h2>
   <div class="card">
-    <div class="grid3">
-      ${form('gl', 'General ledger', 'Download GL CSV')}
-      ${form('trust', 'Trust ledger + balances', 'Download trust CSV')}
-      ${form('time', 'Time entries', 'Download time CSV')}
-    </div>
-    <p class="note">These CSVs disclose memos and time narratives — they are for the firm's accountant, not for production. The trust export (trust ledger lines plus per-matter held-for-client balances) supports the annual three-way-reconciliation review.</p>
+    <form method="POST" action="/r/books/export">
+      <div style="max-width:260px">${select('scope', 'Scope', [['firm', 'Whole firm'], ['matter', 'This matter']], ctx.matter ? 'matter' : 'firm')}</div>
+      <button name="report" value="gl">General ledger CSV</button>
+      <button name="report" value="trust" style="margin-left:8px">Trust ledger CSV</button>
+      <button name="report" value="time" style="margin-left:8px">Time entries CSV</button>
+    </form>
+    <p class="note">These CSVs disclose memos and time narratives — they are for the firm's accountant, not for production. The trust export (trust ledger lines plus per-matter held-for-client balances) supports the three-way-reconciliation review; a walled or shredded matter is never in any of them.</p>
   </div></div>`;
 }
 
@@ -218,7 +217,7 @@ function reconCard(ctx, k) {
   }
   const liabRows = [...perMatter.entries()].filter(([, v]) => Math.abs(v) > 0.004).map(([mid, v]) => {
     const m = k.firm.get('matter', mid);
-    return [esc(m ? m.title : mid), money(v)];
+    return [esc(m ? m.title : mid), rcell(money(v))];
   });
   const recons = k.firm.list('reconciliation').sort((a, b2) => (b2.statementDate || '').localeCompare(a.statementDate || '')).slice(0, 6);
   return `<div class="card">
@@ -226,9 +225,9 @@ function reconCard(ctx, k) {
     <div class="grid2">
       <div>
         ${table(['Leg', 'Balance'], [
-          ['1 · Trust ledger (trust:bank)', money(ledgerTrust)],
-          ['2 · Client trust liabilities (sum of matters)', money(liabTotal)],
-          ['Ledger vs liabilities', Math.abs(ledgerTrust - liabTotal) < 0.005 ? tag('agree', 'ok') : tag('DISAGREE', 'gate')],
+          ['1 · Trust ledger (trust:bank)', rcell(money(ledgerTrust))],
+          ['2 · Client trust liabilities (sum of matters)', rcell(money(liabTotal))],
+          ['Ledger vs liabilities', rcell(Math.abs(ledgerTrust - liabTotal) < 0.005 ? tag('agree', 'ok') : tag('DISAGREE', 'gate'))],
         ])}
         ${liabRows.length ? table(['Matter', 'Held for client'], liabRows) : ''}
       </div>
@@ -242,9 +241,9 @@ function reconCard(ctx, k) {
       </div>
     </div>
     ${recons.length ? table(['Statement date', 'Bank', 'Ledger', 'Liabilities', 'Result', 'By'], recons.map((r) => [
-      date(r.statementDate), money(r.statementBalance), money(r.ledger), money(r.liabilities),
+      date(r.statementDate), rcell(money(r.statementBalance)), rcell(money(r.ledger)), rcell(money(r.liabilities)),
       r.ok ? tag('RECONCILED', 'ok') : tag('OUT OF BALANCE', 'gate'), esc(r.byName || ''),
-    ])) : ''}
+    ])) : empty('No comparison on file — enter the month-end bank balance above and run it. By-Law 9 s.18 requires the three-way comparison monthly, and the record is what an audit asks for.')}
   </div>`;
 }
 
@@ -262,56 +261,65 @@ function register(app) {
     // the whole unbilled figure into NaN. 34/05/36 all read it this way.
     const unbilled = time.filter((t) => t.state !== 'billed').reduce((s, t) => s + num(t.hours) * num(t.rate), 0);
 
-    const body = `
-    ${PRINT}
-    <div class="print-only"><h2 class="sec" style="margin-top:0">Trust statement — ${ctx.matter ? esc(ctx.matter.title) : 'firm'} — as at ${new Date().toISOString().slice(0, 10)}</h2></div>
-    ${ctx.matter ? `
-    ${engagementCard(ctx, k)}
-    <h2 class="sec">Time — ${esc(ctx.matter.title)} <span class="tag navy">unbilled ${money(unbilled)}</span></h2>
-    <div class="card noprint"><form method="POST" action="/r/books/time" class="grid3" style="align-items:end">
+    // Docketing is the thing done here every day, so the time form is the first
+    // control on the page; the trust cards, the s.18 comparison and the ledger
+    // follow. Nothing above the fold that a lawyer does not touch daily.
+    // (The two money forms sit side by side, so the fee transfer names its
+    // fields feeAmount/invoiceRef: input() ties id to name, and two fields both
+    // called "amount" on one page make the second label focus the first box.)
+    const timeBlock = ctx.matter ? `
+    <h2 class="sec" style="margin-top:0">Time — ${esc(ctx.matter.title)} <span class="tag navy">unbilled ${money(unbilled)}</span></h2>
+    <div class="card no-print"><form method="POST" action="/r/books/time" class="grid3" style="align-items:end">
       <span>${input('hours', 'Hours', { type: 'number', required: true, placeholder: '0.3' })}</span>
       <span>${input('rate', 'Rate', { type: 'number', required: true, placeholder: '450' })}</span>
       <span>${select('utbms', 'UTBMS', ['L110 Fact investigation', 'L120 Analysis & strategy', 'L190 Other case assessment', 'L210 Pleadings', 'L310 Written discovery', 'L330 Depositions', 'L430 Trial & hearing'])}</span>
-      <span style="grid-column:1/-1">${input('narrative', 'Narrative (specific — pre-bill lint rejects vagueness)', { required: true })}</span>
+      <span style="grid-column:1/-1">${input('narrative', 'Narrative — the task, not the file', { required: true, placeholder: 'Draft reply factum, Part III; review opposing authorities on standard of review' })}</span>
       <button>Record time</button>
     </form></div>
     ${time.length ? table(['Date', 'Hours', 'Rate', 'Value', 'Code', 'Narrative', 'State'], time.slice().reverse().map((t) => [
-      date(t.createdAt), `<span class="num">${num(t.hours)}</span>`, money(num(t.rate)), money(num(t.hours) * num(t.rate)),
+      date(t.createdAt), rcell(`<span class="num">${num(t.hours)}</span>`), rcell(money(num(t.rate))), rcell(money(num(t.hours) * num(t.rate))),
       esc((t.utbms || '').slice(0, 4)), esc(t.narrative),
       t.lint ? tag('lint: ' + t.lint, 'gate') : tag(t.state || 'draft'),
-    ])) : empty('No time recorded on this matter.')}
-    <h2 class="sec">Trust</h2>` : ''}
+    ])) : empty('No time on this matter yet — record the first entry above. Name the task: Billing (room 34) refuses to issue an invoice while any line still reads "attend to file".')}` : '';
+
+    const body = `
+    ${PRINT}
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Trust statement — ${ctx.matter ? esc(ctx.matter.title) : 'firm'} — as at ${new Date().toISOString().slice(0, 10)}</h2></div>
+    ${timeBlock}
+    <h2 class="sec">Trust${ctx.matter ? ' — this matter' : ' — firm'}</h2>
+    ${engagementCard(ctx, k)}
     <div class="grid3">
-      <div class="card"><h2 class="sec" style="margin-top:0">Trust position${ctx.matter ? ' — this matter' : ' — firm'}</h2>
-        ${table(['', ''], [
+      <div class="card"><h2 class="sec" style="margin-top:0">Position</h2>
+        ${kv([
           ['Trust bank', money(trustBank)],
           ['Owed to clients', money(trustLiab)],
-          ['Three-way check', reconciled ? tag('reconciled', 'ok') : tag('OUT OF BALANCE', 'gate')],
+          ['Ledger vs liabilities', reconciled ? tag('agree', 'ok') : tag('OUT OF BALANCE', 'gate')],
         ])}
         <p class="note">Client funds are liabilities, never income. The ledger refuses any transaction that would take fees from trust without an explicit, flagged transfer.</p>
       </div>
-      <div class="card noprint"><h2 class="sec" style="margin-top:0">Receive retainer into trust</h2>
-        <form method="POST" action="/r/books/retainer">
+      <div class="card no-print"><h2 class="sec" style="margin-top:0">Receive retainer into trust</h2>
+        ${ctx.matter ? `<form method="POST" action="/r/books/retainer">
           ${input('amount', 'Amount', { type: 'number', required: true, placeholder: '5000.00' })}
           ${input('memo', 'Memo', { placeholder: 'Initial retainer per engagement letter' })}
           <button>Post to trust</button>
-        </form>
+        </form>` : empty('Open a matter to receive funds — trust money is always held for one named client.')}
       </div>
-      <div class="card noprint"><h2 class="sec" style="margin-top:0">Transfer earned fees</h2>
-        <form method="POST" action="/r/books/transfer">
-          ${input('amount', 'Amount (invoiced & earned)', { type: 'number', required: true })}
-          ${input('memo', 'Invoice reference', { required: true, placeholder: 'Invoice 2026-014' })}
+      <div class="card no-print"><h2 class="sec" style="margin-top:0">Transfer earned fees</h2>
+        ${ctx.matter ? `<form method="POST" action="/r/books/transfer">
+          ${input('feeAmount', 'Amount (invoiced & earned)', { type: 'number', required: true })}
+          ${input('invoiceRef', 'Invoice reference', { required: true, placeholder: 'Invoice 2026-014' })}
           <button class="danger">Trust → operating (flagged)</button>
         </form>
-        <p class="note">Posts as an explicit <b>trust-transfer</b> — the only path from trust to fees, and it is audit-flagged.</p>
+        <p class="note">Posts as an explicit <b>trust-transfer</b> — the only path from trust to fees, and it is audit-flagged. Refused above ${money(trustBank)}: no client's money funds another's (By-Law 9 s.7).</p>`
+        : empty('Open a matter to move earned fees out of its trust.')}
       </div>
     </div>
     ${reconCard(ctx, k)}
-    <h2 class="sec">Ledger${ctx.matter ? ' — this matter' : ''}</h2>
+    <h2 class="sec">Ledger${ctx.matter ? ' — this matter' : ' — firm'}</h2>
     ${txns.length ? table(['Date', 'Kind', 'Memo', 'Lines'], txns.map((t) => [
       date(t.date), t.kind === 'trust-transfer' ? tag('trust-transfer', 'gate') : tag(t.kind),
-      esc(t.memo || ''), t.lines.map((l) => `<span class="num">${esc(l.account)} ${l.dr ? 'DR ' + money(l.dr) : 'CR ' + money(l.cr)}</span>`).join('<br>'),
-    ])) : empty('No ledger activity yet.')}
+      esc(t.memo || ''), t.lines.map((l) => `<span class="num">${esc(accountLabel(l.account))} ${l.dr ? 'DR ' + money(l.dr) : 'CR ' + money(l.cr)}</span>`).join('<br>'),
+    ])) : empty('No ledger activity yet — receive a retainer into trust above. Every posting from this room, Billing (34), Settlement (24) and Enforcement (25) lands here.')}
     ${exportCard(ctx)}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'The ledger and the vault — append-only, dual-entry, audited', body }));
@@ -332,8 +340,13 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/transfer`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/books'); return; }
     const k = ctx.kernel;
-    const amt = Number(ctx.body.amount);
-    if (!(amt > 0)) { ctx.setFlash('Enter a positive amount.', 'err'); redirect(res, '/r/books'); return; }
+    const amt = Number(ctx.body.feeAmount);
+    if (!(amt > 0)) { ctx.setFlash('Enter a positive amount of invoiced, earned fees.', 'err'); redirect(res, '/r/books'); return; }
+    // A withdrawal from trust must name the bill it satisfies — the form has
+    // always required it; so does the handler now, so the ledger can never hold
+    // an unattributed trust-transfer.
+    const ref = String(ctx.body.invoiceRef || '').trim();
+    if (!ref) { ctx.setFlash('Name the invoice this transfer pays — a withdrawal from trust must be traceable to the bill it satisfies.', 'err'); redirect(res, '/r/books'); return; }
     // GATE — By-Law 9 s.7: no client's money funds another's. Decided by the
     // shared trust control where the facade exposes it, by the same test inline
     // where it does not.
@@ -342,7 +355,7 @@ function register(app) {
       redirect(res, '/r/books'); return;
     }
     ctx.kernel.ledger.post(ctx.matter.id, {
-      memo: ctx.body.memo, kind: 'trust-transfer',
+      memo: ref, kind: 'trust-transfer',
       lines: [
         { account: 'trust:client', dr: amt }, { account: 'trust:bank', cr: amt },
         { account: 'operating:bank', dr: amt }, { account: 'operating:income:fees', cr: amt },

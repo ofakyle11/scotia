@@ -1,11 +1,11 @@
 'use strict';
 // Room 27 — Workflow. Mission control: reads every room, owns nothing.
-// Now carries the firm-wide limitation diary: every open deadline across
-// every visible matter, limitation/prescription dates flagged for the
-// second-lawyer tick (the LawPRO dual-diary control), bring-forwards kept
-// visibly apart, and an appeal-clock watchdog per matter with a judgment
-// on the record but nothing calendared.
-const { layout, esc, table, empty, tag, kv, date, money } = require('../kernel/html.js');
+// Carries the firm-wide limitation diary: every open deadline across every
+// visible matter, limitation/prescription dates flagged for the second-lawyer
+// tick (the LawPRO dual-diary control), bring-forwards kept visibly apart, and
+// an appeal-clock watchdog per matter with a judgment on the record but
+// nothing calendared.
+const { layout, esc, table, empty, tag, date, money } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 27, id: 'desk', title: 'Workflow', phase: 'Always on' };
@@ -43,6 +43,18 @@ const isLimitation = (k, d) => classify(k, d, LIMITATION_RX, 'limitation');
 // with a ruleId, or by hand with only 'Notice of appeal due' on it.
 const isAppealClock = (k, d) => classify(k, d, APPEAL_RX, null);
 
+// Printing this page yields the Monday-meeting paper: the dated firm diary,
+// the appeal alarms and the bring-forwards. The shared base in kernel/html.js
+// drops the chrome, every form and everything marked .no-print and re-points
+// the palette; only what it cannot know is stated here — the room heading has
+// no place on a diary handed round a meeting table.
+const PRINT = `<style>@media print{
+h1.room,.roomsub{display:none}
+.grid2,.grid3{display:block}
+}</style>`;
+
+const mlink = (room, id) => `/r/${room}?m=${encodeURIComponent(String(id))}`;
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -61,7 +73,7 @@ function register(app) {
 
     // One walk across every visible matter; a shredded or otherwise
     // unreachable scope is skipped, never fatal.
-    let dueSoon = [], overdue = [], diary = [], bfs = [], appealAlarms = [];
+    let dueSoon = 0, overdue = 0, diary = [], bfs = [], appealAlarms = [];
     for (const m of matters) {
       if (k.isShredded(m.id)) continue;
       let ds = [], bs = [], js = [];
@@ -72,18 +84,17 @@ function register(app) {
         js = s.list('judgment');
       } catch { continue; }
       for (const d of ds) {
-        const row = { matter: m, d };
-        diary.push(row);
-        if (d.due < today) overdue.push(row);
-        else if (d.due <= soon) dueSoon.push(row);
+        diary.push({ matter: m, d });
+        if (d.due < today) overdue++;
+        else if (d.due <= soon) dueSoon++;
       }
       for (const b of bs) bfs.push({ matter: m, b });
       // Judgment on the record but no open appeal deadline anywhere on the
       // matter: the appeal clock is running with nothing calendared.
       if (js.length && !ds.some((d) => isAppealClock(k, d))) appealAlarms.push(m);
     }
-    overdue.sort((a, b) => a.d.due.localeCompare(b.d.due));
-    dueSoon.sort((a, b) => a.d.due.localeCompare(b.d.due));
+    // One diary, sorted by date: the overdue rows lead it, so there is no
+    // second table restating them.
     diary.sort((a, b) => String(a.d.due || '').localeCompare(String(b.d.due || '')));
     bfs.sort((a, b) => String(a.b.due || '').localeCompare(String(b.b.due || '')));
 
@@ -92,11 +103,12 @@ function register(app) {
     const limUnticked = diary.filter((r) => isLimitation(k, r.d) && !r.d.verifiedBy).length;
 
     const inquiries = k.firm.list('inquiry', (i) => i.status === 'screening');
-    const bal = k.ledger.balances();
-    const trust = bal['trust:bank'] || 0;
+    const trust = k.ledger.balances()['trust:bank'] || 0;
     const chain = k.auditTrail().verify();
 
-    const statCard = (n, l, kind) => `<div class="card" style="text-align:center"><div style="font-family:var(--f-display);font-size:30px;font-weight:600;color:${kind === 'bad' ? 'var(--oxide)' : 'var(--ink)'}">${n}</div><div class="note" style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase">${esc(l)}</div></div>`;
+    const statCard = (n, l, kind, href) => `<div class="card" style="text-align:center;margin:0">`
+      + `<div style="font-family:var(--f-display);font-size:30px;font-weight:600;color:${kind === 'bad' ? 'var(--oxide)' : 'var(--ink)'}">${href ? `<a href="${href}" style="color:inherit">${n}</a>` : n}</div>`
+      + `<div class="note" style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-top:2px">${esc(l)}</div></div>`;
 
     // The Limitation column: flag + dual-diary state. Unverified limitation
     // rows carry the second-lawyer tick; verified rows show who and when.
@@ -114,81 +126,61 @@ function register(app) {
     const daysCell = (due) => {
       const n = daysLeft(due);
       if (n === null) return '';
-      return `<span class="num">${n > 0 ? '+' + n : n}</span>` + (n < 0 ? ' ' + tag('OVERDUE', 'gate') : '');
+      const chip = n < 0 ? tag('OVERDUE', 'gate') : n <= 14 ? tag('soon', 'navy') : '';
+      return `<div style="text-align:right"><span class="num">${n > 0 ? '+' + n : n}</span>${chip ? '<br>' + chip : ''}</div>`;
     };
 
     const diaryTable = diary.length
       ? table(['Due', 'Days', 'Matter', 'Deadline', 'Authority', 'Limitation'], diary.map((r) => [
           date(r.d.due),
           daysCell(r.d.due),
-          esc(r.matter.title),
+          `<a href="${mlink('calendar', r.matter.id)}">${esc(r.matter.title)}</a>`,
           esc(r.d.desc),
           `<span class="note">${esc(r.d.rule || '')}</span>`,
           limCell(r.matter, r.d),
         ]))
-      : empty('No open deadlines anywhere — the diary is clear.');
+      : empty('No open deadline on any visible matter — compute the next one from its rule in Trial Calendar (21).');
 
-    const appealRows = appealAlarms.map((m) => `<div class="card" style="border-color:var(--oxide);padding:12px 16px;margin:12px 0 0">${tag('APPEAL CLOCK UNCALENDARED', 'gate')} <b style="margin:0 6px">${esc(m.title)}</b> <span class="note">judgment sits on the record with no open appeal deadline (Courts of Justice Act, s. 6; r. 61.04) —</span> <a href="/r/calendar?m=${esc(m.id)}">calendar the appeal clock →</a></div>`).join('');
+    const appealRows = appealAlarms.map((m) => `<div class="card" style="border-color:var(--oxide);padding:12px 16px;margin:12px 0 0">${tag('APPEAL CLOCK UNCALENDARED', 'gate')} <b style="margin:0 6px">${esc(m.title)}</b> <span class="note">judgment sits on the record with no open appeal deadline (Courts of Justice Act, s. 6; r. 61.04) —</span> <a href="${mlink('calendar', m.id)}">calendar the appeal clock &rarr;</a></div>`).join('');
 
     const bfTable = bfs.length
       ? table(['Note', 'Due', 'Matter'], bfs.map((r) => [
           tag('BF', 'navy') + ' ' + esc(r.b.note),
           date(r.b.due) + (r.b.due < today ? ' ' + tag('OVERDUE', 'gate') : ''),
-          esc(r.matter.title),
+          `<a href="${mlink('calendar', r.matter.id)}">${esc(r.matter.title)}</a>`,
         ]))
-      : empty('No bring-forwards pending.');
-
-    // Print kit — always on, no separate print view: Ctrl-P from this page
-    // strips the chrome (nav, stat tiles, matter list, verify forms) and
-    // outputs the firm diary and bring-forwards under a dated header.
-    const printKit = `
-    <style>
-      .print-only{display:none}
-      @media print{
-        .print-only{display:block}
-        .side,.topbar,.flash,.screen-only,h1.room,.roomsub,form,button{display:none !important}
-        .shell{display:block;min-height:0}
-        .main{padding:0}
-        body{background:#fff;color:#111}
-        .card{background:#fff;color:#111;border-color:#bbb;break-inside:avoid}
-        .empty{background:#fff;border-color:#bbb;color:#444}
-        table.t{background:#fff;border-color:#bbb}
-        table.t th{background:#eee;color:#333;border-color:#bbb}
-        table.t td{color:#111;border-color:#ddd}
-        h2.sec{color:#111;border-color:#bbb}
-        .note{color:#444}
-        .num{color:#111}
-        .tag{color:#111;border-color:#111;background:none}
-        a{color:#111}
-      }
-    </style>
-    <div class="print-only"><h2 class="sec" style="margin-top:0">Firm diary — as at ${esc(today)}</h2></div>`;
+      : empty('No bring-forward pending — set a tickler in Trial Calendar (21) for anything you want back on the desk.');
 
     const body = `
-    ${printKit}
-    <h2 class="sec" style="margin-top:0">Firm diary — every open deadline, every visible matter</h2>
-    <p class="note screen-only">Limitation and prescription dates (Limitations Act, 2002, s. 4 · art. 2925 CCQ) carry the dual-diary tick: a second lawyer — never the one who calendared it — verifies each date by name and day. Printing this page (Ctrl-P) outputs just the dated diary and bring-forwards for the Monday meeting.</p>
-    ${diaryTable}
-    ${appealRows}
-    <h2 class="sec">Bring-forwards ${tag('BF', 'navy')} — ticklers, never computed deadlines</h2>
-    ${bfTable}
-    <div class="screen-only">
-    <h2 class="sec">The desk</h2>
-    <div class="grid3">
-      ${statCard(matters.filter((m) => m.status === 'open').length, 'Open matters')}
-      ${statCard(overdue.length, 'Overdue deadlines', overdue.length ? 'bad' : '')}
-      ${statCard(dueSoon.length, 'Due within 14 days')}
-      ${statCard(inquiries.length, 'In screening')}
+    ${PRINT}
+    <div class="print-only"><h2 class="sec" style="margin-top:0">Firm diary — as at ${esc(today)}</h2></div>
+    <div class="no-print" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:8px">
+      ${statCard(overdue, 'Overdue', overdue ? 'bad' : '')}
+      ${statCard(dueSoon, 'Due in 14 days')}
       ${statCard(limUnticked, 'Limitation bars unticked', limUnticked ? 'bad' : '')}
-      ${statCard(money(trust), 'Held in trust')}
+      ${statCard(matters.filter((m) => m.status === 'open').length, 'Open matters')}
+      ${statCard(inquiries.length, 'In screening', '', '/r/intake')}
+      ${statCard(money(trust), 'Held in trust', '', '/r/books')}
       ${statCard(chain.ok ? 'intact' : 'BROKEN', 'Audit chain — ' + chain.entries + ' entries', chain.ok ? '' : 'bad')}
     </div>
-    ${overdue.length ? `<h2 class="sec">Overdue — act today</h2>` + table(['Due', 'Matter', 'Deadline', 'Authority'], overdue.map((r) => [date(r.d.due) + ' ' + tag('OVERDUE', 'gate'), esc(r.matter.title), esc(r.d.desc), `<span class="note">${esc(r.d.rule || '')}</span>`])) : ''}
-    <h2 class="sec">Next 14 days</h2>
-    ${dueSoon.length ? table(['Due', 'Matter', 'Deadline', 'Authority'], dueSoon.map((r) => [date(r.d.due), esc(r.matter.title), esc(r.d.desc), `<span class="note">${esc(r.d.rule || '')}</span>`])) : empty('Nothing due in the next two weeks.')}
-    <h2 class="sec">Matters</h2>
-    ${matters.length ? table(['Matter', 'Client', 'Jurisdiction', 'Posture', 'Status'], matters.map((m) => [esc(m.title), esc(m.client || ''), esc(m.jurisdiction || ''), esc(m.posture || ''), m.status === 'destroyed' ? tag('destroyed', 'gate') : tag(m.status || 'open', m.status === 'open' ? 'ok' : '')])) : empty('No matters yet — start at the Intake Desk.')}
-    ${ctx.user.role === 'admin' ? '<p class="note"><a href="/admin">Firm administration →</a></p>' : ''}
+    ${appealRows}
+    <h2 class="sec">Firm diary — every open deadline, every visible matter</h2>
+    <p class="note no-print" style="margin:0 0 12px"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; Overdue dates lead the table. Limitation and prescription dates (Limitations Act, 2002, s. 4 · art. 2925 CCQ) carry the dual-diary tick: a second lawyer — never the one who calendared it — verifies each date by name and day. Printing yields the dated diary, the appeal alarms and the bring-forwards.</p>
+    ${diaryTable}
+    <h2 class="sec">Bring-forwards ${tag('BF', 'navy')} — ticklers, never computed deadlines</h2>
+    ${bfTable}
+    <div class="no-print">
+      <h2 class="sec">Matters</h2>
+      ${matters.length
+        ? table(['Matter', 'Client', 'Jurisdiction', 'Posture', 'Status'], matters.map((m) => [
+            `<a href="${mlink('client', m.id)}">${esc(m.title)}</a>`,
+            esc(m.client || ''),
+            esc(m.jurisdiction || ''),
+            esc(m.posture || ''),
+            m.status === 'destroyed' ? tag('destroyed', 'gate') : tag(m.status || 'open', m.status === 'open' ? 'ok' : ''),
+          ]))
+        : empty('No matters yet — open the first inquiry at the Intake Desk (01).')}
+      ${ctx.user.role === 'admin' ? '<p class="note"><a href="/admin">Firm administration →</a></p>' : ''}
     </div>
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Mission control — the read across every room', body }));

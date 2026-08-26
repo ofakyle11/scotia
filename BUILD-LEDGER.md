@@ -97,6 +97,20 @@ pleadings` while silently returning 404, because it had been inserted into a hel
 function instead of `register()`. Only an end-to-end HTTP test caught it. Both new
 proofs are promoted into `app/test/` so they run in every future gate.
 
+**R8 — CRITICAL: the app was unusable in a real browser; found only by driving one.**
+`Referrer-Policy: no-referrer` (our own security header) causes Chromium to send a
+literal `Origin: null` on same-origin form posts. `new URL('null')` throws, so the
+router's CSRF origin check crashed and returned **HTTP 500 on every form POST** —
+enrollment, sign-in, and every save in all 36 rooms. Nobody could have used the
+product. Every fetch()-based test passed because they all set an explicit Origin
+header; only a real browser exposes this. Root-cause fix: `Referrer-Policy` is now
+`same-origin` (browser sends a real Origin for our own forms, referrer still hidden
+cross-origin) and the parse is wrapped so an opaque/unparseable origin is *refused*
+(403) rather than crashing (500) — strictly stronger than before, not weaker.
+Proven: `test/browser.test.js` drives Chromium through real enrollment and asserts
+the app renders; it is now a permanent gate. Cost if wrong: none — the previous
+behaviour was a hard crash.
+
 ---
 
 ## Pending final step (user instruction, 2026-08-26)

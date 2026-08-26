@@ -2,15 +2,13 @@
 // Room 29 — CanLII connector. Official API + deep links; never scraping.
 // Resolves Canadian citations to real cases, pulls the citator, and feeds
 // verified authorities to Citation Check and the Research Desk.
-const { layout, esc, table, empty, tag, kv, input, textarea } = require('../kernel/html.js');
+const { layout, esc, table, empty, tag, kv, input, textarea, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 29, id: 'canlii', title: 'CanLII', phase: 'Always on' };
 
 function register(app) {
-  app.route('GET', `/r/${ROOM.id}`, async (req, res, ctx) => {
-    render(res, ctx, null);
-  });
+  app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => render(res, ctx, null));
 
   // Admin: set or clear the API key (stored in the encrypted firm log).
   app.route('POST', `/r/${ROOM.id}/key`, (req, res, ctx) => {
@@ -46,14 +44,23 @@ function register(app) {
     const out = cached ? { ok: true, data: cached.meta, cached: true } : await k.canlii.fetchCase({ databaseId, caseId }, key);
     if (!out.ok) { ctx.setFlash('CanLII: ' + out.message, 'err'); redirect(res, '/r/canlii'); return; }
     if (!cached) k.firm.put('canliiCase', { id: databaseId + '/' + caseId, databaseId, caseId, meta: out.data, fetched: new Date().toISOString() });
+    // Re-scanning the same factum is normal, so resolving a cite already on the
+    // file adds nothing: one authority per cite, not one per scan.
+    let saved = null;
     if (ctx.matter) {
-      k.scope(ctx.matter.id).put('authority', {
-        cite, title: out.data.title, url: out.data.url, court: databaseId,
-        decisionDate: out.data.decisionDate, docket: out.data.docketNumber,
-        source: 'canlii-api', resolved: true,
-      });
+      const s = k.scope(ctx.matter.id);
+      const already = s.list('authority', (a) => a.source === 'canlii-api' && String(a.cite || '').toLowerCase() === cite.toLowerCase())[0];
+      if (already) saved = 'already on ' + ctx.matter.title + '.';
+      else {
+        s.put('authority', {
+          cite, title: out.data.title, url: out.data.url, court: databaseId,
+          decisionDate: out.data.decisionDate, docket: out.data.docketNumber,
+          source: 'canlii-api', resolved: true,
+        });
+        saved = 'saved to ' + ctx.matter.title + '.';
+      }
     }
-    ctx.setFlash(`Resolved${out.cached ? ' (cache)' : ''}: ${out.data.title}, ${out.data.citation} — ${ctx.matter ? 'saved to ' + ctx.matter.title + '.' : 'no matter open, not saved.'}`);
+    ctx.setFlash(`Resolved${out.cached ? ' (cache)' : ''}: ${out.data.title}, ${out.data.citation} — ${saved || 'no matter open, not saved.'} Resolution is identity, not verification: Citation Check (room 08) still stands.`);
     redirect(res, '/r/canlii');
   });
 
@@ -83,56 +90,65 @@ function register(app) {
   });
 }
 
+// A stored url is re-rendered as a clickable link, and esc() does not neutralise
+// a javascript: URI — so nothing that did not come back http(s) becomes an href.
+const linkOut = (url, label) => (/^https?:\/\//i.test(String(url || ''))
+  ? `<a href="${esc(url)}" rel="noopener" target="_blank">${esc(label)} →</a>` : '');
+
 function render(res, ctx, scan) {
   const k = ctx.kernel;
   const key = k.canlii.apiKey();
   const cache = k.firm.list('canliiCase').sort((a, b) => (b.fetched || '').localeCompare(a.fetched || ''));
   const authorities = ctx.matter ? k.scope(ctx.matter.id).list('authority', (a) => a.source === 'canlii-api') : [];
+  const mode = key ? tag('live — official API', 'ok') : tag('link-out — no key', 'navy');
 
   // Scan results render first — the daily action is scan → resolve → save,
   // so what you just asked for sits at the top, not below the fold.
   const scanBlock = scan ? `
     <h2 class="sec" style="margin-top:0">Scan results — ${scan.cites.length} citation${scan.cites.length === 1 ? '' : 's'} found</h2>
     ${scan.cites.length ? table(['Citation', 'Kind', 'CanLII ids', 'Actions'], scan.cites.map((c) => [
-      `<span class="num">${esc(c.cite)}</span>`, esc(c.kind),
+      `<span class="num">${esc(c.cite)}</span>`, tag(c.kind),
       c.ids ? `<span class="num">${esc(c.ids.databaseId)}/${esc(c.ids.caseId)}</span>` : tag('link-out only'),
-      `<a href="${esc(k.canlii.searchUrl(c.cite))}" rel="noopener" target="_blank">Open on CanLII →</a>` +
-      (c.ids ? ` <form method="POST" action="/r/canlii/resolve" style="display:inline;margin-left:10px"><input type="hidden" name="cite" value="${esc(c.cite)}"><input type="hidden" name="databaseId" value="${esc(c.ids.databaseId)}"><input type="hidden" name="caseId" value="${esc(c.ids.caseId)}"><button class="quiet">${key ? 'Resolve via API' : 'Resolve (needs key)'}</button></form>` : ''),
-    ])) : empty('No Canadian citations recognized.')}` : '';
+      linkOut(k.canlii.searchUrl(c.cite), 'Open on CanLII')
+      + (c.ids ? ` <form method="POST" action="/r/canlii/resolve" style="display:inline;margin-left:10px"><input type="hidden" name="cite" value="${esc(c.cite)}"><input type="hidden" name="databaseId" value="${esc(c.ids.databaseId)}"><input type="hidden" name="caseId" value="${esc(c.ids.caseId)}"><button class="quiet">${key ? 'Resolve via API' : 'Resolve (needs key)'}</button></form>` : ''),
+    ])) : empty('No Canadian citation in that text. The scanner reads neutral cites (2008 SCC 9), CanLII cites (1999 CanLII 1527 (ON CA)) and SCR cites — check the year and the court code, then scan again.')}` : '';
 
   const body = `
   ${scanBlock}
-  <div class="grid2">
-    <div class="card">
-      <h2 class="sec" style="margin-top:0">Citation scanner</h2>
-      <form method="POST" action="/r/canlii/scan">
-        ${textarea('text', 'Paste any text — factum, memo, opposing brief', { value: scan ? scan.text : '', placeholder: 'e.g. ... as held in Dunsmuir v. New Brunswick, 2008 SCC 9 ...' })}
-        <button>Scan for Canadian citations</button>
-      </form>
-      <p class="note">Recognizes neutral citations (2008 SCC 9), CanLII citations (1999 CanLII 1527 (ON CA)), and SCR citations. Neutral and CanLII cites resolve deterministically to CanLII ids — no search required.</p>
-    </div>
-    <div class="card">
-      <h2 class="sec" style="margin-top:0">Connector status</h2>
-      ${kv([
-        ['Mode', key ? tag('live — official API', 'ok') : tag('link-out (no key)', 'navy')],
-        ['API key', key ? `<span class="num">····${esc(key.slice(-4))}</span> (encrypted at rest)` : '—'],
-        ['Resolved cache', `<span class="num">${cache.length}</span> cases`],
-      ])}
-      <p class="note">This module never scrapes canlii.org — their Terms of Use prohibit scraping and bulk downloading. It uses the official REST API (metadata + citator) and citation deep links, which CanLII encourages. A key is requested from CanLII via their feedback form; commercial-scale use is a licensing conversation with CanLII (Build Sheet, Gap 4).</p>
-      ${ctx.user.role === 'admin' ? `<form method="POST" action="/r/canlii/key">${input('apiKey', 'API key (blank to clear)', { placeholder: 'paste CanLII api_key' })}<button>Save key</button></form>` : '<p class="note">An administrator can add the firm’s API key.</p>'}
-    </div>
+  <div class="card">
+    <h2 class="sec" style="margin-top:0">Citation scanner ${mode}</h2>
+    <form method="POST" action="/r/canlii/scan">
+      ${textarea('text', 'Paste any text — factum, memo, opposing brief', { value: scan ? scan.text : '', placeholder: 'e.g. ... as held in Dunsmuir v. New Brunswick, 2008 SCC 9 ...' })}
+      <button>Scan for Canadian citations</button>
+    </form>
+    <p class="note">Neutral and CanLII cites resolve deterministically to CanLII ids — no search required. SCR cites are link-out only. Resolution never displaces Citation Check (room 08): a resolved cite is a real case, not a verified proposition.</p>
   </div>
   ${ctx.matter ? `<h2 class="sec">Resolved authorities — ${esc(ctx.matter.title)}</h2>` +
     (authorities.length ? table(['Citation', 'Case', 'Decided', 'Docket', 'Link'], authorities.map((a) => [
-      `<span class="num">${esc(a.cite)}</span>`, esc(a.title), esc(a.decisionDate || ''), esc(a.docket || ''),
-      a.url ? `<a href="${esc(a.url)}" rel="noopener" target="_blank">canlii.ca →</a>` : '',
-    ])) : empty('No CanLII-resolved authorities on this matter yet.')) : ''}
+      `<span class="num">${esc(a.cite)}</span>`, esc(a.title || ''), date(a.decisionDate), esc(a.docket || ''),
+      linkOut(a.url, 'canlii.ca'),
+    ])) : empty('Nothing resolved onto this matter yet — scan a factum or memo above, then resolve what it cites. Each resolution is saved to the file as an authority.'))
+    : empty('No matter open — scanning and resolution still work, but nothing is saved to a file. Open a matter to keep what you resolve.')}
   <h2 class="sec">Resolution cache (firm-wide)</h2>
-  ${cache.length ? table(['Case', 'Citation', 'Citator', ''], cache.slice(0, 25).map((c) => [
-    esc(c.meta.title), `<span class="num">${esc(c.meta.citation || '')}</span>`,
-    c.citator ? `<span class="num">cited by ${c.citator.citingCount ?? '?'}</span> · <span class="num">cites ${c.citator.citedCount ?? '?'}</span>` : tag('not pulled'),
-    `<form method="POST" action="/r/canlii/citator" style="margin:0"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet">${c.citator ? 'Refresh citator' : 'Pull citator'}</button></form>`,
-  ])) : empty('Nothing resolved yet — scan a document and resolve its citations.')}
+  ${cache.length ? table(['Case', 'Citation', 'Citator', 'Fetched', ''], cache.slice(0, 25).map((c) => {
+    const meta = c.meta || {};
+    return [
+      esc(meta.title || c.id), `<span class="num">${esc(meta.citation || '')}</span>`,
+      c.citator ? `<span class="num">cited by ${esc(String(c.citator.citingCount ?? '?'))}</span> · <span class="num">cites ${esc(String(c.citator.citedCount ?? '?'))}</span>` : tag('not pulled'),
+      date(c.fetched),
+      `<form method="POST" action="/r/canlii/citator" style="margin:0"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet">${c.citator ? 'Refresh citator' : 'Pull citator'}</button></form>`,
+    ];
+  })) : empty('Nothing resolved yet — scan a document above and resolve its citations. The cache is firm-wide, so a case resolved on one matter costs no second API call.')}
+  <h2 class="sec">Connector</h2>
+  <div class="card">
+    ${kv([
+      ['Mode', mode],
+      ['API key', key ? `<span class="num">····${esc(key.slice(-4))}</span> (encrypted at rest)` : '—'],
+      ['Resolved cache', `<span class="num">${cache.length}</span> cases`],
+    ])}
+    <p class="note">This module never scrapes canlii.org — their Terms of Use prohibit scraping and bulk downloading. It uses the official REST API (metadata + citator) and citation deep links, which CanLII encourages. A key is requested from CanLII via their feedback form; commercial-scale use is a licensing conversation with CanLII (Build Sheet, Gap 4).</p>
+    ${ctx.user.role === 'admin' ? `<form method="POST" action="/r/canlii/key">${input('apiKey', 'API key (blank to clear)', { placeholder: 'paste CanLII api_key' })}<button>Save key</button></form>` : '<p class="note">An administrator can add the firm’s API key. Without one this room stays in link-out mode: scanning and CanLII deep links still work, live resolution and the citator do not.</p>'}
+  </div>
   `;
   html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Official API + deep links — resolution and citator for Canadian authority', body }));
 }

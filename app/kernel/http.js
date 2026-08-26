@@ -55,10 +55,18 @@ class App {
         if (!found) { send(res, 404, 'Not found.'); return; }
         // Same-origin check on state-changing requests.
         if (req.method === 'POST') {
+          // Same-origin check. Referrer-Policy is 'same-origin' (NOT 'no-referrer'):
+          // under no-referrer Chromium sends a literal `Origin: null` on same-origin
+          // form posts, which is an opaque origin — parsing it threw and 500'd every
+          // browser form submission in the app. Under same-origin the browser sends a
+          // real Origin for our own forms, so this check works as intended, and an
+          // unparseable/opaque origin now means a genuinely unusual client and is
+          // refused rather than crashing.
           const origin = req.headers.origin || req.headers.referer;
           if (origin) {
-            const oh = new URL(origin).host;
-            if (oh !== req.headers.host) { send(res, 403, 'Cross-origin request refused.'); return; }
+            let oh = null;
+            try { oh = new URL(origin).host; } catch (_) { oh = null; }
+            if (oh === null || oh !== req.headers.host) { send(res, 403, 'Cross-origin request refused.'); return; }
           }
         }
         const body = req.method === 'POST' ? await readBody(req) : {};
@@ -108,7 +116,7 @@ function send(res, status, text) {
   res.writeHead(status, {
     'Content-Type': 'text/plain; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'no-referrer',
+    'Referrer-Policy': 'same-origin',
   });
   res.end(text);
 }
@@ -123,7 +131,7 @@ function html(res, body, status = 200, extraHeaders = {}) {
     'Content-Type': 'text/html; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
-    'Referrer-Policy': 'no-referrer',
+    'Referrer-Policy': 'same-origin',
     'X-Robots-Tag': 'noindex, nofollow',
     'Content-Security-Policy': `default-src 'self'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-${nonce}' 'unsafe-hashes' ${PRINT_HANDLER_HASH}; img-src 'self' data:; form-action 'self'`,
     ...extraHeaders,
