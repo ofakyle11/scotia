@@ -35,23 +35,24 @@ function register(app) {
       <form method="POST" action="/r/briefs/status" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(d.id)}"><input type="hidden" name="status" value="final"><button class="${d.citeStatus === 'clear' ? '' : 'danger'}">Mark final</button></form>
       <h2 class="sec">Table of authorities — this draft</h2>
       ${cites.length ? table(['Citation', 'Status'], cites.map((c) => [`<span class="num">${esc(c.cite)}</span>`, c.status === 'verified' ? tag('verified', 'ok') : c.status === 'failed' ? tag('failed', 'gate') : tag('unverified')])) : empty('No citations extracted yet — send to Citation Check (room 08).')}
-    ` : empty('Create a draft to begin.');
-    const body = `
-    <div class="grid2">
-      <div class="card">
+    ` : '';
+    const listCard = `<div class="card">
+        <h2 class="sec" style="margin-top:0">Drafts — ${esc(ctx.matter.title)}</h2>
+        ${drafts.length ? table(['Title', 'Type', 'Status', 'Citations', ''], drafts.map((x) => [esc(x.title), esc(x.type), tag(x.status, x.status === 'final' ? 'ok' : ''), x.citeStatus === 'clear' ? tag('clear', 'ok') : tag('unverified', 'gate'), `<a href="/r/briefs?d=${esc(x.id)}">open →</a>`])) : empty('No drafts on this matter yet — the first one starts beside this.')}
+      </div>`;
+    const newCard = `<div class="card">
         <h2 class="sec" style="margin-top:0">New draft</h2>
         <form method="POST" action="/r/briefs/new">
           ${input('title', 'Title', { required: true, placeholder: 'Factum of the Moving Party' })}
           ${select('type', 'Type', ['motion', 'factum', 'brief', 'letter'], 'factum')}
           <button>Create</button>
         </form>
-      </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Drafts — ${esc(ctx.matter.title)}</h2>
-        ${drafts.length ? table(['Title', 'Type', 'Status', 'Citations', ''], drafts.map((x) => [esc(x.title), esc(x.type), tag(x.status, x.status === 'final' ? 'ok' : ''), x.citeStatus === 'clear' ? tag('clear', 'ok') : tag('unverified', 'gate'), `<a href="/r/briefs?d=${esc(x.id)}">open →</a>`])) : empty('No drafts yet.')}
-      </div>
-    </div>
-    ${editor}`;
+      </div>`;
+    // The open draft's editor is the daily action — it leads; creation and the
+    // switch list follow. With nothing to edit, the New-draft form leads.
+    const body = d
+      ? `${editor}<div class="grid2" style="margin-top:30px">${listCard}${newCard}</div>`
+      : `<div class="grid2">${newCard}${listCard}</div>`;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'The argument, assembled — and blocked from final until citations clear', body }));
   });
 

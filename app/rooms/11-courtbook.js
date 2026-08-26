@@ -1,7 +1,7 @@
 'use strict';
 // Room 11 — Court Book. Firm-level verified court directory: where you file,
 // how they want it, and when somebody last checked. No matter required.
-const { layout, esc, table, empty, tag, kv, input, textarea, select, date } = require('../kernel/html.js');
+const { layout, esc, table, empty, tag, input, textarea, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 11, id: 'courtbook', title: 'Court Book', phase: 'Build' };
@@ -82,36 +82,29 @@ function register(app) {
     const editing = editId ? k.firm.get('courtEntry', editId) : null;
     const e = editing || {};
 
-    const body = `
-    <div class="grid2">
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">${editing ? 'Edit entry' : 'Add a court'}</h2>
-        <form method="POST" action="/r/courtbook/save">
-          ${editing ? `<input type="hidden" name="id" value="${esc(editing.id)}">` : ''}
-          ${input('court', 'Court name', { required: true, value: e.court, placeholder: 'Ontario Court of Appeal' })}
-          ${input('jurisdiction', 'Jurisdiction', { value: e.jurisdiction, placeholder: 'Ontario, Canada' })}
-          ${select('level', 'Level', LEVELS, e.level || 'Trial')}
-          ${input('portal', 'E-filing portal', { value: e.portal, placeholder: 'CM/ECF, Civil Claims Online…' })}
-          ${input('feeNote', 'Filing fee note', { value: e.feeNote })}
-          ${input('limitNote', 'Page / word limit note', { value: e.limitNote })}
-          ${textarea('formatNote', 'Formatting notes', { value: e.formatNote })}
-          ${textarea('standingNote', 'Standing-order notes', { value: e.standingNote })}
-          ${input('verifiedOn', 'Verified on (required)', { type: 'date', required: true, value: e.verifiedOn || new Date().toISOString().slice(0, 10) })}
-          <button>${editing ? 'Save changes' : 'Add to court book'}</button>
-          ${editing ? '<a class="btn" href="/r/courtbook" style="margin-left:8px">Cancel</a>' : ''}
-        </form>
-      </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Why a verified-on date</h2>
-        ${kv([
-          ['Entries', `<span class="num">${entries.length}</span>`],
-          ['Stale (> ' + STALE_DAYS + ' days)', stale.length ? tag(String(stale.length) + ' need reverification', 'gate') : tag('none', 'ok')],
-        ])}
-        <p class="note">Filing fees, page limits, and standing orders drift constantly. Every entry carries the date a human last confirmed it against the court’s own site; anything older than ${STALE_DAYS} days is flagged until someone reverifies it. Entries tagged <span class="tag navy">reference</span> are the seeded reference tranche — starting points, not gospel.</p>
-        <p class="note">Juriscraper / RECAP integration keeps this directory current against live court data in production — wires in here per the Build Sheet. Nothing on this page is fetched; it is only what the firm has verified by hand.</p>
-      </div>
-    </div>
-    <h2 class="sec">Directory</h2>
+    const formCard = `
+    <div class="card">
+      <h2 class="sec" style="margin-top:0">${editing ? `Edit — ${esc(editing.court)}` : 'Add a court'}</h2>
+      <form method="POST" action="/r/courtbook/save">
+        ${editing ? `<input type="hidden" name="id" value="${esc(editing.id)}">` : ''}
+        <div class="grid2">
+          <span>${input('court', 'Court name', { required: true, value: e.court, placeholder: 'Ontario Court of Appeal' })}</span>
+          <span>${input('jurisdiction', 'Jurisdiction', { value: e.jurisdiction, placeholder: 'Ontario, Canada' })}</span>
+          <span>${select('level', 'Level', LEVELS, e.level || 'Trial')}</span>
+          <span>${input('portal', 'E-filing portal', { value: e.portal, placeholder: 'CM/ECF, Civil Claims Online…' })}</span>
+          <span>${input('feeNote', 'Filing fee note', { value: e.feeNote })}</span>
+          <span>${input('limitNote', 'Page / word limit note', { value: e.limitNote })}</span>
+          <span>${textarea('formatNote', 'Formatting notes', { value: e.formatNote })}</span>
+          <span>${textarea('standingNote', 'Standing-order notes', { value: e.standingNote })}</span>
+        </div>
+        ${input('verifiedOn', 'Verified on (required)', { type: 'date', required: true, value: e.verifiedOn || new Date().toISOString().slice(0, 10) })}
+        <button>${editing ? 'Save changes' : 'Add to court book'}</button>
+        ${editing ? '<a class="btn" href="/r/courtbook" style="margin-left:8px">Cancel</a>' : ''}
+      </form>
+    </div>`;
+
+    const dirSection = `
+    <h2 class="sec" style="margin-top:0">Directory — <span class="num">${entries.length}</span> ${stale.length ? tag(stale.length + ' stale — reverify', 'gate') : entries.length ? tag('all verified inside ' + STALE_DAYS + 'd', 'ok') : ''}</h2>
     ${entries.length ? table(['Court', 'Jurisdiction', 'Level', 'E-filing', 'Notes', 'Verified', ''], entries.map((c) => [
       `<b>${esc(c.court)}</b>${c.reference ? ' ' + tag('reference', 'navy') : ''}`,
       esc(c.jurisdiction || '—'),
@@ -119,11 +112,13 @@ function register(app) {
       esc(c.portal || '—'),
       notesCell(c),
       verifiedCell(c),
-      `<a href="/r/courtbook?edit=${esc(c.id)}">edit</a>
-       <form method="POST" action="/r/courtbook/verify" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet">Verified today</button></form>
+      `<form method="POST" action="/r/courtbook/verify" style="display:inline"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet">Verified today</button></form>
+       <a href="/r/courtbook?edit=${esc(c.id)}" style="margin-left:6px">edit</a>
        <form method="POST" action="/r/courtbook/del" style="display:inline;margin-left:6px"><input type="hidden" name="id" value="${esc(c.id)}"><button class="quiet danger" style="margin-top:0;padding:4px 10px">Delete</button></form>`,
-    ])) : empty('No courts in the book yet.')}
-    `;
+    ])) : empty('No courts in the book yet — add the first below.')}
+    <p class="note">Fees, page limits, and standing orders drift constantly — every entry carries the date a human last confirmed it against the court’s own site, and anything older than ${STALE_DAYS} days is flagged until reverified. <span class="tag navy">reference</span> marks the seeded tranche: starting points, not gospel. Nothing here is fetched — Juriscraper / RECAP integration wires in per the Build Sheet.</p>`;
+
+    const body = editing ? formCard + dirSection : dirSection + formCard;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Firm-wide verified court directory — fees, limits, portals, standing orders', body }));
   });
 

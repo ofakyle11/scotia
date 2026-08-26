@@ -1,19 +1,54 @@
 'use strict';
 // Room 21 — Trial Calendar. Deadlines computed from rules, never typed.
+// Plus bring-forwards (ticklers, kept visually apart from court dates), a
+// token-authenticated ICS phone feed, and an appeal-clock watchdog so a
+// recorded judgment never sits with its appeal period uncalendared.
 const { layout, esc, table, empty, tag, input, select, date } = require('../kernel/html.js');
-const { html, redirect } = require('../kernel/http.js');
+const { html, redirect, send } = require('../kernel/http.js');
 
 const ROOM = { num: 21, id: 'calendar', title: 'Trial Calendar', phase: 'Argue' };
 
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
-    if (!ctx.matter) { html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Computed back from the trial date', body: empty('Open a matter to see its calendar.') })); return; }
+    if (!ctx.matter) {
+      html(res, layout({ ...ctx, room: ROOM.id }, {
+        title: ROOM.title, sub: 'Computed back from the trial date',
+        body: empty('Open a matter to see its calendar.') + `<div style="margin-top:16px">${feedCard(k, ctx.user)}</div>`,
+      }));
+      return;
+    }
     const s = k.scope(ctx.matter.id);
     const deadlines = s.list('deadline').sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+    const bfs = s.list('bf').sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+    const judgments = s.list('judgment');
     const jur = ctx.matter.jurisdiction || 'on';
     const jrules = k.rules.rulesFor(jur);
     const today = new Date().toISOString().slice(0, 10);
+
+    // Appeal-clock watchdog: a judgment on the record with no open appeal
+    // deadline on the calendar is a claim waiting to happen.
+    let appealCard = '';
+    const openAppeal = deadlines.some((d) => d.status === 'open' && String(d.ruleId || '').includes('appeal'));
+    if (judgments.length && !openAppeal) {
+      const appealRules = jrules.filter((r) => r.id.includes('appeal'));
+      appealCard = `<div class="card" style="border-color:var(--oxide)">
+        <h2 class="sec" style="margin-top:0">Appeal clock ${tag('UNCALENDARED', 'gate')}</h2>
+        ${appealRules.length ? `
+        <p class="note">Judgment${judgments.length > 1 ? 's' : ''} recorded in the Judgment room, but no open appeal deadline sits on this calendar. One click computes it from the rule — nothing typed.</p>
+        ${judgments.map((j) => `
+        <form method="POST" action="/r/calendar/compute" style="margin:0 0 12px">
+          <p style="margin:10px 0 0;font-size:13px">Judgment entered ${date(j.dateEntered)}${j.court ? ' — ' + esc(j.court) : ''}${j.debtor ? ' · ' + esc(j.debtor) : ''}</p>
+          ${appealRules.length > 1
+            ? select('rule', 'Appeal rule', appealRules.map((r) => [r.id, r.desc + ' — ' + r.cite]), appealRules[0].id)
+            : `<input type="hidden" name="rule" value="${esc(appealRules[0].id)}"><p class="note">${esc(appealRules[0].desc)} — ${esc(appealRules[0].cite)} (${appealRules[0].days} days from ${esc(appealRules[0].trigger.toLowerCase())}).</p>`}
+          <input type="hidden" name="trigger" value="${esc(j.dateEntered || '')}">
+          <button>Calendar the appeal clock</button>
+        </form>`).join('')}` : `
+        <p class="note">Judgment recorded, but the ${esc(jur)} reference tranche carries no appeal rule yet, so the appeal period cannot be computed here until the rulebook grows. Nothing is fabricated in its place.</p>`}
+      </div>`;
+    }
+
     const body = `
     <div class="grid2">
       <div class="card">
@@ -30,13 +65,33 @@ function register(app) {
         ${table(['Trigger', 'Days', 'Deadline', 'Authority'], jrules.map((r) => [esc(r.trigger), `<span class="num">${r.days}</span>`, esc(r.desc), `<span class="note">${esc(r.cite)}</span>`]))}
       </div>
     </div>
+    ${appealCard}
     <h2 class="sec">Calendar — ${esc(ctx.matter.title)}</h2>
     ${deadlines.length ? table(['Due', 'Deadline', 'Trigger', 'Authority', 'Status', ''], deadlines.map((d) => [
       date(d.due) + (d.due < today && d.status === 'open' ? ' ' + tag('OVERDUE', 'gate') : (daysOut(d.due) <= 14 && d.status === 'open' ? ' ' + tag(daysOut(d.due) + 'd', 'navy') : '')),
       esc(d.desc), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`,
       d.status === 'done' ? tag('done', 'ok') : tag('open'),
       d.status === 'open' ? `<form method="POST" action="/r/calendar/done" style="margin:0"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Done</button></form>` : '',
-    ])) : empty('No deadlines calendared for this matter yet.')}
+    ])) : empty('No deadlines calendared for this matter yet — pick a rule and trigger date above; one click computes and calendars it.')}
+    <h2 class="sec">Bring-forwards ${tag('BF', 'navy')} — ticklers, never court dates</h2>
+    ${bfs.length ? table(['Due', 'Note', 'Status', ''], bfs.map((b) => [
+      date(b.due) + (b.due < today && b.status === 'open' ? ' ' + tag('OVERDUE', 'gate') : ''),
+      esc(b.note),
+      b.status === 'done' ? tag('done', 'ok') : tag('open'),
+      b.status === 'open' ? `<form method="POST" action="/r/calendar/bf-done" style="margin:0"><input type="hidden" name="id" value="${esc(b.id)}"><button class="quiet">Done</button></form>` : '',
+    ])) : empty('No bring-forwards on this matter — BF the transcript chase the day you order it.')}
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Bring-forward</h2>
+        <form method="POST" action="/r/calendar/bf">
+          ${input('note', 'What to chase', { required: true, placeholder: 'e.g. chase the transcript ordered today' })}
+          ${input('due', 'BF date', { type: 'date', required: true })}
+          <button>Set BF</button>
+        </form>
+        <p class="note">BFs are reminders you set by hand. They live in their own list, carry their own BF tag on the phone feed, and never mix with rule-computed deadlines — a tickler must not masquerade as a court date.</p>
+      </div>
+      ${feedCard(k, ctx.user)}
+    </div>
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Computed back from the trial date — rule shown per date', body }));
   });
@@ -63,6 +118,125 @@ function register(app) {
     }
     redirect(res, '/r/calendar');
   });
+
+  // ---- bring-forwards ----
+  app.route('POST', `/r/${ROOM.id}/bf`, (req, res, ctx) => {
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/calendar'); return; }
+    const note = String(ctx.body.note || '').trim();
+    const due = String(ctx.body.due || '').trim();
+    // Round-trip the date: V8 rolls '2026-02-31' forward to March, so a
+    // format check alone would calendar a day the client never typed.
+    const parsed = new Date(due + 'T00:00:00Z');
+    if (!note || !/^\d{4}-\d{2}-\d{2}$/.test(due) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== due) {
+      ctx.setFlash('A BF needs a note and a real date (YYYY-MM-DD).', 'err'); redirect(res, '/r/calendar'); return;
+    }
+    ctx.kernel.scope(ctx.matter.id).put('bf', { note, due, owner: ctx.user.id, status: 'open' });
+    ctx.setFlash(`BF set for ${due} — it stays a tickler, never a court date.`);
+    redirect(res, '/r/calendar');
+  });
+
+  app.route('POST', `/r/${ROOM.id}/bf-done`, (req, res, ctx) => {
+    if (ctx.matter) {
+      const s = ctx.kernel.scope(ctx.matter.id);
+      const b = s.get('bf', String(ctx.body.id || ''));
+      if (b) s.put('bf', { ...b, status: 'done' });
+    }
+    redirect(res, '/r/calendar');
+  });
+
+  // ---- phone feed ----
+  app.route('POST', `/r/${ROOM.id}/feed-new`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    for (const f of k.firm.list('calfeed', (f2) => f2.userId === ctx.user.id)) k.firm.del('calfeed', f.id);
+    // The store assigns the id via the kernel's crypto.randomUUID — an
+    // unguessable, regenerable token, minted without this room touching crypto.
+    k.firm.put('calfeed', { userId: ctx.user.id });
+    k.audit('calendar.feed.regenerate', ctx.user.id);
+    ctx.setFlash('Phone feed link minted — any previous link is dead. Subscribe your calendar app to the new address.');
+    redirect(res, '/r/calendar');
+  });
+
+  // RFC 5545 feed. Purely token-authenticated: the unguessable calfeed id is
+  // the whole credential, and this handler deliberately never reads ctx.user
+  // or ctx.matter — see the integration note in the Phone feed card for what
+  // server.js must change before a cookie-less phone can actually reach it.
+  app.route('GET', `/r/${ROOM.id}/feed/:token`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const feed = k.firm.get('calfeed', ctx.params.token);
+    if (!feed) { send(res, 404, 'Not found.'); return; }
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Chambers//Trial Calendar//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Chambers deadlines & BFs'];
+    for (const m of k.matters()) {
+      if (k.isShredded(m.id)) continue;
+      let ds = [], bs = [];
+      try {
+        const s = k.scope(m.id);
+        ds = s.list('deadline', (d) => d.status === 'open');
+        bs = s.list('bf', (b) => b.status === 'open');
+      } catch { continue; }
+      for (const d of ds) {
+        vevent(lines, stamp, d.id, d.due, `[${m.title}] ${d.desc}`,
+          [d.rule, d.trigger].filter(Boolean).join(' — '), 'DEADLINE');
+      }
+      for (const b of bs) {
+        vevent(lines, stamp, b.id, b.due, `BF: [${m.title}] ${b.note}`,
+          'Bring-forward (tickler — not a computed court deadline)', 'BRING-FORWARD');
+      }
+    }
+    lines.push('END:VCALENDAR');
+    res.writeHead(200, {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'inline; filename="chambers.ics"',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(lines.map(fold).join('\r\n') + '\r\n');
+  });
+}
+
+function feedCard(k, user) {
+  const feed = k.firm.list('calfeed', (f) => f.userId === user.id)[0];
+  return `<div class="card">
+    <h2 class="sec" style="margin-top:0">Phone feed ${tag('ICS', 'navy')}</h2>
+    ${feed ? `
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 4px">Subscribe your phone's calendar app to:</p>
+    <p class="num" style="word-break:break-all;margin:0"><a href="/r/calendar/feed/${esc(feed.id)}">/r/calendar/feed/${esc(feed.id)}</a></p>
+    <p class="note">Every open deadline (rule citation included) and every BF across your visible matters lands on the phone — nothing re-typed, so nothing mistyped. The link is the credential: anyone holding it can read your feed, and regenerating kills the old link instantly.</p>`
+      : `<p class="note">Mint a private, unguessable link your phone's calendar app can subscribe to — every open deadline (rule citation included) and every BF across your visible matters, with no re-typing.</p>`}
+    <form method="POST" action="/r/calendar/feed-new"><button${feed ? ' class="danger"' : ''}>${feed ? 'Regenerate link (kills the old one)' : 'Create feed link'}</button></form>
+    <p class="note">Integration note — makeCtx in server.js admits only its fixed PUBLIC paths without a session cookie, so a phone's cookie-less fetch is 303'd to sign-in before this handler runs. Exposing the feed publicly requires makeCtx to admit the /r/calendar/feed/ prefix and build the kernel for the calfeed's userId — a server.js change outside this room's file. The handler here is already written purely token-authenticated against that day.</p>
+  </div>`;
+}
+
+// One all-day VEVENT. Skips a record whose due date cannot make a valid
+// DTSTART — a broken line must not poison the whole subscription.
+function vevent(lines, stamp, id, due, summary, description, category) {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(String(due || ''))) return;
+  lines.push(
+    'BEGIN:VEVENT',
+    `UID:${escICS(id)}@chambers`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${String(due).slice(0, 10).replace(/-/g, '')}`,
+    `SUMMARY:${escICS(summary)}`,
+    `DESCRIPTION:${escICS(description)}`,
+    `CATEGORIES:${category}`,
+    'END:VEVENT'
+  );
+}
+
+// RFC 5545 §3.3.11 text escaping: backslash first, then ; , and newlines.
+const escICS = (s) => String(s ?? '')
+  .replace(/\\/g, '\\\\')
+  .replace(/;/g, '\\;')
+  .replace(/,/g, '\\,')
+  .replace(/\r\n|\r|\n/g, '\\n');
+
+// RFC 5545 §3.1 line folding: continuation lines begin with a space.
+function fold(line) {
+  let s = line;
+  const out = [];
+  while (s.length > 74) { out.push(s.slice(0, 74)); s = ' ' + s.slice(74); }
+  out.push(s);
+  return out.join('\r\n');
 }
 
 function daysOut(iso) { return Math.ceil((new Date(iso) - Date.now()) / 86400000); }

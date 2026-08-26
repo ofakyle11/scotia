@@ -45,20 +45,6 @@ function register(app) {
       body = `
       <div class="grid2">
         <div class="card">
-          <h2 class="sec" style="margin-top:0">Add expert</h2>
-          <form method="POST" action="/r/experts/new">
-            ${input('name', 'Name', { required: true })}
-            ${input('discipline', 'Discipline', { placeholder: 'Forensic accounting, biomechanics, standard of care…' })}
-            ${select('side', 'Side', SIDES, 'ours')}
-            ${select('rateType', 'Rate basis', RATE_TYPES, 'hourly')}
-            ${input('rate', 'Rate', { type: 'number', placeholder: '450' })}
-            ${input('reportDue', 'Report due', { type: 'date' })}
-            ${textarea('scope', 'Scope of retainer / opinion sought', { placeholder: 'Questions the expert is asked to answer — nothing broader.' })}
-            <button>Open expert file</button>
-          </form>
-          <p class="note">A report due date is also inserted as a deadline record, so the Trial Calendar (room 21) sees it.</p>
-        </div>
-        <div class="card">
           <h2 class="sec" style="margin-top:0">Roster — ${esc(ctx.matter.title)}</h2>
           ${experts.length ? table(['Expert', 'Discipline', 'Side', 'Rate', 'Status', 'Report due', 'Checklist'],
             experts.map((x) => [
@@ -67,13 +53,29 @@ function register(app) {
               x.rate ? `${money(x.rate)}<span class="note" style="display:inline"> / ${x.rateType === 'daily' ? 'day' : 'hr'}</span>` : '—',
               statusTag(x.status), x.reportDue ? date(x.reportDue) : '—',
               `<span class="num">${checkCount(x)}/${CHECKLIST.length}</span>`,
-            ])) : empty('No experts on this matter yet.')}
+            ])) : empty('No experts on this matter yet — open the first expert file with the form.')}
           <p class="note">Ours: ${ours.length} · Theirs: ${theirs.length}. The checklist column counts reference items ticked across both regimes.</p>
         </div>
+        <div class="card">
+          <h2 class="sec" style="margin-top:0">Add expert</h2>
+          <form method="POST" action="/r/experts/new">
+            <div class="grid2">
+              <span>${input('name', 'Name', { required: true })}</span>
+              <span>${input('discipline', 'Discipline', { placeholder: 'Forensic accounting, biomechanics…' })}</span>
+              <span>${select('side', 'Side', SIDES, 'ours')}</span>
+              <span>${input('reportDue', 'Report due', { type: 'date' })}</span>
+              <span>${select('rateType', 'Rate basis', RATE_TYPES, 'hourly')}</span>
+              <span>${input('rate', 'Rate', { type: 'number', placeholder: '450' })}</span>
+            </div>
+            ${textarea('scope', 'Scope of retainer / opinion sought', { placeholder: 'Questions the expert is asked to answer — nothing broader.' })}
+            <button>Open expert file</button>
+          </form>
+          <p class="note">A report due date is also inserted as a deadline record, so the Trial Calendar (room 21) sees it.</p>
+        </div>
       </div>
-      ${experts.length ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x)).join('')}` : ''}
-      <h2 class="sec">Qualification reference</h2>
-      <div class="card">${referenceHtml()}</div>`;
+      ${experts.length
+        ? `<h2 class="sec">Expert files</h2>${experts.map((x) => expertCard(x)).join('')}`
+        : `<h2 class="sec">Qualification reference</h2><div class="card">${referenceHtml()}</div>`}`;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Retain, serve, survive the challenge', body }));
   });

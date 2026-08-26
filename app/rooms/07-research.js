@@ -43,8 +43,8 @@ function memoCard(m, auths) {
     ])}
     ${mine.length
       ? table(['Citation', 'Court', 'Year', 'Weight', 'Cuts', 'Proposition', ''], mine.map(authorityRow))
-      : empty('No authorities on this memo yet. A conclusion without authority is a hunch.')}
-    <details style="margin-top:12px">
+      : empty('No authorities on this memo yet — cite the first one below.')}
+    <details style="margin-top:12px" ${mine.length ? '' : 'open'}>
       <summary style="cursor:pointer;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft)">Add authority</summary>
       <form method="POST" action="/r/research/authority">
         <input type="hidden" name="memoId" value="${esc(m.id)}">
@@ -102,7 +102,7 @@ function register(app) {
           checkCell(a),
         ];
       }))}
-      <p class="note">These cut against our position. Candour to the tribunal means each one gets disclosed and distinguished — never buried. Binding adverse authority sorts to the top; it renders here, first, until the memo deals with it.</p>
+      <p class="note">Candour to the tribunal: each of these gets disclosed and distinguished — never buried. They render here, first, until the memo deals with them.</p>
     </div>` : '';
 
     const body = `
@@ -125,12 +125,11 @@ function register(app) {
           ${adverse.length ? tag(`${adverse.length} adverse`, 'gate') : tag('no adverse authority recorded', 'ok')}
           ${pending ? tag(`${pending} awaiting citation check`, 'gate') : ''}
         </p>
-        <p class="note">Every authority carries the proposition it stands for and whether it binds this court. Sending it to Citation Check records an <b>unverified</b> citation instance in this matter — nothing cited here is treated as good law until it comes back verified.</p>
-        <p class="note">Retrieval against the CourtListener / Caselaw Access Project corpora wires in here — Build Sheet L07. Until it lands, authorities are entered by hand and verified in Citation Check; this room does not fabricate search results.</p>
+        <p class="note">Sending an authority to Citation Check records an <b>unverified</b> instance — nothing cited here is good law until it comes back verified. Retrieval against CourtListener / CAP wires in here — Build Sheet L07; until it lands, authorities are entered by hand and this room fabricates no search results.</p>
       </div>
     </div>
     <h2 class="sec">Memos</h2>
-    ${memos.length ? memos.map((m) => memoCard(m, auths)).join('') : empty('No memos yet. Research starts with an issue framed as a question.')}
+    ${memos.length ? memos.map((m) => memoCard(m, auths)).join('') : empty('No memos yet — frame the first issue above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
   });

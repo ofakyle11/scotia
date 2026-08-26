@@ -97,6 +97,10 @@ function register(app) {
     const mattersAll = k.firm.list('matter');
     const letters = k.firm.list('letter', (l) => l.kind === 'conflict-waiver')
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Firm-level, never matter-scoped: conflicts data lives outside privilege scope.
+    const rescans = k.firm.list('rescan').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const latestRescan = rescans[0] || null;
+    const watches = k.firm.list('watchName').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
     // Continuous re-check: anything that joined the graph after the last run.
     const lastRunAt = runs.length ? runs.map((r) => r.createdAt || '').sort().pop() : null;
@@ -115,18 +119,19 @@ function register(app) {
           ${input('name', 'Name to clear', { required: true, placeholder: 'Person, company, insurer, witness…' })}
           <button>Check against everything on file</button>
         </form>
-        <p class="note">Normalized token match against ${mattersAll.length} matter(s), ${inquiries.length} inquiry(ies) and ${parties.length} recorded part${parties.length === 1 ? 'y' : 'ies'} — clients, adverse parties, parties and their aliases. Probabilistic record linkage (Splink — resolving &ldquo;Robert Smith&rdquo;, &ldquo;Bob Smith&rdquo; and &ldquo;R. Smith Holdings LLC&rdquo; into one entity) wires in here — Build Sheet L06. Until it does, matching is exact token overlap: conservative, and no fabricated resolutions.</p>
+        <p class="note">Token match against ${mattersAll.length} matter(s), ${inquiries.length} inquiry(ies) and ${parties.length} recorded part${parties.length === 1 ? 'y' : 'ies'} — clients, adverse parties and aliases. Probabilistic record linkage (Splink) wires in here — Build Sheet L06; until it lands, matching is exact token overlap and nothing is fabricated.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Record a party</h2>
         <form method="POST" action="/r/conflicts/party">
           ${input('name', 'Name', { required: true })}
           ${input('aliases', 'Aliases / former names (comma-separated)', { placeholder: 'Bob Smith, R. Smith Holdings' })}
-          ${select('role', 'Role', ROLES)}
-          ${select('target', 'Attached to', targets, defaultTarget)}
+          <div class="grid2">
+            <span>${select('role', 'Role', ROLES)}</span>
+            <span>${select('target', 'Attached to', targets, defaultTarget)}</span>
+          </div>
           <button>Add to the party graph</button>
         </form>
-        <p class="note">Every party added after the last run is listed below for re-screening — the check keeps running after engagement.</p>
       </div>
     </div>
 
@@ -134,7 +139,7 @@ function register(app) {
     ${unscreened.length ? table(['Added', 'Name', 'Role', 'Attached to', ''], unscreened.map((p) => [
       date(p.createdAt), esc(p.name), esc(p.role || ''), esc(partyWhere(k, p)),
       `<form method="POST" action="/r/conflicts/run" style="display:inline"><input type="hidden" name="name" value="${esc(p.name)}"><button class="quiet">Run check</button></form>`,
-    ])) : empty(lastRunAt ? 'No parties added since the last conflict run.' : 'No parties on file yet.')}
+    ])) : empty(lastRunAt ? 'No parties added since the last conflict run.' : 'No parties on file yet — record one above.')}
     ${lastRunAt ? `<p class="note">Last conflict run: ${esc(String(lastRunAt).slice(0, 10))}.</p>` : ''}
 
     <h2 class="sec">Conflict runs</h2>
@@ -147,14 +152,60 @@ function register(app) {
       outcomeTag(r.outcome) + (r.outcome === 'pending'
         ? '<br>' + OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(r.id)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join('')
         : ''),
-    ])) : empty('No conflict runs yet. Every engagement starts here.')}
+    ])) : empty('No conflict runs yet — check a name above; every engagement starts there.')}
+
+    <div class="grid2">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Re-screen everything</h2>
+        <form method="POST" action="/r/conflicts/rescan">
+          <button>Re-screen every stored run</button>
+        </form>
+        <p class="note">Re-runs every stored check against today&rsquo;s graph. No stored outcome changes by machine — runs with new hits are listed below for a human decision.</p>
+      </div>
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Watchlist</h2>
+        <form method="POST" action="/r/conflicts/watch">
+          ${input('name', 'Name to watch', { required: true, placeholder: 'The adverse party you expect to meet again' })}
+          <button>Watch this name</button>
+        </form>
+        <p class="note">Watched names run through the conflict check on every page load — a new party anywhere in the graph lights them up below.</p>
+      </div>
+    </div>
+
+    <h2 class="sec">Latest re-screen ${latestRescan && (latestRescan.newHits || []).length ? tag(String((latestRescan.newHits || []).length) + ' run(s) with new hits', 'gate') : (latestRescan ? tag('graph quiet', 'ok') : '')}</h2>
+    ${latestRescan ? `<p class="note">Re-screened ${Number(latestRescan.checkedRuns || 0)} run(s) ${date(latestRescan.createdAt)} by ${esc(latestRescan.byName || '')}.</p>` : ''}
+    ${latestRescan
+      ? ((latestRescan.newHits || []).length
+        ? table(['Name checked', 'New hits — and the matter they came from', 'Re-resolve'], (latestRescan.newHits || []).map((e) => {
+          const run = e.runId ? k.firm.get('conflictRun', e.runId) : null;
+          return [
+            esc(e.name),
+            (e.hits || []).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>'),
+            (run ? outcomeTag(run.outcome) : '') + '<br>' + OUTCOMES.map(([v, t]) => `<form method="POST" action="/r/conflicts/outcome" style="display:inline;margin-right:6px"><input type="hidden" name="id" value="${esc(e.runId)}"><input type="hidden" name="outcome" value="${esc(v)}"><button class="quiet" style="margin-top:6px">${esc(t)}</button></form>`).join(''),
+          ];
+        }))
+        : empty('Latest re-screen found nothing new — the graph is quiet.'))
+      : empty('No firm-wide re-screen yet — run one above; the conflicts duty outlives intake.')}
+
+    <h2 class="sec">Watched names</h2>
+    ${watches.length ? table(['Name', 'Added by', 'Current hits', ''], watches.map((w) => {
+      const { hits } = runCheck(k, w.name);
+      return [
+        esc(w.name),
+        esc(w.addedBy || ''),
+        hits.length
+          ? hits.map((h) => `${tag(h.name, 'gate')} <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
+          : '<span class="note">no hits</span>',
+        `<form method="POST" action="/r/conflicts/watch-del" style="display:inline"><input type="hidden" name="id" value="${esc(w.id)}"><button class="quiet">Remove</button></form>`,
+      ];
+    })) : empty('No watched names. Watch the adverse party you expect to meet again.')}
 
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Waiver letter</h2>
         <form method="POST" action="/r/conflicts/waiver">
-          ${input('client', 'Addressed to (the client consenting)', { required: true })}
-          ${input('other', 'The conflicting party / other client', { required: true })}
+          ${input('client', 'Consenting client', { required: true })}
+          ${input('other', 'Conflicting party / other client', { required: true })}
           ${textarea('desc', 'Matter description', { placeholder: 'Proposed engagement: …', required: true })}
           <button>Generate waiver letter</button>
         </form>
@@ -165,7 +216,7 @@ function register(app) {
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Screens &amp; walls</h2>
-        <p class="note">Where a screen cures the conflict — a lateral hire, a walled-off team — the wall is raised in firm administration. Walls are enforced in the kernel before any key unwrap: a screened user cannot reach the matter&rsquo;s encryption key at all, so the screen is cryptographic, not cosmetic.</p>
+        <p class="note">Where a screen cures the conflict, the wall is raised in firm administration and enforced in the kernel before any key unwrap — a screened user cannot reach the matter&rsquo;s encryption key at all.</p>
         ${k.isAdmin() ? '<a class="btn" href="/admin">Raise an ethical wall — /admin</a>' : '<p class="note">Raising a wall requires an administrator — ask one to provision it at /admin.</p>'}
         ${kv([
           ['Matters on file', `<span class="num">${mattersAll.length}</span>`],
@@ -225,6 +276,51 @@ function register(app) {
     ctx.setFlash(outcome === 'waiver'
       ? `Run for “${run.name}” marked waiver needed — generate the waiver letter below.`
       : `Run for “${run.name}” marked ${outcome}.`);
+    redirect(res, '/r/conflicts');
+  });
+
+  // Continuous re-screen: every stored run, re-run against today's graph.
+  // The diff is machine work; the decision stays human — no outcome is touched here.
+  app.route('POST', `/r/${ROOM.id}/rescan`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const runs = k.firm.list('conflictRun');
+    if (!runs.length) {
+      ctx.setFlash('No conflict runs on file to re-screen.');
+      redirect(res, '/r/conflicts'); return;
+    }
+    const newHits = [];
+    let newHitCount = 0;
+    for (const run of runs) {
+      const fresh = runCheck(k, run.name).hits;
+      const seen = new Set((run.hits || []).map((h) => `${h.name}|${h.via}|${h.from}`));
+      const added = fresh.filter((h) => !seen.has(`${h.name}|${h.via}|${h.from}`));
+      if (added.length) { newHits.push({ runId: run.id, name: run.name, hits: added }); newHitCount += added.length; }
+    }
+    const rescan = k.firm.put('rescan', { checkedRuns: runs.length, newHits, byName: ctx.user.name });
+    k.audit('conflicts.rescan', rescan.id + ':' + newHitCount);
+    ctx.setFlash(`Re-screened ${runs.length} runs — ${newHitCount} new hit(s).`);
+    redirect(res, '/r/conflicts');
+  });
+
+  app.route('POST', `/r/${ROOM.id}/watch`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const name = String(ctx.body.name || '').trim();
+    if (!name || !tokens(name).length) {
+      ctx.setFlash('Enter a name with at least one matchable token (3+ letters).', 'err');
+      redirect(res, '/r/conflicts'); return;
+    }
+    const w = k.firm.put('watchName', { name, addedBy: ctx.user.name });
+    k.audit('conflicts.watch', w.id);
+    ctx.setFlash(`Watching “${name}” — it runs through the conflict check on every page load.`);
+    redirect(res, '/r/conflicts');
+  });
+
+  app.route('POST', `/r/${ROOM.id}/watch-del`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const w = ctx.body.id ? k.firm.get('watchName', ctx.body.id) : null;
+    if (!w) { ctx.setFlash('No such watched name.', 'err'); redirect(res, '/r/conflicts'); return; }
+    k.firm.del('watchName', w.id);
+    ctx.setFlash(`Stopped watching “${w.name}”.`);
     redirect(res, '/r/conflicts');
   });
 

@@ -67,19 +67,16 @@ function register(app) {
     const drafts = s.list('pleading').slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
     const body = `
+    <h2 class="sec" style="margin-top:0">Coverage — ${esc(ctx.matter.title)}</h2>
+    ${causes.length ? causes.map((c) => causeSection(c, facts)).join('') : empty('No causes of action on this matter yet — add one below, then map each element to chronology facts.')}
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Add a cause of action</h2>
         <form method="POST" action="/r/pleadings/cause">
-          ${select('set', 'Cause of action', CAUSES.map((c) => [c.id, `${c.label} — ${c.elements.length} elements`]))}
+          ${select('set', 'Cause of action', CAUSES.map((c) => [c.id, `${c.label} (${c.jur}) — ${c.elements.length} elements`]))}
           <button>Add to matter</button>
         </form>
-        <p class="note"><b>Reference element sets</b> — the four sets below ship as labeled reference data; the citations are to the leading statements of each test. Every element must eventually point at a sourced fact in the Chronology (room 06).</p>
-        ${table(['Cause', 'Elements', 'Reference'], CAUSES.map((c) => [
-          `${esc(c.label)} ${tag(c.jur)}`,
-          c.elements.map((e) => esc(e.label)).join('<br>'),
-          `<span class="note">${esc(c.ref)}</span>`,
-        ]))}
+        <p class="note"><b>Reference element sets</b> — labeled reference data; each cause carries the citation to the leading statement of its test, shown on its coverage card once added. Every element must eventually point at a sourced fact in the Chronology (room 06).</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Draft a pleading</h2>
@@ -89,11 +86,9 @@ function register(app) {
           ${textarea('body', 'Body', { required: true, placeholder: 'Material facts, pleaded plainly. Evidence stays out; conclusions of law stay out.' })}
           <button>Save draft</button>
         </form>
-        <p class="note">Drafts live in this matter's encrypted scope. The coverage matrix on the left tells you whether the claim you are drafting can survive its first motion.</p>
+        <p class="note">Drafts live in this matter's encrypted scope. The coverage matrix above tells you whether the claim you are drafting can survive its first motion.</p>
       </div>
     </div>
-    <h2 class="sec">Coverage — ${esc(ctx.matter.title)}</h2>
-    ${causes.length ? causes.map((c) => causeSection(c, facts)).join('') : empty('No causes of action on this matter yet. Add one above, then map each element to chronology facts.')}
     <h2 class="sec">Pleading drafts</h2>
     ${drafts.length ? table(['Title', 'Type', 'Saved', 'Body', ''], drafts.map((d) => [
       esc(d.title),
@@ -101,7 +96,7 @@ function register(app) {
       date(d.createdAt),
       `<span class="note">${esc(String(d.body || '').slice(0, 160))}${String(d.body || '').length > 160 ? '…' : ''}</span>`,
       `<form method="POST" action="/r/pleadings/deldraft" style="display:inline"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet danger" style="padding:4px 10px;margin-top:0">drop</button></form>`,
-    ])) : empty('No pleading drafts yet.')}
+    ])) : empty('No pleading drafts yet — save one from the form above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
   });

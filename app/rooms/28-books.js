@@ -5,6 +5,24 @@ const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 28, id: 'books', title: 'Trust & Books', phase: 'Always on' };
 
+// Printing this page yields the trust statement: position, reconciliation
+// record and ledger survive; entry forms, export chrome and buttons drop out.
+const PRINT = `<style>@media print{
+.side,.topbar,.flash,.noprint,form,button{display:none!important}
+.shell{display:block;min-height:0}.main{padding:0}
+.grid2,.grid3{display:block}
+body{background:#fff;color:#111}
+.card{background:#fff;border-color:#bbb;color:#111;break-inside:avoid}
+.empty{background:#fff;border-color:#bbb;color:#444}
+table.t{background:#fff;border-color:#bbb}
+table.t th{background:#eee;color:#333;border-color:#bbb}
+table.t td{color:#111;border-color:#ddd}
+h1.room,h2.sec{color:#111;border-color:#bbb}
+.roomsub,.note,.kv dt{color:#444}.num,.kv dd{color:#111}
+.tag{color:#111;border-color:#111;background:none}
+a{color:#111}
+}</style>`;
+
 const ACCOUNTS = [
   ['trust:bank', 'Trust — bank'],
   ['trust:client', 'Trust — client liability'],
@@ -13,6 +31,35 @@ const ACCOUNTS = [
   ['operating:expense:disbursements', 'Disbursements'],
   ['ar:client', 'Accounts receivable'],
 ];
+
+// CSV for the accountant handoff. Every field is double-quoted with embedded
+// quotes doubled, rows end CRLF, and any field starting with = + - or @ gets an
+// apostrophe prefix — memo and narrative are user text, so the formula-injection
+// guard is non-negotiable.
+function csvField(v) {
+  let s = String(v ?? '');
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+const csvRow = (fields) => fields.map(csvField).join(',');
+
+function exportCard(ctx) {
+  const scopeOpts = [['firm', 'Whole firm'], ['matter', 'This matter']];
+  const form = (report, labelTxt, btn) => `<div><form method="POST" action="/r/books/export">
+    <input type="hidden" name="report" value="${report}">
+    ${select('scope', labelTxt, scopeOpts, ctx.matter ? 'matter' : 'firm')}
+    <button>${btn}</button>
+  </form></div>`;
+  return `<div class="noprint"><h2 class="sec">Accountant handoff</h2>
+  <div class="card">
+    <div class="grid3">
+      ${form('gl', 'General ledger', 'Download GL CSV')}
+      ${form('trust', 'Trust ledger + balances', 'Download trust CSV')}
+      ${form('time', 'Time entries', 'Download time CSV')}
+    </div>
+    <p class="note">These CSVs disclose memos and time narratives — they are for the firm's accountant, not for production. The trust export (trust ledger lines plus per-matter held-for-client balances) supports the annual three-way-reconciliation review.</p>
+  </div></div>`;
+}
 
 function reconCard(ctx, k) {
   const bal = k.ledger.balances();
@@ -70,6 +117,18 @@ function register(app) {
     const unbilled = time.filter((t) => t.state !== 'billed').reduce((s, t) => s + (t.hours * t.rate), 0);
 
     const body = `
+    ${PRINT}
+    ${ctx.matter ? `
+    <h2 class="sec" style="margin-top:0">Time — ${esc(ctx.matter.title)} <span class="tag navy">unbilled ${money(unbilled)}</span></h2>
+    <div class="card noprint"><form method="POST" action="/r/books/time" class="grid3" style="align-items:end">
+      <span>${input('hours', 'Hours', { type: 'number', required: true, placeholder: '0.3' })}</span>
+      <span>${input('rate', 'Rate', { type: 'number', required: true, placeholder: '450' })}</span>
+      <span>${select('utbms', 'UTBMS', ['L110 Fact investigation', 'L120 Analysis & strategy', 'L190 Other case assessment', 'L210 Pleadings', 'L310 Written discovery', 'L330 Depositions', 'L430 Trial & hearing'])}</span>
+      <span style="grid-column:1/-1">${input('narrative', 'Narrative (specific — pre-bill lint rejects vagueness)', { required: true })}</span>
+      <button>Record time</button>
+    </form></div>
+    ${time.length ? table(['Date', 'Hours', 'Rate', 'Code', 'Narrative', 'State'], time.slice().reverse().map((t) => [date(t.createdAt), `<span class="num">${t.hours}</span>`, money(t.rate), esc((t.utbms || '').slice(0, 4)), esc(t.narrative), t.lint ? tag('lint: ' + t.lint, 'gate') : tag(t.state || 'draft')])) : empty('No time recorded on this matter.')}
+    <h2 class="sec">Trust</h2>` : ''}
     <div class="grid3">
       <div class="card"><h2 class="sec" style="margin-top:0">Trust position${ctx.matter ? ' — this matter' : ' — firm'}</h2>
         ${table(['', ''], [
@@ -79,14 +138,14 @@ function register(app) {
         ])}
         <p class="note">Client funds are liabilities, never income. The ledger refuses any transaction that would take fees from trust without an explicit, flagged transfer.</p>
       </div>
-      <div class="card"><h2 class="sec" style="margin-top:0">Receive retainer into trust</h2>
+      <div class="card noprint"><h2 class="sec" style="margin-top:0">Receive retainer into trust</h2>
         <form method="POST" action="/r/books/retainer">
           ${input('amount', 'Amount', { type: 'number', required: true, placeholder: '5000.00' })}
           ${input('memo', 'Memo', { placeholder: 'Initial retainer per engagement letter' })}
           <button>Post to trust</button>
         </form>
       </div>
-      <div class="card"><h2 class="sec" style="margin-top:0">Transfer earned fees</h2>
+      <div class="card noprint"><h2 class="sec" style="margin-top:0">Transfer earned fees</h2>
         <form method="POST" action="/r/books/transfer">
           ${input('amount', 'Amount (invoiced & earned)', { type: 'number', required: true })}
           ${input('memo', 'Invoice reference', { required: true, placeholder: 'Invoice 2026-014' })}
@@ -95,23 +154,13 @@ function register(app) {
         <p class="note">Posts as an explicit <b>trust-transfer</b> — the only path from trust to fees, and it is audit-flagged.</p>
       </div>
     </div>
-    ${ctx.matter ? `
-    <h2 class="sec">Time — ${esc(ctx.matter.title)} <span class="tag navy">unbilled ${money(unbilled)}</span></h2>
-    <div class="card"><form method="POST" action="/r/books/time" class="grid3" style="align-items:end">
-      <span>${input('hours', 'Hours', { type: 'number', required: true, placeholder: '0.3' })}</span>
-      <span>${input('rate', 'Rate', { type: 'number', required: true, placeholder: '450' })}</span>
-      <span>${select('utbms', 'UTBMS', ['L110 Fact investigation', 'L120 Analysis & strategy', 'L190 Other case assessment', 'L210 Pleadings', 'L310 Written discovery', 'L330 Depositions', 'L430 Trial & hearing'])}</span>
-      <span style="grid-column:1/-1">${input('narrative', 'Narrative (specific — pre-bill lint rejects vagueness)', { required: true })}</span>
-      <button>Record time</button>
-    </form></div>
-    ${time.length ? table(['Date', 'Hours', 'Rate', 'Code', 'Narrative', 'State'], time.slice().reverse().map((t) => [date(t.createdAt), `<span class="num">${t.hours}</span>`, money(t.rate), esc((t.utbms || '').slice(0, 4)), esc(t.narrative), t.lint ? tag('lint: ' + t.lint, 'gate') : tag(t.state || 'draft')])) : empty('No time recorded on this matter.')}
-    ` : ''}
     ${reconCard(ctx, k)}
     <h2 class="sec">Ledger${ctx.matter ? ' — this matter' : ''}</h2>
     ${txns.length ? table(['Date', 'Kind', 'Memo', 'Lines'], txns.map((t) => [
       date(t.date), t.kind === 'trust-transfer' ? tag('trust-transfer', 'gate') : tag(t.kind),
       esc(t.memo || ''), t.lines.map((l) => `<span class="num">${esc(l.account)} ${l.dr ? 'DR ' + money(l.dr) : 'CR ' + money(l.cr)}</span>`).join('<br>'),
     ])) : empty('No ledger activity yet.')}
+    ${exportCard(ctx)}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'The ledger and the vault — append-only, dual-entry, audited', body }));
   });
@@ -171,6 +220,60 @@ function register(app) {
     });
     ctx.setFlash(vague ? 'Recorded, but pre-bill lint flagged the narrative as too vague.' : 'Time recorded.');
     redirect(res, '/r/books');
+  });
+
+  // Accountant handoff — responds directly with the CSV, no redirect. Unknown
+  // or empty report/scope defaults to gl/firm so a garbage POST still gets a
+  // valid CSV (header row at minimum), never a 500.
+  app.route('POST', `/r/${ROOM.id}/export`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const report = ['gl', 'trust', 'time'].includes(ctx.body.report) ? ctx.body.report : 'gl';
+    const scope = ['matter', 'firm'].includes(ctx.body.scope) ? ctx.body.scope : 'firm';
+    const matterId = scope === 'matter' && ctx.matter ? ctx.matter.id : undefined;
+    let header;
+    const rows = [];
+    if (report === 'time') {
+      header = ['date', 'matter', 'hours', 'rate', 'value', 'utbms', 'narrative', 'state'];
+      for (const m of (matterId ? [ctx.matter] : (ctx.matters || []))) {
+        let entries;
+        try { entries = k.scope(m.id).list('timeEntry'); } catch (e) { continue; } // walled or shredded — skip
+        for (const t of entries) {
+          const hours = Number(t.hours) || 0, rate = Number(t.rate) || 0;
+          rows.push([String(t.createdAt || '').slice(0, 10), m.title, hours, rate.toFixed(2), (hours * rate).toFixed(2), t.utbms || '', t.narrative || '', t.state || 'draft']);
+        }
+      }
+    } else {
+      header = ['txnId', 'date', 'matter', 'kind', 'memo', 'account', 'dr', 'cr'];
+      const txns = k.ledger.list(matterId);
+      for (const t of txns) {
+        const m = k.firm.get('matter', t.matterId);
+        const title = m ? m.title : t.matterId;
+        for (const l of t.lines) {
+          if (report === 'trust' && !/^trust/.test(l.account)) continue;
+          rows.push([t.id, t.date || '', title, t.kind || '', t.memo || '', l.account, l.dr ? Number(l.dr).toFixed(2) : '', l.cr ? Number(l.cr).toFixed(2) : '']);
+        }
+      }
+      if (report === 'trust') {
+        // Trailing per-matter held-for-client balances, computed as reconCard does.
+        const perMatter = new Map();
+        for (const t of txns) for (const l of t.lines) if (l.account === 'trust:client') {
+          perMatter.set(t.matterId, (perMatter.get(t.matterId) || 0) + (l.cr || 0) - (l.dr || 0));
+        }
+        for (const [mid, v] of perMatter) {
+          if (Math.abs(v) <= 0.004) continue;
+          const m = k.firm.get('matter', mid);
+          rows.push(['', '', m ? m.title : mid, 'balance', 'held for client', 'trust:client', '', v.toFixed(2)]);
+        }
+      }
+    }
+    k.audit('books.export', report + ':' + (matterId || 'firm') + ':' + rows.length);
+    const today = new Date().toISOString().slice(0, 10);
+    res.writeHead(200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="chambers-${report}-${scope}-${today}.csv"`,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end([header, ...rows].map(csvRow).join('\r\n') + '\r\n');
   });
 }
 

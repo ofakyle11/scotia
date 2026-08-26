@@ -101,6 +101,14 @@ function render(res, ctx, scan) {
   const body = `
   <div class="grid2">
     <div class="card">
+      <h2 class="sec" style="margin-top:0">Citation scanner</h2>
+      <form method="POST" action="/r/canlii/scan">
+        ${textarea('text', 'Paste any text — factum, memo, opposing brief', { placeholder: 'e.g. ... as held in Dunsmuir v. New Brunswick, 2008 SCC 9 ...' })}
+        <button>Scan for Canadian citations</button>
+      </form>
+      <p class="note">Recognizes neutral citations (2008 SCC 9), CanLII citations (1999 CanLII 1527 (ON CA)), and SCR citations. Neutral and CanLII cites resolve deterministically to CanLII ids — no search required.</p>
+    </div>
+    <div class="card">
       <h2 class="sec" style="margin-top:0">Connector status</h2>
       ${kv([
         ['Mode', key ? tag('live — official API', 'ok') : tag('link-out (no key)', 'navy')],
@@ -109,14 +117,6 @@ function render(res, ctx, scan) {
       ])}
       <p class="note">This module never scrapes canlii.org — their Terms of Use prohibit scraping and bulk downloading. It uses the official REST API (metadata + citator) and citation deep links, which CanLII encourages. A key is requested from CanLII via their feedback form; commercial-scale use is a licensing conversation with CanLII (Build Sheet, Gap 4).</p>
       ${ctx.user.role === 'admin' ? `<form method="POST" action="/r/canlii/key">${input('apiKey', 'API key (blank to clear)', { placeholder: 'paste CanLII api_key' })}<button>Save key</button></form>` : '<p class="note">An administrator can add the firm’s API key.</p>'}
-    </div>
-    <div class="card">
-      <h2 class="sec" style="margin-top:0">Citation scanner</h2>
-      <form method="POST" action="/r/canlii/scan">
-        ${textarea('text', 'Paste any text — factum, memo, opposing brief', { placeholder: 'e.g. ... as held in Dunsmuir v. New Brunswick, 2008 SCC 9 ...' })}
-        <button>Scan for Canadian citations</button>
-      </form>
-      <p class="note">Recognizes neutral citations (2008 SCC 9), CanLII citations (1999 CanLII 1527 (ON CA)), and SCR citations. Neutral and CanLII cites resolve deterministically to CanLII ids — no search required.</p>
     </div>
   </div>
   ${scanBlock}

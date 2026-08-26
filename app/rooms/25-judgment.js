@@ -6,6 +6,24 @@ const { html, redirect } = require('../kernel/http.js');
 const ROOM = { num: 25, id: 'judgment', title: 'Judgment & Enforcement', phase: 'Resolve' };
 const STEPS = ['demand letter', 'garnishment', 'writ of seizure / judgment lien', 'examination in aid of execution', 'domestication (other jurisdiction)'];
 
+// Printing this page yields a statement of judgment debt: chrome, forms and
+// buttons drop out, leaving the header plus per-judgment cards and tables.
+const PRINT = `<style>@media print{
+.side,.topbar,.flash,.noprint,form,button{display:none!important}
+.shell{display:block;min-height:0}.main{padding:0}
+.grid2,.grid3{display:block}
+body{background:#fff;color:#111}
+.card{background:#fff;border-color:#bbb;color:#111;break-inside:avoid}
+.empty{background:#fff;border-color:#bbb;color:#444}
+table.t{background:#fff;border-color:#bbb}
+table.t th{background:#eee;color:#333;border-color:#bbb}
+table.t td{color:#111;border-color:#ddd}
+h1.room,h2.sec{color:#111;border-color:#bbb}
+.roomsub,.note,.kv dt{color:#444}.num,.kv dd{color:#111}
+.tag{color:#111;border-color:#111;background:none}
+a{color:#111}
+}</style>`;
+
 const accrued = (j) => {
   const days = Math.max(0, Math.floor((Date.now() - new Date(j.dateEntered + 'T00:00:00Z')) / 86400000));
   return j.amount * (j.rate / 100) * (days / 365);
@@ -18,7 +36,9 @@ function register(app) {
     const s = k.scope(ctx.matter.id);
     const judgments = s.list('judgment');
     const body = `
-    <div class="card">
+    ${PRINT}
+    ${judgments.map((j) => card(ctx, s, j)).join('') || empty('No judgments recorded — record the first below.')}
+    <div class="card noprint">
       <h2 class="sec" style="margin-top:0">Record a judgment</h2>
       <form method="POST" action="/r/judgment/new">
         <div class="grid3">
@@ -31,7 +51,6 @@ function register(app) {
         <button>Record</button>
       </form>
     </div>
-    ${judgments.map((j) => card(ctx, s, j)).join('') || empty('No judgments recorded.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Interest accruing, enforcement stepping, satisfaction recorded', body }));
   });

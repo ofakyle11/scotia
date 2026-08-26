@@ -33,15 +33,19 @@ h2.sec{font-family:var(--f-display);font-size:18.5px;font-weight:600;margin:30px
 .card{background:var(--surface);border:1px solid var(--rule);padding:18px 20px;margin:0 0 16px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-table.t{border-collapse:collapse;width:100%;font-size:13px;background:var(--surface);border:1px solid var(--rule)}
+table.t{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;background:var(--surface);border:1px solid var(--rule)}
 table.t th{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);text-align:left;padding:9px 12px;background:var(--surface-2);border-bottom:1px solid var(--rule);font-weight:500}
+table.t thead th{position:sticky;top:0;z-index:2}
 table.t td{padding:9px 12px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
 table.t tr:last-child td{border-bottom:0}
+table.t tbody tr:hover td{background:var(--surface-2)}
 .num{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:12px}
 label{display:block;font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 5px}
 input,select,textarea{width:100%;background:var(--ground);border:1px solid var(--rule);color:var(--ink);padding:8px 10px;font-family:var(--f-body);font-size:14px;border-radius:0}
 textarea{min-height:90px;resize:vertical}
 input:focus,select:focus,textarea:focus,button:focus{outline:2px solid var(--navy);outline-offset:1px}
+a:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.nav a:focus-visible{outline-offset:-2px}
 button,.btn{display:inline-block;background:var(--navy-deep);border:1px solid var(--navy-deep);color:#fff;padding:8px 16px;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;margin-top:14px}
 button:hover,.btn:hover{filter:brightness(1.15);text-decoration:none}
 button.danger{background:transparent;border-color:var(--oxide);color:var(--oxide)}
@@ -60,7 +64,21 @@ button.quiet{background:transparent;border-color:var(--rule);color:var(--ink-sof
 .mselect{display:flex;gap:8px;align-items:center}
 .mselect select{width:auto;max-width:340px}
 .mselect button{margin-top:0;padding:8px 12px}
-@media(max-width:900px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.grid2,.grid3{grid-template-columns:1fr}}
+.qo{position:fixed;inset:0;background:rgba(11,14,20,.72);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding-top:12vh}
+.qo[hidden]{display:none}
+.qo-box{width:min(560px,92vw);background:var(--surface);border:1px solid var(--rule)}
+.qo-box input{border:0;border-bottom:1px solid var(--rule);background:var(--surface);padding:12px 14px;font-size:15px}
+.qo-box input:focus{outline:none;border-bottom-color:var(--navy)}
+.qo-list{max-height:50vh;overflow-y:auto}
+.qo-item{display:flex;gap:10px;align-items:baseline;padding:7px 14px;cursor:pointer;color:var(--ink-soft);font-size:13.5px}
+.qo-item .k{font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);min-width:58px;flex:none}
+.qo-item.on,.qo-item:hover{background:var(--navy-wash);color:var(--ink)}
+.qo-hint{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding:8px 14px;border-top:1px solid var(--rule-soft)}
+.navtoggle{display:none}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.side{position:relative;height:auto}.grid2,.grid3{grid-template-columns:1fr}
+.navtoggle{display:inline-block;position:absolute;top:16px;right:16px;margin:0;padding:5px 12px;background:transparent;border:1px solid var(--rule);color:var(--ink-soft)}
+html.js .side .nav{display:none}
+html.js .side.open .nav{display:block}}
 `;
 
 const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">`;
@@ -78,16 +96,22 @@ function layout(ctx, { title, body, sub }) {
     ${p.rooms.map((r) => `<a href="/r/${r.id}" class="${room === r.id ? 'on' : ''}"><span class="n">${String(r.num).padStart(2, '0')}</span>${esc(r.title)}</a>`).join('')}
   `).join('');
   const mopts = (matters || []).map((m) => `<option value="${m.id}" ${matter && matter.id === m.id ? 'selected' : ''}>${esc(m.title)}</option>`).join('');
+  // Quick-open palette data: rooms + this user's matters (walls already applied
+  // upstream — ctx.matters is the visible set). JSON-escaped for a script context.
+  const qoItems = registry.map((r) => ({ t: 'room', id: r.id, n: String(r.num).padStart(2, '0'), label: r.title, h: (r.title + ' ' + r.id + ' ' + r.phase + ' ' + r.num).toLowerCase() }))
+    .concat((matters || []).map((m) => ({ t: 'matter', id: m.id, label: m.title + (m.client ? ' — ' + m.client : ''), h: (m.title + ' ' + (m.client || '')).toLowerCase() })));
+  const qoJson = JSON.stringify(qoItems).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${esc(title)}</title>${FONTS}<style>${CSS}</style></head><body>
 <div class="shell">
   <aside class="side">
     <div class="wordmark">Chambers<small>Private &middot; Privileged</small></div>
-    <nav class="nav">${nav}</nav>
+    <button type="button" class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="sidenav">Menu</button>
+    <nav class="nav" id="sidenav">${nav}</nav>
   </aside>
   <div class="main">
     <div class="topbar">
-      <form method="POST" action="/matter/select" class="mselect">
-        <select name="matter" aria-label="Matter">${mopts || '<option value="">No matters yet</option>'}</select>
+      <form method="POST" action="/matter/select" class="mselect" id="mform">
+        <select name="matter" id="mselect" aria-label="Matter">${mopts || '<option value="">No matters yet</option>'}</select>
         <button class="quiet">Open</button>
       </form>
       <span class="who">${esc(user.name)} · ${esc(user.role)} · <a href="/account" style="color:inherit">account</a> · <a href="/logout-form" style="color:inherit">sign out</a></span>
@@ -97,7 +121,78 @@ function layout(ctx, { title, body, sub }) {
     ${sub ? `<p class="roomsub">${esc(sub)}</p>` : ''}
     ${body}
   </div>
-</div></body></html>`;
+</div>
+<div class="qo" id="qo" hidden role="dialog" aria-modal="true" aria-label="Quick open">
+  <div class="qo-box">
+    <input id="qo-in" type="text" placeholder="Jump to a room or matter&hellip;" autocomplete="off" aria-label="Quick open">
+    <div class="qo-list" id="qo-list" role="listbox" aria-label="Results"></div>
+    <div class="qo-hint">&uarr;&darr; select &middot; Enter open &middot; Esc close &middot; / or Ctrl-K anywhere</div>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  document.documentElement.classList.add('js');
+  var side = document.querySelector('.side'), nt = document.getElementById('navtoggle');
+  if (nt && side) nt.addEventListener('click', function () {
+    var open = side.classList.toggle('open');
+    nt.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  var ITEMS = ${qoJson};
+  var qo = document.getElementById('qo'), qin = document.getElementById('qo-in'), qlist = document.getElementById('qo-list');
+  if (!qo || !qin || !qlist) return;
+  var prev = null, act = 0, shown = [];
+  function openQ() { prev = document.activeElement; qo.hidden = false; qin.value = ''; render(''); qin.focus(); }
+  function closeQ() { qo.hidden = true; if (prev && prev.focus) prev.focus(); }
+  function go(it) {
+    if (it.t === 'room') { location.href = '/r/' + encodeURIComponent(it.id); return; }
+    var f = document.getElementById('mform'), s = document.getElementById('mselect');
+    if (f && s) { s.value = it.id; f.submit(); }
+  }
+  function render(q) {
+    q = q.trim().toLowerCase();
+    shown = ITEMS.filter(function (it) { return !q || it.h.indexOf(q) > -1; }).slice(0, 12);
+    act = 0;
+    qlist.textContent = '';
+    shown.forEach(function (it, i) {
+      var d = document.createElement('div');
+      d.className = 'qo-item' + (i === act ? ' on' : '');
+      d.setAttribute('role', 'option');
+      var k = document.createElement('span'); k.className = 'k';
+      k.textContent = it.t === 'room' ? 'room ' + it.n : 'matter';
+      var t = document.createElement('span'); t.textContent = it.label;
+      d.appendChild(k); d.appendChild(t);
+      d.addEventListener('click', function () { go(it); });
+      qlist.appendChild(d);
+    });
+    if (!shown.length) {
+      var d = document.createElement('div'); d.className = 'qo-item'; d.textContent = 'No match.';
+      qlist.appendChild(d);
+    }
+  }
+  function mark() {
+    var els = qlist.children;
+    for (var i = 0; i < els.length; i++) els[i].classList.toggle('on', shown.length > 0 && i === act);
+    if (els[act] && els[act].scrollIntoView) els[act].scrollIntoView({ block: 'nearest' });
+  }
+  qin.addEventListener('input', function () { render(qin.value); });
+  qo.addEventListener('mousedown', function (e) { if (e.target === qo) closeQ(); });
+  qo.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { e.preventDefault(); closeQ(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); if (shown.length) { act = (act + 1) % shown.length; mark(); } }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (shown.length) { act = (act - 1 + shown.length) % shown.length; mark(); } }
+    else if (e.key === 'Enter') { e.preventDefault(); if (shown[act]) go(shown[act]); }
+    else if (e.key === 'Tab') { e.preventDefault(); qin.focus(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    var t = e.target, tag = (t && t.tagName) || '';
+    var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable);
+    if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (qo.hidden) openQ(); else closeQ(); }
+    else if (e.key === '/' && qo.hidden && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openQ(); }
+  });
+})();
+</script>
+</body></html>`;
 }
 
 // The front door: bare, unmarked, confirms nothing.

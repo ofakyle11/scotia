@@ -51,15 +51,37 @@ function register(app) {
     const autoRules = TYPES.map(([v, l]) => ({ l, rule: ruleFor(k, jur, v) })).filter((x) => x.rule);
 
     const body = `
+    <h2 class="sec" style="margin-top:0">Instruments — ${esc(ctx.matter.title)}</h2>
+    ${instruments.length ? table(['Type', 'Direction', 'Party', 'Served', 'Response due', 'Status', 'Objections', 'Items', ''],
+      instruments.map((i) => {
+        const st = effStatus(i, today);
+        const unans = (i.items || []).filter((it) => !it.answered).length;
+        return [
+          esc(typeLabel(i.type)),
+          i.direction === 'inbound' ? tag('inbound', 'navy') : tag('outbound'),
+          esc(i.party || '—'),
+          date(i.served),
+          i.due ? date(i.due) + (i.dueCite ? ` <span class="note">${esc(i.dueCite)}</span>` : ' <span class="note">manual</span>') : '—',
+          st === 'responded' ? tag('responded', 'ok') : st === 'overdue' ? tag('overdue', 'gate') : tag('open'),
+          `<span class="num">${(i.objections || []).length}</span>`,
+          `<span class="num">${(i.items || []).length - unans}/${(i.items || []).length}</span> answered`,
+          `<a href="/r/discovery?i=${esc(i.id)}">open →</a>`,
+        ];
+      })) : empty('No discovery instruments tracked on this matter yet — track the first below.')}
+
+    ${openInst ? instrumentDetail(openInst, today) : ''}
+
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">New instrument</h2>
         <form method="POST" action="/r/discovery/new">
-          ${select('type', 'Type', TYPES)}
-          ${select('direction', 'Direction', DIRECTIONS)}
+          <div class="grid2">
+            <span>${select('type', 'Type', TYPES)}</span>
+            <span>${select('direction', 'Direction', DIRECTIONS)}</span>
+            <span>${input('served', 'Served date', { type: 'date', required: true })}</span>
+            <span>${input('due', 'Response due (if no rule matches)', { type: 'date' })}</span>
+          </div>
           ${input('party', 'Responding / serving party', { placeholder: 'Opposing party or counsel' })}
-          ${input('served', 'Served date', { type: 'date', required: true })}
-          ${input('due', 'Response due (manual — used when no rule matches)', { type: 'date' })}
           ${textarea('items', 'Items / requests (one per line)', { placeholder: 'All documents concerning the 2024 supply agreement\nIdentify each person with knowledge of...' })}
           <button>Track instrument</button>
         </form>
@@ -76,26 +98,6 @@ function register(app) {
         <p class="note">The protocol is negotiated in writing before collection starts, not after. For US federal matters the clawback order is entered under FRE 502(d); elsewhere, by agreement or court order.</p>
       </div>
     </div>
-
-    <h2 class="sec">Instruments — ${esc(ctx.matter.title)}</h2>
-    ${instruments.length ? table(['Type', 'Direction', 'Party', 'Served', 'Response due', 'Status', 'Objections', 'Items', ''],
-      instruments.map((i) => {
-        const st = effStatus(i, today);
-        const unans = (i.items || []).filter((it) => !it.answered).length;
-        return [
-          esc(typeLabel(i.type)),
-          i.direction === 'inbound' ? tag('inbound', 'navy') : tag('outbound'),
-          esc(i.party || '—'),
-          date(i.served),
-          i.due ? date(i.due) + (i.dueCite ? ` <span class="note">${esc(i.dueCite)}</span>` : ' <span class="note">manual</span>') : '—',
-          st === 'responded' ? tag('responded', 'ok') : st === 'overdue' ? tag('overdue', 'gate') : tag('open'),
-          `<span class="num">${(i.objections || []).length}</span>`,
-          `<span class="num">${(i.items || []).length - unans}/${(i.items || []).length}</span> answered`,
-          `<a href="/r/discovery?i=${esc(i.id)}">open →</a>`,
-        ];
-      })) : empty('No discovery instruments tracked on this matter yet.')}
-
-    ${openInst ? instrumentDetail(openInst, today) : ''}
 
     ${letters.length ? `<h2 class="sec">Deficiency letters</h2>${letters.map((l) => `
       <div class="card">

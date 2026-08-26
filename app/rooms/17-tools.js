@@ -46,16 +46,19 @@ function register(app) {
         out.whatif = `${rule.trigger} on ${b.date} → ${rule.desc}: ${k.rules.compute(rule, b.date)} (${rule.cite})`;
       } else throw new Error('Unknown tool.');
     } catch (e) { ctx.setFlash(e.message, 'err'); redirect(res, '/r/tools'); return; }
-    render(res, ctx, out);
+    render(res, ctx, out, b);
   });
 }
 
 const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : null; };
 const day = (v) => { const d = new Date(String(v || '') + 'T00:00:00Z'); return Number.isNaN(d.getTime()) ? null : d; };
 
-function render(res, ctx, out) {
+function render(res, ctx, out, vals = {}) {
   const k = ctx.kernel;
-  const jsel = (name) => select(name, 'Jurisdiction', k.rules.JURISDICTIONS, 'on');
+  // Re-run friendliness: the tool just run keeps its inputs, so a tweak is a
+  // one-field edit, not a retype. Other cards stay blank.
+  const V = (tool, name, dflt = '') => (String(vals.tool || '') === tool ? String(vals[name] ?? '') : dflt);
+  const jsel = (tool) => select('jur', 'Jurisdiction', k.rules.JURISDICTIONS, V(tool, 'jur', 'on') || 'on');
   const result = (key) => out[key] ? `<p class="flash" style="margin-top:12px">${esc(out[key])}</p>` : '';
   const card = (tool, title, note, fields, resKey) => `
     <div class="card"><h2 class="sec" style="margin-top:0">${esc(title)}</h2>
@@ -64,17 +67,17 @@ function render(res, ctx, out) {
   const body = `
   <div class="grid2">
     ${card('interest', 'Prejudgment interest', 'Simple interest, 365-day year. Statutory rates are jurisdiction-set — enter the applicable rate.',
-      input('principal', 'Principal', { type: 'number', required: true }) + input('rate', 'Annual rate %', { type: 'number', required: true }) + input('from', 'From', { type: 'date', required: true }) + input('to', 'To', { type: 'date', required: true }), 'interest')}
+      input('principal', 'Principal', { type: 'number', required: true, value: V('interest', 'principal') }) + input('rate', 'Annual rate %', { type: 'number', required: true, value: V('interest', 'rate') }) + input('from', 'From', { type: 'date', required: true, value: V('interest', 'from') }) + input('to', 'To', { type: 'date', required: true, value: V('interest', 'to') }), 'interest')}
     ${card('bizdays', 'Business days between dates', 'Counts business days for the jurisdiction, holidays excluded (reference tables).',
-      input('from', 'From', { type: 'date', required: true }) + input('to', 'To', { type: 'date', required: true }) + jsel('jur'), 'bizdays')}
+      input('from', 'From', { type: 'date', required: true, value: V('bizdays', 'from') }) + input('to', 'To', { type: 'date', required: true, value: V('bizdays', 'to') }) + jsel('bizdays'), 'bizdays')}
     ${card('limitation', 'Limitation quick-check', 'Basic limitation from the rules engine — discoverability nuances are counsel’s call.',
-      jsel('jur') + input('date', 'Date claim discovered', { type: 'date', required: true }), 'limitation')}
+      jsel('limitation') + input('date', 'Date claim discovered', { type: 'date', required: true, value: V('limitation', 'date') }), 'limitation')}
     ${card('bates', 'Bates label run', 'Plans a numbering run before stamping; width padded to the run size.',
-      input('prefix', 'Prefix', { value: 'DEF' }) + input('start', 'Start number', { type: 'number', required: true }) + input('count', 'Count', { type: 'number', required: true }), 'bates')}
+      input('prefix', 'Prefix', { value: V('bates', 'prefix', 'DEF') }) + input('start', 'Start number', { type: 'number', required: true, value: V('bates', 'start') }) + input('count', 'Count', { type: 'number', required: true, value: V('bates', 'count') }), 'bates')}
     ${card('net', 'Settlement net quick-calc', 'Rough net-to-client; the full waterfall lives in room 24.',
-      input('gross', 'Gross', { type: 'number', required: true }) + input('fee', 'Fee %', { type: 'number', required: true }) + input('costs', 'Costs', { type: 'number' }) + input('liens', 'Liens', { type: 'number' }), 'net')}
+      input('gross', 'Gross', { type: 'number', required: true, value: V('net', 'gross') }) + input('fee', 'Fee %', { type: 'number', required: true, value: V('net', 'fee') }) + input('costs', 'Costs', { type: 'number', value: V('net', 'costs') }) + input('liens', 'Liens', { type: 'number', value: V('net', 'liens') }), 'net')}
     ${card('whatif', 'Deadline what-if', 'Any rule in the book against any trigger date — the rule is cited with the answer.',
-      select('rule', 'Rule', k.rules.RULES.map((r) => [r.id, `${r.jur}: ${r.trigger} → ${r.desc}`])) + input('date', 'Trigger date', { type: 'date', required: true }), 'whatif')}
+      select('rule', 'Rule', k.rules.RULES.map((r) => [r.id, `${r.jur}: ${r.trigger} → ${r.desc}`]), V('whatif', 'rule')) + input('date', 'Trigger date', { type: 'date', required: true, value: V('whatif', 'date') }), 'whatif')}
     <div class="card"><h2 class="sec" style="margin-top:0">In the full drawer</h2>
       <p class="note">Affidavit &amp; declaration mills, records-request generators with fee caps, medical chronology builder, transcript search, redaction QC, MHL-style offload hashing, cost &amp; tariff estimators, translation requests — twenty in all per the Build Sheet, each landing here as it ships. ${tag('reference build: 6 live', 'navy')}</p>
     </div>

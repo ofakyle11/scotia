@@ -41,6 +41,11 @@ function extractCites(text) {
 
 const today = () => new Date().toISOString().slice(0, 10);
 const roomUrl = (draftId) => '/r/citations' + (draftId ? '?draft=' + encodeURIComponent(draftId) : '');
+const certUrl = (draftId) => '/r/citations/certificate?draft=' + encodeURIComponent(draftId);
+// The certificate's admission test: scanned, and every instance verified —
+// the same condition regate calls 'clear'. Nothing certifies a blocked or
+// unscanned draft.
+const isClear = (d, inst) => !!d.scannedAt && inst.every((i) => i.status === 'verified');
 // A draft's text lives in .text (this room's registered drafts) or in the
 // Brief Writer's .sections — read BOTH, or section drafts would extract as
 // empty and sail through the gate unchecked.
@@ -73,11 +78,16 @@ const checkboxes = () => CHECKS.map(([n, l]) =>
   `<label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13px;color:var(--ink-soft)"><input type="checkbox" name="${n}" value="1" style="width:auto"> ${esc(l)}</label>`).join('');
 
 function verifyCard(inst) {
+  // Citation deep link into CanLII's search — the kind of linking room 29's
+  // note records CanLII permits. No fetching, no fabricated resolution: the
+  // human follows it, looks, and confirms.
+  const lookup = 'https://www.canlii.org/en/#search/text=' + encodeURIComponent(inst.cite);
   return `<div style="border:1px solid var(--rule);padding:12px 14px;margin-bottom:10px;background:var(--ground)">
-    <b class="num">${esc(inst.cite)}</b>
+    <b class="num">${esc(inst.cite)}</b> &nbsp; <a href="${esc(lookup)}" target="_blank" rel="noopener noreferrer">Look up on CanLII ↗</a>
     <form method="POST" action="/r/citations/verify">
       <input type="hidden" name="id" value="${esc(inst.id)}">
       ${input('pinpoint', 'Pinpoint relied on (para / page)', { required: true, placeholder: 'e.g. para 27 — or “none: cited generally”' })}
+      ${input('resolvedUrl', 'Source URL / neutral citation seen (optional)', { placeholder: 'e.g. https://www.canlii.org/en/ca/scc/doc/2016/2016scc27/2016scc27.html' })}
       ${checkboxes()}
       <button>Mark verified — all four confirmed</button>
     </form>
@@ -106,17 +116,20 @@ function register(app) {
     const queue = selInst.filter((i) => i.status === 'unverified');
     const decided = selInst.filter((i) => i.status !== 'unverified');
 
+    // Count columns right-aligned: .num is inline, so the cell wrapper aligns it.
+    const ncell = (n) => `<span class="num" style="display:block;text-align:right">${n}</span>`;
     const board = drafts.length ? table(['Draft', 'Cites', 'Unverified', 'Failed', 'Gate', ''], drafts.map((d) => {
       const inst = all.filter((i) => i.draftId === d.id);
       return [
         esc(d.title || '(untitled draft)'),
-        `<span class="num">${inst.length}</span>`,
-        `<span class="num">${inst.filter((i) => i.status === 'unverified').length}</span>`,
-        `<span class="num">${inst.filter((i) => i.status === 'failed').length}</span>`,
+        ncell(inst.length),
+        ncell(inst.filter((i) => i.status === 'unverified').length),
+        ncell(inst.filter((i) => i.status === 'failed').length),
         gateTag(d, inst),
-        `<a href="${esc(roomUrl(d.id))}">open queue →</a>`,
+        `<a href="${esc(roomUrl(d.id))}">open queue →</a>` +
+          (inst.length && isClear(d, inst) ? ` &middot; <a href="${esc(certUrl(d.id))}">Print certificate →</a>` : ''),
       ];
-    })) : empty('No drafts on this matter yet. Brief Writer (Room 18) sends drafts here — or register one alongside.');
+    })) : empty('No drafts on this matter yet — register one on the right, or send one from Brief Writer (18).');
 
     const selBlock = sel ? `
     <h2 class="sec">Queue — ${esc(sel.title || '(untitled draft)')} ${gateTag(sel, selInst)}</h2>
@@ -128,7 +141,7 @@ function register(app) {
         ['Gate', gateTag(sel, selInst)],
       ])}
       <form method="POST" action="/r/citations/scan"><input type="hidden" name="draftId" value="${esc(sel.id)}"><button>Extract citations from draft</button></form>
-      <p class="note">Extraction is a reference-regex pass (styles of cause “v.” / “R. v.”, bracket-year reports like [2019] 2 S.C.R., neutral cites like 2016 SCC 27, volume cites like 376 F.3d 1113 or 58 O.R. (3d) 165). It over-captures on purpose; a human clears every row. eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07) — treatment classification stays human-confirmed (Build Sheet, Gap 2).</p>
+      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral and volume cites) that over-captures on purpose; a human clears every row. eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07) — treatment classification stays human-confirmed (Gap 2).</p>
     </div>
     ${queue.length ? `<h2 class="sec">Awaiting verification — ${queue.length}</h2>` + queue.map(verifyCard).join('')
       : (selInst.length ? '' : empty('No citation instances yet — run the extractor.'))}
@@ -156,7 +169,7 @@ function register(app) {
           ${textarea('text', 'Draft text', { required: true, placeholder: 'Paste the draft. e.g. …as held in R. v. Jordan, 2016 SCC 27 at para 46…' })}
           <button>Register draft</button>
         </form>
-        <p class="note">Drafts normally arrive from Brief Writer (Room 18); this intake exists so any document can be gated before filing.</p>
+        <p class="note">Drafts normally arrive from Brief Writer (18) — paste one here to gate any other document before filing.</p>
       </div>
     </div>
     ${selBlock}`;
@@ -208,7 +221,10 @@ function register(app) {
       ctx.setFlash('Refused: verification needs all four — real case, pinpoint, quote match, treatment current. Otherwise mark it failed.', 'err');
       redirect(res, roomUrl(inst.draftId)); return;
     }
-    s.put('citation_instance', { ...inst, status: 'verified', pinpoint, quoteOk: true, treatmentCurrent: true, resolved: true, failReason: null, checkedBy: ctx.user.name, checkedAt: today() });
+    // What the verifier actually looked at survives on the record (and
+    // prints on the certificate) — optional, never fabricated.
+    const resolvedUrl = String(ctx.body.resolvedUrl || '').trim();
+    s.put('citation_instance', { ...inst, status: 'verified', pinpoint, quoteOk: true, treatmentCurrent: true, resolved: true, resolvedUrl: resolvedUrl || null, failReason: null, checkedBy: ctx.user.name, checkedAt: today() });
     const st = regate(s, inst.draftId);
     ctx.kernel.audit('citation.verified', ctx.matter.id + ':' + inst.id);
     ctx.setFlash(st === 'clear' ? 'Verified — every citation on this draft is clear. Gate OPEN (citeStatus: clear).' : 'Verified. Gate still blocked — citations remain in the queue.');
@@ -233,10 +249,87 @@ function register(app) {
     const s = ctx.kernel.scope(ctx.matter.id);
     const inst = ctx.body.id ? s.get('citation_instance', ctx.body.id) : null;
     if (!inst) { ctx.setFlash('Nothing to re-queue.', 'err'); redirect(res, roomUrl()); return; }
-    s.put('citation_instance', { ...inst, status: 'unverified', pinpoint: '', quoteOk: null, treatmentCurrent: null, resolved: null, failReason: null });
+    s.put('citation_instance', { ...inst, status: 'unverified', pinpoint: '', quoteOk: null, treatmentCurrent: null, resolved: null, resolvedUrl: null, failReason: null });
     regate(s, inst.draftId);
     ctx.setFlash('Back in the queue — verify it fresh.');
     redirect(res, roomUrl(inst.draftId));
+  });
+
+  // Certificate of citation verification — converts a clear gate into the
+  // compliance artifact courts now ask for (Ont. r. 4.06.1(2.1) authenticity
+  // certification, the Federal Court's Notice on the Use of AI, Ko v. Li,
+  // 2025 ONSC 2766). Renders ONLY when the draft has been scanned and every
+  // instance is human-verified; nothing certifies a blocked or unscanned draft.
+  app.route('GET', `/r/${ROOM.id}/certificate`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, roomUrl()); return; }
+    const s = k.scope(ctx.matter.id);
+    const want = ctx.query.get('draft');
+    const draft = want ? s.get('draft', want) : null;
+    if (!draft) { ctx.setFlash('Certificate refused — pick a draft to certify.', 'err'); redirect(res, roomUrl()); return; }
+    const inst = s.list('citation_instance', (i) => i.draftId === draft.id);
+    if (!isClear(draft, inst)) {
+      ctx.setFlash('Certificate refused — the gate is not clear.', 'err');
+      redirect(res, roomUrl(draft.id));
+      return;
+    }
+    k.audit('citation.certificate', ctx.matter.id + ':' + draft.id);
+    const gen = today();
+    const rows = [...inst].sort((a, b) => String(a.cite).localeCompare(String(b.cite), 'en', { sensitivity: 'base' }));
+    const confirm = (ok, label) => `${ok === true ? '✓' : '✗'} ${esc(label)}`;
+    const confirmations = (i) => [
+      confirm(i.resolved === true, 'resolves to a real case'),
+      confirm(!!String(i.pinpoint || '').trim(), 'pinpoint stated'),
+      confirm(i.quoteOk === true, 'quoted passage matches'),
+      confirm(i.treatmentCurrent === true, 'treatment current'),
+    ].join('<br>');
+    const source = (u) => !u ? '—' : (/^https?:\/\//i.test(u) ? `<a href="${esc(u)}">${esc(u)}</a>` : esc(u));
+    const authorities = rows.length
+      ? table(['Cite', 'Pinpoint relied on', 'Confirmations', 'Verified by', 'Date', 'Source seen'], rows.map((i) => [
+          `<span class="num">${esc(i.cite)}</span>`,
+          esc(i.pinpoint || '—'),
+          confirmations(i),
+          esc(i.checkedBy || '—'),
+          date(i.checkedAt),
+          source(i.resolvedUrl),
+        ]))
+      : `<p><b>No citation-like strings were detected on extraction</b> (run ${date(draft.scannedAt)}). The over-capturing extractor found no citation-like string in this draft; there was nothing to verify.</p>`;
+    const body = `
+    <style>@media print{
+      .side,.topbar,.roomsub,.flash,.no-print{display:none !important}
+      .shell{display:block !important}
+      .main{padding:0 !important;min-width:0}
+      body{background:#fff !important;color:#000 !important}
+      .card,table.t{background:#fff !important;border-color:#999 !important}
+      table.t th{background:#f2f2f2 !important;color:#222 !important;border-bottom-color:#999 !important}
+      table.t td{border-bottom-color:#ccc !important}
+      h1.room,h2.sec,.kv dt,.kv dd,td,th,p,b,span,.num{color:#000 !important}
+      h2.sec{border-bottom-color:#999 !important}
+      a{color:#000 !important;text-decoration:none !important}
+    }</style>
+    <p class="no-print" style="margin:0 0 16px"><a class="btn" href="#" onclick="window.print();return false" style="margin-top:0">Print / save as PDF</a> &nbsp; <a href="${esc(roomUrl(draft.id))}">← back to the gate</a></p>
+    <div class="card">
+      ${kv([
+        ['Matter', esc(ctx.matter.title)],
+        ['Draft', esc(draft.title || '(untitled draft)')],
+        ['Generated', date(gen)],
+        ['Extraction run', date(draft.scannedAt)],
+        ['Citations verified', `<span class="num">${rows.length}</span>`],
+      ])}
+    </div>
+    <h2 class="sec">Authorities verified</h2>
+    ${authorities}
+    <h2 class="sec">Method</h2>
+    <p>Citation extraction was a deliberately over-capturing reference-pattern pass over the draft text. Every confirmation above — that each citation resolves to a real case, that the pinpoint relied on is stated, that the quoted or paraphrased passage matches the source, and that its treatment is current — was made by the named human verifier; no machine verified anything, this room's founding rule. The firm's hash-chained audit trail holds the citation.verified event behind each row of this certificate.</p>
+    <div style="margin-top:36px">
+      <p>Verified as above.</p>
+      <p style="margin-top:40px">____________<br>Lawyer of record — <span class="num">${esc(gen)}</span></p>
+    </div>`;
+    html(res, layout({ ...ctx, room: ROOM.id }, {
+      title: 'Certificate of citation verification',
+      sub: 'Human-verified table of authorities — print-ready',
+      body,
+    }));
   });
 }
 

@@ -35,7 +35,7 @@ function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     let body;
     if (!ctx.matter) {
-      body = empty('Open a matter to model its value. Scenarios live in the matter scope, encrypted under that matter’s key.');
+      body = empty('Open a matter to model its value.');
     } else {
       const scenarios = ctx.kernel.scope(ctx.matter.id).list('scenario')
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -70,12 +70,11 @@ function register(app) {
             ['Settle (net)', 'offer on the table − costs to date'],
             ['Contingency', 'each band × (100% − fee) — disbursements and liens come out in Settlement Waterfall (24)'],
           ])}
-          <p class="note">Comparable verdict &amp; settlement data (claim type × venue) wires in here — Build Sheet Gap 5. Until it does, bands are computed from counsel&rsquo;s own inputs only, and they are reported as ranges because a range is what the inputs honestly support.</p>
-          <p class="note">Offer-to-settle cost consequences (e.g. Ont. R. 49.10) shift the try-side cost exposure and are not modelled here — record the offer and run consequences in Mediation &amp; ADR (23).</p>
+          <p class="note">Comparable verdict &amp; settlement data (claim type × venue) wires in here — Build Sheet Gap 5; until it lands, bands are computed from counsel&rsquo;s own inputs only. Offer-to-settle cost consequences (e.g. Ont. R. 49.10) are not modelled here — run them in Mediation &amp; ADR (23).</p>
         </div>
       </div>
       <h2 class="sec">Scenarios</h2>
-      ${scenarios.length ? scenarios.map(scenarioCard).join('') : empty('No scenarios modelled yet.')}
+      ${scenarios.length ? scenarios.map(scenarioCard).join('') : empty('No scenarios yet — model the first one above.')}
       `;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'The money, before the case — banded, never a point estimate', body }));
@@ -115,13 +114,16 @@ function register(app) {
   });
 }
 
+// Money columns right-aligned: .num is inline, so the cell wrapper aligns it.
+const rcell = (h) => `<div class="num" style="text-align:right">${h}</div>`;
+
 function scenarioCard(s) {
   const m = model(s);
   const rows = [
-    ['Expected recovery (damages × liability)', amt(m.gross[0]), amt(m.gross[1]), amt(m.gross[2])],
-    ['Net if tried (after all costs)', amt(m.tryNet[0]), amt(m.tryNet[1]), amt(m.tryNet[2])],
+    ['Expected recovery (damages × liability)', rcell(amt(m.gross[0])), rcell(amt(m.gross[1])), rcell(amt(m.gross[2]))],
+    ['Net if tried (after all costs)', rcell(amt(m.tryNet[0])), rcell(amt(m.tryNet[1])), rcell(amt(m.tryNet[2]))],
   ];
-  if (m.contNet) rows.push([`Net to client under ${s.contingency}% contingency`, amt(m.contNet[0]), amt(m.contNet[1]), amt(m.contNet[2])]);
+  if (m.contNet) rows.push([`Net to client under ${s.contingency}% contingency`, rcell(amt(m.contNet[0])), rcell(amt(m.contNet[1])), rcell(amt(m.contNet[2]))]);
   let settle;
   if (m.settleNet == null) {
     settle = '<p class="note">No offer recorded — add one to compare settling now (net of costs to date) against trying to judgment.</p>';
@@ -143,7 +145,6 @@ function scenarioCard(s) {
     ])}
     ${table(['', 'P-low', 'P-mid', 'P-high'], rows)}
     ${settle}
-    ${m.contNet ? '<p class="note">Client net is fee-only arithmetic — disbursements and liens come out in the Settlement Waterfall (24) before anything reaches the client.</p>' : ''}
     <form method="POST" action="/r/value/del" style="display:inline"><input type="hidden" name="id" value="${esc(s.id)}"><button class="quiet">Remove scenario</button></form>
   </div>`;
 }

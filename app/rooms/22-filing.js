@@ -26,7 +26,7 @@ function register(app) {
         ${select('serviceMethod', 'Service method', ['email (consented)', 'courier', 'personal service', 'e-filing portal'])}
         ${PREFLIGHT.map(([n, label]) => `<label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-family:var(--f-body);font-size:13.5px;color:var(--ink-soft)"><input type="checkbox" name="${n}" style="width:auto" required>${esc(label)}</label>`).join('')}
         <button>Assemble packet</button>
-      </form>` : empty('No eligible drafts. A filing needs a draft that is FINAL with its citations CLEAR — the gate is the gate.')}
+      </form>` : empty('No eligible drafts — a filing needs a FINAL draft with citations CLEAR. Clear citations in Citation Check (08), then mark final in Brief Writer (18). The gate is the gate.')}
       <p class="note">This room prepares and records; it does not transmit. Where a portal has no API (CM/ECF, most provincial systems) a human files the packet and the confirmation is recorded back here — Build Sheet Gap 3.</p>
     </div>
     <h2 class="sec">Filings — ${esc(ctx.matter.title)}</h2>

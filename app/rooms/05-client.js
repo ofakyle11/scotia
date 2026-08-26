@@ -53,11 +53,13 @@ function register(app) {
           <h2 class="sec" style="margin-top:0">Send a status update</h2>
           <form method="POST" action="/r/client/update">
             ${textarea('text', 'Update — plain language', { required: true, placeholder: 'What happened, what it means, what happens next. Short sentences land.' })}
-            ${input('sentOn', 'Date sent', { type: 'date', value: new Date().toISOString().slice(0, 10) })}
-            ${input('sentBy', 'Sent by', { value: ctx.user.name })}
+            <div class="grid2">
+              <span>${input('sentOn', 'Date sent', { type: 'date', value: new Date().toISOString().slice(0, 10) })}</span>
+              <span>${input('sentBy', 'Sent by', { value: ctx.user.name })}</span>
+            </div>
             <button>Record update</button>
           </form>
-          <p class="note">Each update is scored for reading level (avg words per sentence + long-word ratio). Keep it under grade ~9 — the duty to communicate is a duty to be understood. Cadence reminders and the EN/FR pipeline (Chatwoot &middot; IMAP ingest) wire in here — Build Sheet 05.</p>
+          <p class="note">Updates are scored for reading level — keep them under grade ~9. Cadence reminders and the EN/FR pipeline (Chatwoot &middot; IMAP ingest) wire in here — Build Sheet 05.</p>
         </div>
         <div class="card">
           <h2 class="sec" style="margin-top:0">Budget vs actual — ${esc(m.title)}</h2>
@@ -74,7 +76,6 @@ function register(app) {
             ${input('budget', 'Set budget / retainer figure', { type: 'number', required: true, placeholder: '15000.00', value: budget > 0 ? String(budget) : '' })}
             <button class="quiet" style="margin-top:10px">Save figure on matter</button>
           </form>
-          <p class="note">Actual = fees already taken to income + disbursements + unbilled time on the clock. The client hears it here, before the invoice arrives.</p>
         </div>
       </div>
 
@@ -84,7 +85,7 @@ function register(app) {
         esc(u.text),
         gradeTag(readingGrade(u.text)),
         esc(u.sentBy || ''),
-      ])) : empty('No updates recorded on this matter yet.')}
+      ])) : empty('No updates yet — record the first one above.')}
 
       <h2 class="sec">Decision memos — the calls that are the client's to make</h2>
       <div class="card">
@@ -92,11 +93,12 @@ function register(app) {
           ${input('question', 'Decision put to the client', { required: true, placeholder: 'Accept the settlement offer of $80,000?' })}
           ${textarea('options', 'Options explained (one per line)', { placeholder: 'Accept — funds in ~30 days, matter closes\nCounter at $95,000 — adds 2-3 months\nRefuse and proceed to trial' })}
           ${input('decision', 'Client’s decision', { required: true, placeholder: 'Counter at $95,000' })}
-          ${input('decidedOn', 'Date decided', { type: 'date', value: new Date().toISOString().slice(0, 10) })}
-          ${input('recordedBy', 'Authority recorded by', { value: ctx.user.name })}
+          <div class="grid2">
+            <span>${input('decidedOn', 'Date decided', { type: 'date', value: new Date().toISOString().slice(0, 10) })}</span>
+            <span>${input('recordedBy', 'Authority recorded by', { value: ctx.user.name })}</span>
+          </div>
           <button>Record decision</button>
         </form>
-        <p class="note">Settlement, appeal, and objective-of-representation calls belong to the client. The memo is the record that the choice was theirs, made informed, and when.</p>
       </div>
       ${memos.length ? table(['Date', 'Question', 'Options', 'Client decision', 'Recorded by'], memos.map((d) => [
         date(d.decidedOn || d.createdAt),
@@ -104,7 +106,7 @@ function register(app) {
         esc(d.options || '').replace(/\n/g, '<br>'),
         `<b>${esc(d.decision)}</b>`,
         esc(d.recordedBy || ''),
-      ])) : empty('No client decisions recorded yet.')}
+      ])) : empty('No client decisions yet — put the call to the client and record it above.')}
       `;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Updates that land — plain language, budget honesty, authority on record', body }));

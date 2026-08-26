@@ -12,8 +12,8 @@ function register(app) {
     const jurs = k.rules.JURISDICTIONS; // [[code, label], ...]
     const label = (code) => { const j = jurs.find(([c]) => c === code); return j ? j[1] : code; };
     const validOr = (code, fallback) => jurs.some(([c]) => c === code) ? code : fallback;
-    const a = validOr(ctx.query.get('a'), 'on');
-    const b = validOr(ctx.query.get('b'), 'us-fed');
+    const a = validOr(ctx.query.get('a'), validOr(ctx.matter ? ctx.matter.jurisdiction : null, 'on'));
+    const b = validOr(ctx.query.get('b'), a === 'us-fed' ? 'on' : 'us-fed');
 
     const body = `
     <div class="card" style="border-color:var(--oxide);background:var(--oxide-wash)">
@@ -27,16 +27,6 @@ function register(app) {
     </div>
 
     <div class="grid2">
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Jurisdictions in the tranche</h2>
-        ${table(['Code', 'Jurisdiction', 'Rules', 'Holiday table'], jurs.map(([code, name]) => [
-          `<span class="num">${esc(code)}</span>`, esc(name),
-          `<span class="num">${k.rules.rulesFor(code).length}</span>`,
-          k.rules.HOLIDAYS[code] ? tag('loaded', 'ok') : tag('falls back to us-fed'),
-        ]))}
-        <p class="note">A jurisdiction without its own holiday table computes roll-forward dates against the
-        US federal table — replace before relying on business-day math for that court.</p>
-      </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Governing law — this matter</h2>
         ${ctx.matter ? `
@@ -52,11 +42,21 @@ function register(app) {
         </form>
         <p class="note">Changing this changes which rulebook every deadline room computes against. Existing
         computed deadlines are not retroactively recomputed — revisit them after a change.</p>
-        ` : empty('Open a matter to set its governing jurisdiction. The reference tables below need no matter.')}
+        ` : empty('Open a matter to set its governing jurisdiction. The reference tables here need no matter.')}
+      </div>
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Jurisdictions in the tranche</h2>
+        ${table(['Code', 'Jurisdiction', 'Rules', 'Holiday table'], jurs.map(([code, name]) => [
+          `<span class="num">${esc(code)}</span>`, esc(name),
+          `<span class="num">${k.rules.rulesFor(code).length}</span>`,
+          k.rules.HOLIDAYS[code] ? tag('loaded', 'ok') : tag('falls back to us-fed'),
+        ]))}
+        <p class="note">A jurisdiction without its own holiday table computes roll-forward dates against the
+        US federal table — replace before relying on business-day math for that court.</p>
       </div>
     </div>
 
-    <h2 class="sec">Compare two jurisdictions</h2>
+    <h2 class="sec">Rules — side by side</h2>
     <div class="card">
       <form method="GET" action="/r/jurisdiction" class="grid3" style="align-items:end">
         <span>${select('a', 'Jurisdiction A', jurs, a)}</span>
@@ -70,12 +70,7 @@ function register(app) {
         ${rulesTable(k, j)}
       </div>`).join('')}
     </div>
-
-    <h2 class="sec">Full rules table — reference tranche</h2>
-    ${jurs.map(([code, name]) => `
-      <h2 class="sec" style="font-size:15.5px">${esc(name)} <span class="num">${esc(code)}</span></h2>
-      ${rulesTable(k, code)}
-    `).join('')}
+    <p class="note">Jurisdiction A defaults to the open matter&rsquo;s governing law — pick any pair above to read the full reference tranche for those courts.</p>
 
     <h2 class="sec">Court holidays — 2026 tranche</h2>
     <div class="grid2">

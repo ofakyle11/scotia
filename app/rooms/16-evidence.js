@@ -17,11 +17,15 @@ function register(app) {
       <div class="card">
         <h2 class="sec" style="margin-top:0">Add exhibit</h2>
         <form method="POST" action="/r/evidence/add">
-          ${select('side', 'Side', [['P', 'Plaintiff / Applicant'], ['D', 'Defendant / Respondent']], 'P')}
+          <div class="grid2">
+            <span>${select('side', 'Side', [['P', 'Plaintiff / Applicant'], ['D', 'Defendant / Respondent']], 'P')}</span>
+            <span>${input('witness', 'Sponsoring witness (who authenticates)')}</span>
+          </div>
           ${input('description', 'Description', { required: true, placeholder: 'Service invoice, 12 March 2025' })}
-          ${input('witness', 'Sponsoring witness (who authenticates)')}
-          ${input('foundation', 'Foundation', { placeholder: 'Business record — maker or qualified witness' })}
-          ${input('hearsay', 'Hearsay path', { placeholder: 'Business records exception / not for truth' })}
+          <div class="grid2">
+            <span>${input('foundation', 'Foundation', { placeholder: 'Business record — maker or qualified witness' })}</span>
+            <span>${input('hearsay', 'Hearsay path', { placeholder: 'Business records exception / not for truth' })}</span>
+          </div>
           <button>Number &amp; list</button>
         </form>
         <p class="note">Numbers are assigned per side (P-1, P-2… / D-1…) and never reused. Foundation and hearsay rules per evidence code are reference data in production (FRE / provincial evidence acts).</p>
@@ -34,7 +38,7 @@ function register(app) {
           <button>Add motion</button>
         </form>
         ${limine.length ? table(['Target', 'Ground', 'Status', ''], limine.map((l) => [esc(l.target), esc(l.ground), tag(l.status || 'draft', l.status === 'granted' ? 'ok' : l.status === 'denied' ? 'gate' : ''),
-          `<form method="POST" action="/r/evidence/limine-status" style="margin:0"><input type="hidden" name="id" value="${esc(l.id)}"><select name="status" style="width:auto"><option>draft</option><option>filed</option><option>granted</option><option>denied</option></select><button class="quiet">Set</button></form>`])) : empty('No motions in limine yet.')}
+          `<form method="POST" action="/r/evidence/limine-status" style="margin:0"><input type="hidden" name="id" value="${esc(l.id)}"><select name="status" style="width:auto"><option>draft</option><option>filed</option><option>granted</option><option>denied</option></select><button class="quiet">Set</button></form>`])) : empty('No motions in limine yet — target the evidence you want kept out.')}
       </div>
     </div>
     <h2 class="sec">Exhibit list — ${esc(ctx.matter.title)}</h2>
@@ -42,7 +46,7 @@ function register(app) {
       `<span class="num">${esc(e.number)}</span>`, esc(e.description), esc(e.witness || ''), esc(e.foundation || ''), esc(e.hearsay || ''),
       tag(e.status || 'listed', e.status === 'admitted' ? 'ok' : e.status === 'refused' ? 'gate' : ''),
       `<form method="POST" action="/r/evidence/status" style="margin:0"><input type="hidden" name="id" value="${esc(e.id)}"><select name="status" style="width:auto"><option>listed</option><option>offered</option><option>admitted</option><option>refused</option></select><button class="quiet">Set</button></form>`,
-    ])) : empty('No exhibits listed yet.')}
+    ])) : empty('No exhibits listed yet — number the first with the form above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Exhibits, with foundation — who authenticates, under what, and the hearsay path', body }));
   });

@@ -45,6 +45,17 @@ function register(app) {
     ]))}
     <div class="grid2">
       <div class="card">
+        <h2 class="sec" style="margin-top:0">Record a lookup${ctx.matter ? ' — ' + esc(ctx.matter.title) : ''}</h2>
+        ${ctx.matter ? `<form method="POST" action="/r/sources/lookup">
+          ${select('source', 'Source', sources.map((s) => [s.name, s.name]))}
+          ${input('query', 'What was searched', { required: true })}
+          ${textarea('result', 'What came back (reference, export name, rate found…)', { required: true })}
+          <button>Record on the file</button>
+        </form>
+        <p class="note">Research done on a subscription service still belongs on the matter file — this is the diligence record, encrypted with the matter.</p>`
+        : empty('Open a matter to record lookups against its file.')}
+      </div>
+      <div class="card">
         <h2 class="sec" style="margin-top:0">Add a source</h2>
         <form method="POST" action="/r/sources/add">
           ${input('name', 'Name', { required: true })}
@@ -55,17 +66,6 @@ function register(app) {
           <button>Add to shelf</button>
         </form>
         <p class="note">A commercial database with no API never gets scraped — it gets a link, a credential holder, and lookup records. Integration requests go to the vendor, on paper.</p>
-      </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">Record a lookup${ctx.matter ? ' — ' + esc(ctx.matter.title) : ''}</h2>
-        ${ctx.matter ? `<form method="POST" action="/r/sources/lookup">
-          ${select('source', 'Source', sources.map((s) => [s.name, s.name]))}
-          ${input('query', 'What was searched', { required: true })}
-          ${textarea('result', 'What came back (reference, export name, rate found…)', { required: true })}
-          <button>Record on the file</button>
-        </form>
-        <p class="note">Research done on a subscription service still belongs on the matter file — this is the diligence record, encrypted with the matter.</p>`
-        : empty('Open a matter to record lookups against its file.')}
       </div>
     </div>
     ${ctx.matter && lookups.length ? '<h2 class="sec">Lookup record</h2>' + table(['When', 'Source', 'Query', 'Result'], lookups.map((l) => [date(l.createdAt), esc(l.source), esc(l.query), esc(l.result)])) : ''}

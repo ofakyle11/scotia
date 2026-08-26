@@ -2,7 +2,7 @@
 // Room 13 — Document Review. Encrypted review set: paste text in, code it,
 // keep the privilege log honest, and cut the production list. Document text
 // lives in per-matter encrypted blobs; only metadata rides in the index.
-const { layout, esc, table, empty, tag, kv, input, textarea, select, date } = require('../kernel/html.js');
+const { layout, esc, table, empty, tag, input, textarea, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 13, id: 'review', title: 'Document Review', phase: 'Discover' };
@@ -44,6 +44,85 @@ function privTag(d) {
   return p === 'none' ? tag('none') : tag(p, 'gate');
 }
 const respTag = (d) => respOf(d) === 'yes' ? tag('responsive', 'ok') : tag('not responsive');
+
+// ---- tolerant RFC822 (.eml) parsing — small, in-room, never trusted ----
+// Split at the first blank line; no blank line means the whole input is body.
+function splitAtBlank(src) {
+  const m = /\r?\n\r?\n/.exec(src);
+  return m ? { head: src.slice(0, m.index), body: src.slice(m.index + m[0].length) } : { head: '', body: src };
+}
+// Unfold continuation lines, then read headers case-insensitively (first value wins).
+function parseHeaderBlock(head) {
+  const out = {};
+  for (const line of head.replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/)) {
+    const i = line.indexOf(':');
+    if (i <= 0) continue;
+    const name = line.slice(0, i).trim().toLowerCase();
+    if (!(name in out)) out[name] = line.slice(i + 1).trim();
+  }
+  return out;
+}
+// Pull one parameter (boundary=, filename=, name=) out of a structured header value.
+function headerParam(val, key) {
+  const m = new RegExp(key + '\\s*=\\s*(?:"([^"]*)"|([^;\\s]+))', 'i').exec(val || '');
+  return m ? (m[1] !== undefined ? m[1] : m[2]) : '';
+}
+function decodeQuotedPrintable(s) {
+  const joined = s.replace(/=\r?\n/g, ''); // soft line breaks
+  const bytes = [];
+  for (let i = 0; i < joined.length; i++) {
+    if (joined[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(joined.slice(i + 1, i + 3))) {
+      bytes.push(parseInt(joined.slice(i + 1, i + 3), 16)); i += 2;
+    } else bytes.push(joined.charCodeAt(i) & 0xff);
+  }
+  return Buffer.from(bytes);
+}
+function decodeTransfer(text, cte) {
+  const enc = String(cte || '').trim().toLowerCase();
+  if (enc === 'base64') return Buffer.from(text.replace(/\s+/g, ''), 'base64');
+  if (enc === 'quoted-printable') return decodeQuotedPrintable(text);
+  return Buffer.from(text, 'utf8');
+}
+function splitMultipart(body, boundary) {
+  const parts = [];
+  const pieces = body.split('--' + boundary);
+  for (let i = 1; i < pieces.length; i++) {
+    if (pieces[i].startsWith('--')) break; // closing delimiter --boundary--
+    const p = pieces[i].replace(/^[ \t]*\r?\n/, '').replace(/\r?\n$/, '');
+    if (p.trim()) parts.push(p);
+  }
+  return parts;
+}
+// One level deep on multipart/*: first text/* part is the body; any part with a
+// filename or Content-Disposition: attachment becomes a decoded attachment Buffer.
+function parseEml(src) {
+  const { head, body } = splitAtBlank(src);
+  const h = parseHeaderBlock(head);
+  const out = { from: h.from || '', to: h.to || '', subject: h.subject || '', dateHeader: h.date || '', body: null, attachments: [] };
+  const ct = h['content-type'] || '';
+  const boundary = /^\s*multipart\//i.test(ct) ? headerParam(ct, 'boundary') : '';
+  const parts = boundary ? splitMultipart(body, boundary) : [];
+  for (const part of parts) {
+    const seg = splitAtBlank(part);
+    const ph = parseHeaderBlock(seg.head);
+    const pct = (ph['content-type'] || 'text/plain').trim();
+    const disp = ph['content-disposition'] || '';
+    const filename = headerParam(disp, 'filename') || headerParam(ph['content-type'] || '', 'name');
+    const buf = decodeTransfer(seg.body, ph['content-transfer-encoding']);
+    if (filename || /^attachment/i.test(disp.trim())) out.attachments.push({ filename: filename || 'attachment', buf });
+    else if (!out.body && /^text\//i.test(pct)) out.body = buf;
+  }
+  if (!out.body) out.body = parts.length ? Buffer.from('', 'utf8') : decodeTransfer(body, h['content-transfer-encoding']);
+  return out;
+}
+
+// The sentAt line rendered beside eml rows — the evidence in a deemed-service fight.
+function sentNote(d) {
+  if (!d.sentAt) {
+    return '<span class="note" style="display:block">Sent time unknown — the Date header could not be read; confirm the service timestamp before computing deadlines.</span>';
+  }
+  return `<span class="note" style="display:block">Sent <span class="num">${esc(d.sentAt)}</span> — use this as the trigger date when computing the responding deadline in <a href="/r/calendar">Trial Calendar</a> (Ontario deems email service after 4:30 p.m. effective the next day — r. 16.06.1)</span>`;
+}
 
 function codeForm(d) {
   const opts = (list, sel) => list.map(([v, t]) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(t)}</option>`).join('');
@@ -99,7 +178,7 @@ function register(app) {
     const rows = docs.map((d) => {
       const r = [
         `<span class="num">${esc(d.bates || '—')}</span>`,
-        esc(d.title || ''),
+        esc(d.title || '') + (d.source === 'eml' ? ' ' + tag('eml', 'navy') + sentNote(d) : ''),
         esc(d.custodian || '—'),
         date(d.date) || '—',
         privTag(d),
@@ -112,39 +191,45 @@ function register(app) {
     });
 
     const body = `
+    <div class="card">
+      <form method="GET" action="/r/review" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <span style="flex:2 1 240px">${input('q', 'Full-text search', { value: q, placeholder: 'Runs across decrypted text, in memory' })}</span>
+        <span style="flex:1 1 150px">${select('custodian', 'Custodian', [['', 'All custodians'], ...custodians.map((c) => [c, c])], fCust)}</span>
+        <span style="flex:1 1 140px">${select('privilege', 'Privilege', [['', 'All'], ...PRIVILEGE], fPriv)}</span>
+        <span style="flex:1 1 140px">${select('responsive', 'Responsive', [['', 'All'], ...RESPONSIVE], fResp)}</span>
+        <button style="margin-top:0">Apply</button>
+        <a class="btn" href="/r/review" style="margin-top:0">Clear</a>
+      </form>
+    </div>
+
+    <h2 class="sec">Review set — <span class="num">${all.length}</span> ${filtered ? tag(`${docs.length} of ${all.length} shown`, 'navy') : ''}</h2>
+    ${table(cols, rows) || empty(all.length ? 'No documents match the current filter.' : 'No documents in the review set yet — paste the first one in below.')}
+
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Add document</h2>
         <form method="POST" action="/r/review/add">
           ${input('title', 'Title', { required: true, placeholder: 'Email re: schedule slippage' })}
-          ${input('custodian', 'Custodian', { placeholder: 'Who held this document' })}
-          ${input('docDate', 'Document date', { type: 'date' })}
+          <div class="grid2">
+            <span>${input('custodian', 'Custodian', { placeholder: 'Who held this document' })}</span>
+            <span>${input('docDate', 'Document date', { type: 'date' })}</span>
+            <span>${select('privilege', 'Privilege call', PRIVILEGE, 'none')}</span>
+            <span>${select('responsive', 'Responsive', RESPONSIVE, 'no')}</span>
+          </div>
           ${textarea('text', 'Document text (pasted)', { required: true, placeholder: 'Paste the text. It is stored as an encrypted blob under this matter’s key — never in the metadata index.' })}
-          ${select('privilege', 'Privilege call', PRIVILEGE, 'none')}
-          ${select('responsive', 'Responsive', RESPONSIVE, 'no')}
           ${input('issues', 'Issue tags (comma-separated)', { placeholder: 'delay, notice, damages' })}
           <button>Add — next bates auto-assigned</button>
         </form>
       </div>
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Filter &amp; search</h2>
-        <form method="GET" action="/r/review">
-          ${input('q', 'Full-text search', { value: q, placeholder: 'Runs across decrypted document text, in memory' })}
-          ${select('custodian', 'Custodian', [['', 'All custodians'], ...custodians.map((c) => [c, c])], fCust)}
-          ${select('privilege', 'Privilege', [['', 'All'], ...PRIVILEGE], fPriv)}
-          ${select('responsive', 'Responsive', [['', 'All'], ...RESPONSIVE], fResp)}
-          <button>Apply</button> <a class="btn" href="/r/review">Clear</a>
+        <h2 class="sec" style="margin-top:0">Intake an email (.eml)</h2>
+        <form method="POST" action="/r/review/eml">
+          ${textarea('eml', 'Raw RFC822 source', { required: true, placeholder: 'Paste the full raw source (File → Save As .eml, or “Show original”). Headers, body and attachments are parsed here, stored encrypted under this matter’s key, and the Date header is preserved as the service timestamp.' })}
+          <button>Intake email — service timestamp preserved</button>
         </form>
-        ${kv([
-          ['In review set', `<span class="num">${all.length}</span>`],
-          ['Withheld', `<span class="num">${withheld.length}</span>`],
-          ['For production', `<span class="num">${production.length}</span>`],
-        ])}
+        <p class="note">Command line works too: POST the file itself as the request body — curl --data-binary @served.eml -H 'content-type: message/rfc822' /r/review/eml. Attachments each get their own Bates number.</p>
       </div>
     </div>
-
-    <h2 class="sec">Review set ${filtered ? tag(`${docs.length} of ${all.length} shown`, 'navy') : ''}</h2>
-    ${table(cols, rows) || empty(all.length ? 'No documents match the current filter.' : 'No documents in the review set yet — paste the first one in.')}
 
     <h2 class="sec">Privilege log ${withheld.length ? tag(withheld.length + ' withheld', 'gate') : ''}</h2>
     ${table(['Bates', 'Date', 'Custodian', 'Basis'], withheld.map((d) => [
@@ -203,6 +288,47 @@ function register(app) {
       issues: 'issues' in ctx.body ? parseIssues(ctx.body.issues) : issuesOf(doc),
     });
     ctx.setFlash(`${doc.bates || 'Document'} recoded.`);
+    redirect(res, '/r/review');
+  });
+
+  // Email intake: textarea paste OR a raw-body upload (kernel/http.js readBody
+  // hands any non-form content-type to us as ctx.body._raw, a Buffer).
+  app.route('POST', `/r/${ROOM.id}/eml`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/review'); return; }
+    const raw = Buffer.isBuffer(ctx.body._raw) ? ctx.body._raw.toString('utf8') : String(ctx.body.eml || '');
+    if (!raw.trim()) { ctx.setFlash('Paste the raw .eml source first (or POST the file itself as the request body).', 'err'); redirect(res, '/r/review'); return; }
+
+    let eml, sentAt = null;
+    try {
+      eml = parseEml(raw);
+      if (eml.dateHeader) {
+        const t = Date.parse(eml.dateHeader);
+        if (!Number.isNaN(t)) sentAt = new Date(t).toISOString();
+      }
+    } catch (e) {
+      ctx.setFlash('That could not be parsed as an email — nothing was stored.', 'err');
+      redirect(res, '/r/review'); return;
+    }
+
+    const s = k.scope(ctx.matter.id);
+    const common = {
+      custodian: eml.from, date: sentAt ? sentAt.slice(0, 10) : '',
+      source: 'eml', from: eml.from, to: eml.to, sentAt,
+      privilege: 'none', responsive: 'no', issues: [],
+    };
+    const blobId = k.blob.put(ctx.matter.id, eml.body);
+    const bates = nextBates(s.list('document'));
+    s.put('document', { ...common, title: eml.subject || '(no subject)', blobId, bates });
+    for (const a of eml.attachments) {
+      const aBlobId = k.blob.put(ctx.matter.id, a.buf);
+      s.put('document', { ...common, title: a.filename, blobId: aBlobId, bates: nextBates(s.list('document')) });
+    }
+    k.audit('review.eml', ctx.matter.id + ':' + bates + ':' + eml.attachments.length);
+
+    const extra = eml.attachments.length ? ` + ${eml.attachments.length} attachment${eml.attachments.length === 1 ? '' : 's'}` : '';
+    if (sentAt) ctx.setFlash(`${bates}${extra} intaken — sent ${sentAt}. Headers preserved, everything encrypted under this matter’s key.`);
+    else ctx.setFlash(`${bates}${extra} intaken, but the service timestamp could not be read from the Date header — sent time stored as unknown; verify it before computing deadlines.`, 'err');
     redirect(res, '/r/review');
   });
 }

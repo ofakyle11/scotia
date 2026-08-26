@@ -81,9 +81,11 @@ function versionForm(action, cur) {
     ${textarea('scopeIn', 'Scope in — what we will do', { required: true, value: c.scopeIn || '', placeholder: 'e.g. Defend the claim in ONSC file CV-26-00-000; advise on settlement.' })}
     ${textarea('scopeOut', 'Scope out — expressly excluded', { value: c.scopeOut || '', placeholder: 'e.g. Appeals; enforcement; tax advice; regulatory proceedings.' })}
     ${select('feeModel', 'Fee model', FEE_MODELS, c.feeModel || 'hourly')}
-    ${input('rate', 'Hourly rate (if hourly)', { type: 'number', value: c.rate || '', placeholder: '450' })}
-    ${input('flatAmount', 'Flat fee (if flat)', { type: 'number', value: c.flatAmount || '', placeholder: '7500' })}
-    ${input('contingencyPct', 'Contingency % (if contingency)', { type: 'number', value: c.contingencyPct || '', placeholder: '30' })}
+    <div class="grid3">
+      <span>${input('rate', 'Hourly rate', { type: 'number', value: c.rate || '', placeholder: '450' })}</span>
+      <span>${input('flatAmount', 'Flat fee', { type: 'number', value: c.flatAmount || '', placeholder: '7500' })}</span>
+      <span>${input('contingencyPct', 'Contingency %', { type: 'number', value: c.contingencyPct || '', placeholder: '30' })}</span>
+    </div>
     <button>${cur ? 'Issue new version — supersede current' : 'Draft engagement v1'}</button>
   </form>
   <p class="note">Fill only the fee field matching the chosen model. ${esc(CONTINGENCY_NOTE)}</p>`;
@@ -125,8 +127,7 @@ function register(app) {
             ${input('on', `Date ${next[0]}`, { type: 'date', value: today() })}
             <button>${next[1]}</button>
           </form>` : '<p class="note">Signed and in force. A scope change issues a new version below.</p>'}
-          ` : empty('No engagement recorded on this matter yet — draft version 1.')}
-          ${cur && cur.feeModel === 'contingency' ? `<p class="note">${esc(CONTINGENCY_NOTE)}</p>` : ''}
+          ` : empty('No engagement yet — draft version 1 on the right.')}
         </div>
         <div class="card">
           <h2 class="sec" style="margin-top:0">${cur ? 'Scope change — new version' : 'Draft the engagement'}</h2>
@@ -143,8 +144,7 @@ function register(app) {
           `<span class="num">v${esc(String(e.version))}</span>`, date(e.drafted), esc(e.scopeIn), feeSummary(e),
           statusTag(e.status), e.sentAt ? date(e.sentAt) : '—', e.signedAt ? date(e.signedAt) : '—',
           e.supersededAt ? `${date(e.supersededAt)} <span class="note" style="display:inline">by v${esc(String(e.supersededBy))}</span>` : '—',
-        ])) || empty('No versions yet.')}
-      <p class="note">Versions are append-only: a scope or fee change never edits the record in place — it issues a new version and marks the prior one superseded.</p>
+        ])) || empty('No versions yet — draft v1 above.')}
       `;
     }
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Scope in, scope out, fee terms — versioned, never edited', body }));

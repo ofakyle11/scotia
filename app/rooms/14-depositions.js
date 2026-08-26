@@ -2,7 +2,9 @@
 // Room 14 — Depositions. Outlines out — digests back.
 // Witnesses per matter; outlines pulled from the sourced chronology; transcript
 // digests indexed; impeachment candidates paired with the fact they contradict;
-// undertakings tracked to answer (Canadian practice runs on them).
+// undertakings tracked to answer (Canadian practice runs on them), refusals and
+// under-advisements on the same register with a motion-ready printable chart,
+// and a cross-matter board of every open promise across the firm.
 const { layout, esc, table, empty, tag, kv, input, textarea, select, date } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
@@ -13,6 +15,9 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const PL = /^\d{1,5}:\d{1,4}$/;
 const SIDES = [['theirs', 'Theirs — adverse'], ['ours', 'Ours'], ['third-party', 'Third party']];
 const KINDS = [['admission', 'Admission'], ['denial', 'Denial'], ['impeachment-candidate', 'Impeachment candidate']];
+// The three lists an Ontario examination produces (r. 31.07 runs on all of them).
+const UKINDS = [['undertaking', 'Undertaking'], ['refusal', 'Refusal'], ['under-advisement', 'Under advisement']];
+const uKind = (u) => u.kind || 'undertaking'; // records predating kinds read as undertakings
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -35,6 +40,12 @@ function kindTag(kind) {
   return tag('denial');
 }
 
+function uKindTag(kind) {
+  if (kind === 'refusal') return tag('refusal', 'gate');
+  if (kind === 'under-advisement') return tag('under advisement', 'navy');
+  return tag('undertaking');
+}
+
 function undertakingRule(k, jur) {
   return (k.rules.rulesFor(jur) || []).find((r) => r.id.includes('undertaking')) || null;
 }
@@ -52,11 +63,62 @@ function defaultDue(k, jur, given) {
 
 const back = (res, wid) => redirect(res, '/r/depositions' + (wid ? '?w=' + encodeURIComponent(wid) : ''));
 
+// Cross-matter board: every unanswered undertaking / refusal / under-advisement
+// across the firm, split ours-to-answer vs theirs-to-chase by the witness side
+// on file. Walls respected (scope() throws for walled matters), shredded
+// matters skipped — the same try/catch-per-scope pattern as the desk (room 27).
+function crossBoard(k, matters, now) {
+  const rows = [], per = [];
+  for (const m of matters || []) {
+    if (k.isShredded(m.id)) continue;
+    let us = [], ws = [];
+    try { const sc = k.scope(m.id); us = sc.list('undertaking'); ws = sc.list('witness'); } catch { continue; }
+    if (us.length) per.push({ m, given: us.length, answered: us.filter((u) => u.status === 'answered').length });
+    const wmap = new Map(ws.map((x) => [x.id, x]));
+    for (const u of us) if (u.status !== 'answered') rows.push({ m, u, w: wmap.get(u.witnessId) || null });
+  }
+  const overdue = (r) => !!(r.u.due && r.u.due < now);
+  const bySort = (a, b) => ((overdue(a) ? 0 : 1) - (overdue(b) ? 0 : 1)) || String(a.u.due || '').localeCompare(String(b.u.due || ''));
+  const row = (r) => [
+    esc(r.m.title),
+    esc(r.w ? r.w.name : '—'),
+    uKindTag(uKind(r.u)),
+    esc(r.u.text),
+    date(r.u.due),
+    overdue(r) ? tag('OVERDUE', 'gate') : tag('open'),
+    `<form method="POST" action="/r/depositions/answer-x" style="display:inline"><input type="hidden" name="matterId" value="${esc(r.m.id)}"><input type="hidden" name="id" value="${esc(r.u.id)}"><button class="quiet" style="margin-top:0">answered</button></form>`,
+  ];
+  const ours = rows.filter((r) => r.w && r.w.side === 'ours').sort(bySort);
+  const theirs = rows.filter((r) => !(r.w && r.w.side === 'ours')).sort(bySort);
+  const overdueN = rows.filter(overdue).length;
+  const COLS = ['Matter', 'Witness', 'Kind', 'Text', 'Due', 'Status', ''];
+  const counts = per.length ? table(['Matter', 'Given', 'Answered', 'Open'], per.map((p) => [
+    esc(p.m.title),
+    `<span class="num">${p.given}</span>`,
+    `<span class="num">${p.answered}</span>`,
+    p.given - p.answered ? tag(`${p.given - p.answered} open`) : tag('all answered', 'ok'),
+  ])) : '';
+  const boardBody = rows.length ? `
+    <div class="card"><h2 class="sec" style="margin-top:0">Ours to answer — ${ours.length}</h2>
+      ${ours.length ? table(COLS, ours.map(row)) : empty('Nothing we owe — no open undertakings from our own witnesses.')}
+      <p class="note">Promises our witnesses made on the record. Left unanswered inside the 60-day window (r. 31.07) they invite a motion to compel — and costs.</p>
+    </div>
+    <div class="card"><h2 class="sec" style="margin-top:0">Theirs to chase — ${theirs.length}</h2>
+      ${theirs.length ? table(COLS, theirs.map(row)) : empty('Nothing to chase — the other side has answered everything.')}
+      <p class="note">Owed to us by adverse and third-party witnesses. Chase before the discovery cutoff; refusals go to the motion chart in the witness workspace.</p>
+    </div>`
+    : empty('Nothing outstanding across the firm — every promise on the record is answered.');
+  return `
+    <h2 class="sec">Cross-matter undertakings board ${rows.length ? tag(`${rows.length} outstanding`, 'navy') : ''} ${overdueN ? tag(`${overdueN} overdue`, 'gate') : ''}</h2>
+    ${boardBody}
+    ${counts ? `<div class="card"><h2 class="sec" style="margin-top:0">Given / answered by matter</h2>${counts}</div>` : ''}`;
+}
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
     if (!ctx.matter) {
-      html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body: empty('Open a matter to prepare its examinations.') }));
+      html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body: empty('Open a matter to prepare its examinations.') + crossBoard(k, ctx.matters, today()) }));
       return;
     }
     const s = k.scope(ctx.matter.id);
@@ -115,6 +177,27 @@ function register(app) {
         ];
       });
 
+      // The motion chart: this witness's refusals and under-advisements, in
+      // question order — built from what was captured at digest time.
+      const refusals = undertakings
+        .filter((u) => u.witnessId === w.id && uKind(u) !== 'undertaking')
+        .slice().sort((a, b) => ((parseInt(a.qnum, 10) || 0) - (parseInt(b.qnum, 10) || 0))
+          || String(a.pl || '').localeCompare(String(b.pl || ''), undefined, { numeric: true }));
+      const chartRows = refusals.map((u) => {
+        const od = u.status !== 'answered' && u.due && u.due < now;
+        return [
+          u.qnum ? `<span class="num">${esc(u.qnum)}</span>` : '—',
+          u.pl ? `<span class="num">${esc(u.pl)}</span>` : '—',
+          esc(u.text),
+          esc(u.ground || '—'),
+          esc(u.sought || '—'),
+          u.status === 'answered'
+            ? `Answered ${esc(String(u.answered || '').slice(0, 10))}`
+            : od ? 'OUTSTANDING — overdue'
+              : uKind(u) === 'under-advisement' ? 'Under advisement' : 'Refused',
+        ];
+      });
+
       workspace = `
       <h2 class="sec">Examination workspace — ${esc(w.name)} ${sideTag(w.side)}</h2>
       ${kv([
@@ -158,6 +241,15 @@ function register(app) {
         ? table(['Transcript at', 'What the witness said', 'Contradicting fact (chronology)', 'Fact source pin'], impeachRows)
         : empty('No impeachment candidates flagged for this witness yet.')}
       <p class="note">Every digest entry flagged as an impeachment candidate is set against the prior statement or sourced fact it contradicts — page:line on one side, the pin on the other, ready for the Trial Book.</p>
+      <div id="refusals-chart">
+        <style>@media print{body{background:#fff!important}body *{visibility:hidden}#refusals-chart,#refusals-chart *{visibility:visible}#refusals-chart{position:absolute;left:0;top:0;width:100%;background:#fff;color:#000;padding:0}#refusals-chart h2.sec{color:#000;border-color:#000}#refusals-chart .note{color:#000}#refusals-chart table.t{background:#fff;color:#000;border:1px solid #000}#refusals-chart table.t th{background:#fff;color:#000;border-bottom:1px solid #000}#refusals-chart table.t td{color:#000;border-bottom:1px solid #888}#refusals-chart .num{color:#000}#refusals-chart .empty{background:#fff;color:#000;border-color:#000}}</style>
+        <h2 class="sec">Refusals chart — motion-ready</h2>
+        <p class="note">${esc(ctx.matter.title)} · refusals &amp; under-advisements of ${esc(w.name)}${w.examDate ? `, examined ${esc(w.examDate)}` : ''} · generated ${esc(now)}</p>
+        ${chartRows.length
+          ? table(['Q#', 'Page:line', 'Question as put', 'Ground of refusal', 'Answer sought', 'Status'], chartRows)
+          : empty('No refusals or under-advisements logged for this witness.')}
+      </div>
+      <p class="note">Print this page and only the chart files — the inline print style strips the chrome, so the tabular undertakings/refusals chart the Toronto Region consolidated practice direction expects comes straight off the record instead of being rebuilt in Word. Move on refusals before the discovery cutoff: r. 31.07 bars leading the withheld information at trial without leave.</p>
       `;
     } else if (witnesses.length) {
       workspace = `<p class="note">Select a witness from the bench above to build the outline, digest the transcript, and work the impeachment table.</p>`;
@@ -170,7 +262,10 @@ function register(app) {
       const overdue = u.status !== 'answered' && u.due && u.due < now;
       return [
         esc(wName.get(u.witnessId) || '—'),
-        esc(u.text),
+        uKindTag(uKind(u)),
+        u.qnum ? `<span class="num">${esc(u.qnum)}</span>` : '—',
+        u.pl ? `<span class="num">${esc(u.pl)}</span>` : '—',
+        `${esc(u.text)}${u.ground ? ` <span class="note">ground: ${esc(u.ground)}</span>` : ''}`,
         date(u.given),
         `${date(u.due)}${u.basis ? ` <span class="note">${esc(u.basis)}</span>` : ''}`,
         u.status === 'answered'
@@ -184,42 +279,54 @@ function register(app) {
     const body = `
     <div class="grid2">
       <div class="card">
+        <h2 class="sec" style="margin-top:0">The bench — ${esc(ctx.matter.title)}</h2>
+        ${bench}
+      </div>
+      <div class="card">
         <h2 class="sec" style="margin-top:0">Add a witness</h2>
         <form method="POST" action="/r/depositions/witness">
           ${input('name', 'Name', { required: true, placeholder: 'e.g. J. Doe' })}
-          ${select('side', 'Side', SIDES)}
+          <div class="grid2">
+            <span>${select('side', 'Side', SIDES)}</span>
+            <span>${input('examDate', 'Examination date', { type: 'date' })}</span>
+          </div>
           ${input('role', 'Role', { placeholder: 'CFO · eyewitness · corporate representative' })}
-          ${input('examDate', 'Examination date', { type: 'date' })}
           <button>Add to the bench</button>
         </form>
         <p class="note">Reference on scope: a US deposition is limited to one day of seven hours (FRCP 30(d)(1)); an Ontario examination for discovery runs to seven hours total per examining party (r. 31.05.1) and runs on undertakings (r. 31.07).</p>
       </div>
-      <div class="card">
-        <h2 class="sec" style="margin-top:0">The bench — ${esc(ctx.matter.title)}</h2>
-        ${bench}
-      </div>
     </div>
     ${workspace}
-    <h2 class="sec">Undertakings ${openU.length ? tag(`${openU.length} open`, overdueN ? '' : 'navy') : ''} ${overdueN ? tag(`${overdueN} overdue`, 'gate') : ''}</h2>
+    <h2 class="sec">Undertakings, refusals &amp; under-advisements ${openU.length ? tag(`${openU.length} open`, overdueN ? '' : 'navy') : ''} ${overdueN ? tag(`${overdueN} overdue`, 'gate') : ''}</h2>
     <div class="grid2">
       <div class="card">
-        <h2 class="sec" style="margin-top:0">Track an undertaking</h2>
+        <h2 class="sec" style="margin-top:0">Track an undertaking · refusal · under-advisement</h2>
         ${witnesses.length ? `
         <form method="POST" action="/r/depositions/undertaking">
-          ${select('witnessId', 'Witness', witnesses.map((x) => [x.id, x.name]), w ? w.id : undefined)}
-          ${textarea('text', 'Undertaking as given', { required: true, placeholder: 'To produce the 2024 maintenance invoices for the plant.' })}
-          ${input('given', 'Given (examination date — blank = today)', { type: 'date' })}
-          ${input('due', 'Due (blank = rule default)', { type: 'date' })}
+          <div class="grid2">
+            <span>${select('witnessId', 'Witness', witnesses.map((x) => [x.id, x.name]), w ? w.id : undefined)}</span>
+            <span>${select('kind', 'Kind', UKINDS)}</span>
+          </div>
+          ${textarea('text', 'As given — the undertaking, or the question refused / taken under advisement', { required: true, placeholder: 'To produce the 2024 maintenance invoices for the plant.' })}
+          <div class="grid2">
+            <span>${input('qnum', 'Question number (optional)', { placeholder: '417' })}</span>
+            <span>${input('pl', 'Page:line (optional)', { placeholder: '41:12' })}</span>
+            <span>${input('ground', 'Ground (refusals / u-a)', { placeholder: 'relevance · privilege · proportionality' })}</span>
+            <span>${input('sought', 'Answer sought (refusals / u-a)', { placeholder: 'Production of the 2019 audit file.' })}</span>
+            <span>${input('given', 'Given (blank = today)', { type: 'date' })}</span>
+            <span>${input('due', 'Due (blank = rule default)', { type: 'date' })}</span>
+          </div>
           <button>Track it</button>
         </form>` : empty('Add a witness first — undertakings attach to an examination.')}
         <p class="note">A blank due date computes from the date given: ${uRule ? `${uRule.days} days per ${esc(uRule.cite)}, rolled forward off weekends and court holidays` : 'a 60-day house default (no undertakings rule on file for this jurisdiction — the practice is Canadian)'}.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">The register</h2>
-        ${uRows.length ? table(['Witness', 'Undertaking', 'Given', 'Due', 'Status', ''], uRows) : empty('No undertakings tracked on this matter.')}
-        <p class="note">Answers on Canadian examinations are promised on the record and forgotten off it — the register is what keeps the promise. Overdue means due date passed with no answer recorded.</p>
+        ${uRows.length ? table(['Witness', 'Kind', 'Q#', 'Page:line', 'Text', 'Given', 'Due', 'Status', ''], uRows) : empty('No undertakings tracked on this matter.')}
+        <p class="note">Answers on Canadian examinations are promised on the record and forgotten off it — the register is what keeps the promise. Overdue means due date passed with no answer recorded. Refusals ride the same register so nothing is moved on late.</p>
       </div>
     </div>
+    ${crossBoard(k, ctx.matters, now)}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
   });
@@ -315,6 +422,12 @@ function register(app) {
     if (!w) { ctx.setFlash('Pick the witness who gave the undertaking.', 'err'); back(res); return; }
     const text = String(ctx.body.text || '').trim();
     if (!text) { ctx.setFlash('Record the undertaking as given.', 'err'); back(res, w.id); return; }
+    const kind = UKINDS.some(([v]) => v === ctx.body.kind) ? ctx.body.kind : 'undertaking';
+    const qnum = String(ctx.body.qnum || '').trim() || null;
+    const pl = String(ctx.body.pl || '').trim();
+    if (pl && !PL.test(pl)) { ctx.setFlash('Page:line must read like 41:12.', 'err'); back(res, w.id); return; }
+    const ground = kind !== 'undertaking' ? String(ctx.body.ground || '').trim() || null : null;
+    const sought = kind !== 'undertaking' ? String(ctx.body.sought || '').trim() || null : null;
     const given = String(ctx.body.given || '').trim() || today();
     if (!ISO.test(given)) { ctx.setFlash('Given date must be YYYY-MM-DD.', 'err'); back(res, w.id); return; }
     let due = String(ctx.body.due || '').trim();
@@ -324,8 +437,9 @@ function register(app) {
       const d = defaultDue(ctx.kernel, ctx.matter.jurisdiction, given);
       due = d.due; basis = d.basis;
     }
-    s.put('undertaking', { witnessId: w.id, text, given, due, basis, answered: null, status: 'open' });
-    ctx.setFlash(`Undertaking tracked — due ${due} (${basis}).`);
+    s.put('undertaking', { witnessId: w.id, kind, qnum, pl: pl || null, ground, sought, text, given, due, basis, answered: null, status: 'open' });
+    const label = kind === 'refusal' ? 'Refusal' : kind === 'under-advisement' ? 'Under-advisement' : 'Undertaking';
+    ctx.setFlash(`${label} tracked — due ${due} (${basis}).`);
     back(res, w.id);
   });
 
@@ -337,6 +451,24 @@ function register(app) {
     s.put('undertaking', { ...u, answered: today(), status: 'answered' });
     ctx.setFlash('Undertaking marked answered.');
     back(res, u.witnessId);
+  });
+
+  // Matter-qualified mark-answered for the cross-matter board: the row names
+  // its own matter, so ctx.matter (whatever is open, or nothing) is not used.
+  // Walls and shredding are enforced by k.scope, which throws — caught here.
+  app.route('POST', `/r/${ROOM.id}/answer-x`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const matterId = String(ctx.body.matterId || '').trim();
+    const id = String(ctx.body.id || '').trim();
+    if (!matterId || !id) { ctx.setFlash('The board answer needs both the matter and the undertaking.', 'err'); back(res); return; }
+    let s;
+    try { s = k.scope(matterId); } catch { ctx.setFlash('Matter unavailable.', 'err'); back(res); return; }
+    const u = s.get('undertaking', id);
+    if (!u) { ctx.setFlash('Undertaking not found on that matter.', 'err'); back(res); return; }
+    s.put('undertaking', { ...u, answered: today(), status: 'answered' });
+    k.audit('undertaking.answered', matterId + ':' + id);
+    ctx.setFlash('Undertaking marked answered.');
+    back(res);
   });
 }
 

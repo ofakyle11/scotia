@@ -19,8 +19,10 @@ function register(app) {
         <form method="POST" action="/r/intake/new">
           ${input('client', 'Prospective client', { required: true })}
           ${input('adverse', 'Adverse parties (comma-separated)')}
-          ${select('jurisdiction', 'Jurisdiction', jurs, 'on')}
-          ${select('claimType', 'Claim type', ['Commercial dispute', 'Personal injury', 'Employment', 'Estates', 'Real property', 'Other'])}
+          <div class="grid2">
+            <span>${select('jurisdiction', 'Jurisdiction', jurs, 'on')}</span>
+            <span>${select('claimType', 'Claim type', ['Commercial dispute', 'Personal injury', 'Employment', 'Estates', 'Real property', 'Other'])}</span>
+          </div>
           ${input('discovered', 'Date claim discovered', { type: 'date', required: true })}
           ${textarea('summary', 'What happened', { placeholder: 'Facts as told. Dates matter.' })}
           <button>Open screening file</button>
@@ -29,7 +31,7 @@ function register(app) {
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Screening</h2>
-        ${open.length ? open.map((i) => screeningCard(k, i)).join('') : empty('Nothing in screening.')}
+        ${open.length ? open.map((i) => screeningCard(k, i)).join('') : empty('Nothing in screening — take a new inquiry on the left.')}
       </div>
     </div>
     <h2 class="sec">Disposed inquiries</h2>
@@ -37,7 +39,7 @@ function register(app) {
       inquiries.filter((i) => i.status !== 'screening').map((i) => [
         esc(i.client), esc(i.claimType), esc(i.jurisdiction),
         date(i.limitation), i.status === 'accepted' ? tag('accepted — matter opened', 'ok') : tag('declined — letter sent'),
-      ])) || empty('No disposed inquiries yet.')}
+      ])) || empty('No disposed inquiries yet — accept or decline a screening file above.')}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Inquiry in — matter file out', body }));
   });

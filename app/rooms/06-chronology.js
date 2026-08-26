@@ -68,15 +68,19 @@ function register(app) {
       <div class="card">
         <h2 class="sec" style="margin-top:0">Add a fact</h2>
         <form method="POST" action="/r/chronology/add">
-          ${input('date', 'Date of fact', { type: 'date', required: true })}
-          ${input('actor', 'Actor (who did it)', { required: true, placeholder: 'e.g. Harness Holdings, J. Doe' })}
+          <div class="grid2">
+            <span>${input('date', 'Date of fact', { type: 'date', required: true })}</span>
+            <span>${input('actor', 'Actor (who did it)', { required: true, placeholder: 'e.g. Harness Holdings, J. Doe' })}</span>
+          </div>
           ${textarea('text', 'The fact — one sentence, past tense', { required: true, placeholder: 'What happened, stated neutrally.' })}
           ${input('source', 'Source pin (required)', { required: true, placeholder: "Ex. 4 p.2 · Doe transcript 41:12 · document id" })}
-          ${select('disputed', 'Disputed?', [['no', 'Undisputed'], ['yes', 'Disputed — the other side contests it']], 'no')}
-          ${input('issues', 'Issue tags (comma-separated)', { placeholder: 'breach, notice, damages' })}
+          <div class="grid2">
+            <span>${select('disputed', 'Disputed?', [['no', 'Undisputed'], ['yes', 'Disputed — the other side contests it']], 'no')}</span>
+            <span>${input('issues', 'Issue tags (comma-separated)', { placeholder: 'breach, notice, damages' })}</span>
+          </div>
           <button>Enter fact</button>
         </form>
-        <p class="note"><b>Source-or-drop.</b> A fact without a pin to evidence is an allegation, not a fact — the room refuses it. Pins are free-text cites (exhibit, transcript, affidavit) or a document id from the Evidence Room.</p>
+        <p class="note"><b>Source-or-drop.</b> No pin, no fact — the room refuses it. Pins are free-text cites (exhibit, transcript, affidavit) or an Evidence Room document id.</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">State of the record</h2>
@@ -92,13 +96,13 @@ function register(app) {
           <button class="quiet" style="margin-top:12px">Apply filter</button>
           ${filtering ? '<a href="/r/chronology" style="margin-left:10px;font-size:12px">clear</a>' : ''}
         </form>
-        <p class="note">Disputed facts are where the trial happens; undisputed ones belong in an agreed statement. Gaps over ${GAP_DAYS} days are flagged on the full timeline — a silence that long usually means missing discovery, not missing events.</p>
+        <p class="note">Gaps over ${GAP_DAYS} days are flagged on the full timeline — silence that long usually means missing discovery, not missing events.</p>
       </div>
     </div>
     <h2 class="sec">Timeline — ${esc(ctx.matter.title)}${filtering ? ` <span class="tag navy">filtered — ${shown.length} of ${facts.length}</span>` : ''}</h2>
     ${rows.length
       ? table(['Date', 'Actor', 'Fact', 'Source pin', 'Issues', 'Status', ''], rows)
-      : empty(filtering ? 'No facts match this filter.' : 'No facts yet. The chronology starts with the first sourced fact.')}
+      : empty(filtering ? 'No facts match this filter — clear it to see the full timeline.' : 'No facts yet — enter the first sourced fact above.')}
     ${filtering ? '<p class="note">Gap flags are hidden while a filter is on — gaps are only meaningful on the full timeline.</p>' : ''}
     `;
     html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: SUB, body }));
