@@ -7,17 +7,40 @@
 // submission (enrollment, login, saving anything). This test drives Chromium
 // through real enrollment and asserts the app renders, so it cannot regress.
 //
-// Requires Chromium (preinstalled at /opt/pw-browsers) and playwright available.
-// Skips cleanly (exit 0) when they are absent so CI without a browser still passes.
-const { spawn } = require('child_process');
+// Needs playwright + a Chromium build. Both are DISCOVERED, never hardcoded: this
+// file previously defaulted to one build container's scratchpad and to
+// chromium-1194, so on any other machine both paths were dead and the test exited
+// 0 as "skipped" — a browser gate that silently stops guarding the moment it
+// leaves the machine it was written on. Order: explicit env override, then normal
+// module resolution, then the global npm root. Chromium comes from playwright
+// itself (which honours PLAYWRIGHT_BROWSERS_PATH), so no build number is pinned
+// here. Still skips cleanly (exit 0) when genuinely absent — test/run-all.js
+// reports that as SKIP, not PASS, and CI hard-fails on it.
+const { spawn, execFileSync } = require('child_process');
 const fs = require('fs'); const os = require('os'); const path = require('path');
 
 const APP = path.join(__dirname, '..');
-const PW = process.env.PW_PATH || '/tmp/claude-0/-home-user-scotia/67dc42f1-6bf8-5a36-81d8-31738d31aef7/scratchpad/node_modules/playwright';
-const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+
+function findPlaywright() {
+  if (process.env.PW_PATH) return process.env.PW_PATH;
+  try { return require.resolve('playwright'); } catch (_) {}
+  try {
+    const root = execFileSync('npm', ['root', '-g'], { encoding: 'utf8', timeout: 15000 }).trim();
+    const p = path.join(root, 'playwright');
+    if (fs.existsSync(p)) return p;
+  } catch (_) {}
+  return null;
+}
+
+const PW = findPlaywright();
 let chromium;
-try { ({ chromium } = require(PW)); } catch (_) { console.log('BROWSER TEST: skipped (playwright unavailable)'); process.exit(0); }
-if (!fs.existsSync(CHROME)) { console.log('BROWSER TEST: skipped (chromium unavailable)'); process.exit(0); }
+if (!PW) { console.log('BROWSER TEST: skipped (playwright not installed — set PW_PATH to run it)'); process.exit(0); }
+try { ({ chromium } = require(PW)); } catch (e) { console.log('BROWSER TEST: skipped (playwright at ' + PW + ' would not load: ' + String(e.message).split('\n')[0] + ')'); process.exit(0); }
+
+// Ask playwright where its Chromium is rather than guessing a build number.
+let CHROME = process.env.CHROME_PATH || '';
+if (!CHROME) { try { CHROME = chromium.executablePath(); } catch (_) { CHROME = ''; } }
+if (!CHROME || !fs.existsSync(CHROME)) { console.log('BROWSER TEST: skipped (no Chromium — run `npx playwright install chromium`, or set CHROME_PATH)'); process.exit(0); }
 
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'chambers-browser-'));
 const PORT = 27000 + Math.floor(Math.random() * 2000);

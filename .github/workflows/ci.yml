@@ -60,8 +60,11 @@ jobs:
           if grep -rn "require('/\|require(\"/" app --include='*.js'; then
             echo "FAIL: absolute require() path above — use a path relative to the file."; exit 1
           fi
-          if grep -rn '/home/user/' app --include='*.js'; then
-            echo "FAIL: hard-coded developer home path above."; exit 1
+          if grep -rn '/home/user/\|/tmp/claude-\|pw-browsers/chromium-[0-9]' app --include='*.js'; then
+            echo "FAIL: hard-coded build-machine path above (developer home, agent"
+            echo "scratchpad, or a pinned Chromium build number). test/browser.test.js"
+            echo "shipped with two, and silently SKIPPED on every other machine."
+            exit 1
           fi
           echo "OK: no absolute developer paths under app/"
 
