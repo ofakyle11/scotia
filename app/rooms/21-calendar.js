@@ -8,6 +8,41 @@ const { html, redirect, send } = require('../kernel/http.js');
 
 const ROOM = { num: 21, id: 'calendar', title: 'Trial Calendar', phase: 'Argue' };
 
+// ---- Reference data: firm backward-planning template (NOT statutory) ----
+// Offsets are calendar days BEFORE the trial date. This is the firm's standard
+// pretrial cascade used to seed the working plan; a court's scheduling order
+// controls the real dates and counsel confirms each against it. Where a
+// milestone is fixed by a real rule (US FRCP expert/pretrial disclosures) the
+// rule is cited; the rest are marked firm-default. Each milestone is computed
+// with the procedural roll in kernel/rules.js (weekend/holiday → next business
+// day) via a synthetic negative-offset rule — rules.js is not modified.
+const PRETRIAL_TEMPLATE = {
+  'us-fed': [
+    { key: 'expert-disclosure', label: 'Expert disclosures served', before: 90, cite: 'FRCP 26(a)(2)(D)(i)', firm: false },
+    { key: 'discovery-close', label: 'Fact discovery closes', before: 60, cite: 'Firm default — scheduling-order controlled', firm: true },
+    { key: 'dispositive-motion', label: 'Dispositive motions filed', before: 45, cite: 'Firm default — scheduling-order controlled', firm: true },
+    { key: 'pretrial-conference', label: 'Final pretrial conference', before: 30, cite: 'FRCP 16(e) / pretrial disclosures FRCP 26(a)(3)(B)', firm: false },
+  ],
+  _default: [
+    { key: 'expert-disclosure', label: 'Expert reports exchanged', before: 90, cite: 'Firm default — case-management order controlled', firm: true },
+    { key: 'discovery-close', label: 'Discovery closes', before: 60, cite: 'Firm default — case-management order controlled', firm: true },
+    { key: 'dispositive-motion', label: 'Dispositive/summary-judgment motions filed', before: 45, cite: 'Firm default — case-management order controlled', firm: true },
+    { key: 'pretrial-conference', label: 'Pretrial (trial management) conference', before: 30, cite: 'Firm default — case-management order controlled', firm: true },
+  ],
+};
+function pretrialTemplate(jur) { return PRETRIAL_TEMPLATE[jur] || PRETRIAL_TEMPLATE._default; }
+
+// Back-calculate each milestone from the trial date using the SAME procedural
+// roll as forward deadlines: a synthetic negative-offset rule fed to
+// k.rules.compute() subtracts the offset then rolls a weekend/holiday landing
+// forward to the next business day. Nothing is typed by hand.
+function computeCascade(k, jur, trialDate) {
+  return pretrialTemplate(jur).map((m) => {
+    const synth = { id: 'trial-back-' + m.key, jur, category: 'procedural', method: 'calendar', days: -m.before };
+    return { ...m, due: k.rules.compute(synth, trialDate) };
+  });
+}
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -49,7 +84,31 @@ function register(app) {
       </div>`;
     }
 
+    // Trial-anchored cascade: the working pretrial plan, back-calculated from
+    // the trial date. Its deadlines carry anchor:'trial' so moving the trial
+    // date recomputes the whole chain in one place.
+    const anchor = s.list('trialAnchor')[0] || null;
+    const trialDeadlines = deadlines.filter((d) => d.anchor === 'trial');
+    const preview = anchor && anchor.trialDate ? computeCascade(k, jur, anchor.trialDate) : [];
+    const cascadeCard = `<div class="card">
+      <h2 class="sec" style="margin-top:0">Trial-anchored cascade ${tag('BACK-COMPUTED', 'navy')}</h2>
+      <p class="note">Set the trial date and the standard pretrial chain — expert disclosure, discovery close, dispositive-motion deadline, pretrial conference — is back-calculated as offsets before trial and calendared. Move the trial date and the whole chain recomputes; the milestones below carry a <b>trial</b> anchor so they never collide with forward-computed deadlines.</p>
+      <form method="POST" action="/r/calendar/trial">
+        ${input('trialDate', 'Trial date', { type: 'date', required: true, value: anchor ? String(anchor.trialDate || '').slice(0, 10) : '' })}
+        <button>${anchor ? 'Recompute the cascade' : 'Compute & calendar the cascade'}</button>
+      </form>
+      ${anchor && anchor.trialDate ? `
+      <p class="note" style="margin-top:14px">Trial ${date(anchor.trialDate)} — cascade for ${esc(jur)} (${trialDeadlines.length} milestone${trialDeadlines.length === 1 ? '' : 's'} on the calendar):</p>
+      ${table(['Before', 'Milestone', 'Computed date', 'Basis'], pretrialTemplate(jur).map((m, i) => [
+        `<span class="num">${m.before}d</span>`, esc(m.label), date(preview[i] && preview[i].due),
+        `<span class="note">${esc(m.cite)}${m.firm ? ' ' : ''}</span>${m.firm ? tag('firm default', '') : tag('rule', 'ok')}`,
+      ]))}
+      <p class="note">Offsets roll off weekends/holidays to the next business day via the same procedural rule engine as forward deadlines. Firm-default milestones are the firm's backward-planning template, not statutory — confirm each against the court's scheduling/case-management order. FRCP-fixed milestones cite the rule. Build Sheet: per-court scheduling templates wire in here.</p>`
+      : `<p class="note" style="margin-top:14px">No trial date set — the cascade is empty until you anchor it.</p>`}
+    </div>`;
+
     const body = `
+    ${cascadeCard}
     <div class="grid2">
       <div class="card">
         <h2 class="sec" style="margin-top:0">Compute a deadline</h2>
@@ -69,7 +128,7 @@ function register(app) {
     <h2 class="sec">Calendar — ${esc(ctx.matter.title)}</h2>
     ${deadlines.length ? table(['Due', 'Deadline', 'Trigger', 'Authority', 'Status', ''], deadlines.map((d) => [
       date(d.due) + (d.due < today && d.status === 'open' ? ' ' + tag('OVERDUE', 'gate') : (daysOut(d.due) <= 14 && d.status === 'open' ? ' ' + tag(daysOut(d.due) + 'd', 'navy') : '')),
-      esc(d.desc), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`,
+      esc(d.desc) + (d.anchor === 'trial' ? ' ' + tag('trial', 'navy') : ''), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`,
       d.status === 'done' ? tag('done', 'ok') : tag('open'),
       d.status === 'open' ? `<form method="POST" action="/r/calendar/done" style="margin:0"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Done</button></form>` : '',
     ])) : empty('No deadlines calendared for this matter yet — pick a rule and trigger date above; one click computes and calendars it.')}
@@ -106,6 +165,41 @@ function register(app) {
       desc: rule.desc, due, rule: rule.cite, trigger: rule.trigger + ' ' + ctx.body.trigger, status: 'open', ruleId: rule.id,
     });
     ctx.setFlash(`Calendared: ${rule.desc} — ${due} (${rule.cite}).`);
+    redirect(res, '/r/calendar');
+  });
+
+  // Trial-anchored cascade: set/move the trial date, then back-calculate the
+  // standard pretrial chain and (re)calendar it. Recompute is idempotent — the
+  // prior trial-anchored deadlines are cleared and rebuilt from the new date.
+  app.route('POST', `/r/${ROOM.id}/trial`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/calendar'); return; }
+    const trialDate = String(ctx.body.trialDate || '').trim();
+    // Round-trip the date so a rolled-over garbage day ('2026-02-31') is rejected.
+    const parsed = new Date(trialDate + 'T00:00:00Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trialDate) {
+      ctx.setFlash('The cascade needs a real trial date (YYYY-MM-DD).', 'err'); redirect(res, '/r/calendar'); return;
+    }
+    const s = k.scope(ctx.matter.id);
+    const jur = ctx.matter.jurisdiction || 'on';
+    // Clear the old trial-anchored chain, then rebuild from the trial date.
+    for (const d of s.list('deadline', (x) => x.anchor === 'trial')) s.del('deadline', d.id);
+    const existing = s.list('trialAnchor')[0];
+    s.put('trialAnchor', { ...(existing || {}), trialDate, jurisdiction: jur, setBy: ctx.user.id });
+    // The trial date itself sits on the calendar (no roll — it is the anchor).
+    s.put('deadline', {
+      desc: 'Trial commences', due: trialDate, rule: 'Trial date (anchor)', trigger: 'Set trial date ' + trialDate,
+      status: 'open', ruleId: 'trial-date', anchor: 'trial', milestone: 'trial', trialDate,
+    });
+    const cascade = computeCascade(k, jur, trialDate);
+    for (const m of cascade) {
+      s.put('deadline', {
+        desc: m.label, due: m.due, rule: m.cite, trigger: 'Trial ' + trialDate + ' minus ' + m.before + 'd',
+        status: 'open', ruleId: 'trial-back-' + m.key, anchor: 'trial', milestone: m.key, trialDate,
+      });
+    }
+    k.audit('calendar.trial.cascade', ctx.matter.id + ':' + trialDate + ':' + cascade.length);
+    ctx.setFlash(`Trial-anchored cascade ${existing ? 'recomputed' : 'calendared'} from ${trialDate} — ${cascade.length} pretrial milestones back-calculated. Confirm firm-default dates against the scheduling order.`);
     redirect(res, '/r/calendar');
   });
 

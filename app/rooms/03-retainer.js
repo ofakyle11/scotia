@@ -98,6 +98,33 @@ function statusTag(s) {
   return tag('draft');
 }
 
+// Is THIS matter conflict-cleared? Per the shared conflictRun contract a run
+// may carry matterId / inquiryId / parties; room 02's runs are keyed by the
+// name checked. Any of those — outcome clear or waiver, on this matter or its
+// client — satisfies the gate. Mirrors intake's inquiryCleared for matters.
+function matterCleared(k, matter) {
+  if (!matter) return false;
+  const client = String(matter.client || '').trim().toLowerCase();
+  // The inquiry this matter was opened from, if any — its runs count too.
+  const inq = k.firm.list('inquiry', (i) => i.matterId === matter.id)[0] || null;
+  return k.firm.list('conflictRun').some((r) => {
+    if (!r || (r.outcome !== 'clear' && r.outcome !== 'waiver')) return false;
+    if (r.matterId && r.matterId === matter.id) return true;
+    if (inq && r.inquiryId && r.inquiryId === inq.id) return true;
+    if (client && Array.isArray(r.parties) && r.parties.some((p) => String(p).trim().toLowerCase() === client)) return true;
+    if (client && r.name && String(r.name).trim().toLowerCase() === client) return true;
+    return false;
+  });
+}
+
+// What the executed fee agreement commits the client to, where a single figure
+// is knowable — the flat fee. Hourly/contingency have no fixed sum yet, so the
+// marker records the model without inventing a number.
+function expectedRetainerOf(e) {
+  if (e.feeModel === 'flat' && Number.isFinite(Number(e.flatAmount))) return Number(e.flatAmount);
+  return null;
+}
+
 function register(app) {
   app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
     const k = ctx.kernel;
@@ -108,6 +135,8 @@ function register(app) {
       const all = k.scope(ctx.matter.id).list('engagement').sort((a, b) => (b.version || 0) - (a.version || 0));
       const cur = all.find((e) => e.status !== 'superseded') || null;
       const next = cur && cur.status === 'draft' ? ['sent', 'Record sent'] : cur && cur.status === 'sent' ? ['signed', 'Record signed'] : null;
+      const cleared = matterCleared(k, ctx.matter);
+      const signBlocked = next && next[0] === 'signed' && !cleared;
       body = `
       <div class="grid2">
         <div class="card">
@@ -122,10 +151,11 @@ function register(app) {
             ['Sent', cur.sentAt ? date(cur.sentAt) : '—'],
             ['Signed', cur.signedAt ? date(cur.signedAt) : '—'],
           ])}
-          ${next ? `<form method="POST" action="/r/${ROOM.id}/status">
+          ${next ? `${signBlocked ? `<p class="note">${tag('conflicts gate', 'gate')} No cleared conflict check on file for this matter. Run a clear or waiver in Ethics &amp; Conflicts (room 02) before the engagement can be signed.</p>` : ''}
+          <form method="POST" action="/r/${ROOM.id}/status">
             <input type="hidden" name="id" value="${esc(cur.id)}"><input type="hidden" name="to" value="${next[0]}">
             ${input('on', `Date ${next[0]}`, { type: 'date', value: today() })}
-            <button>${next[1]}</button>
+            <button${signBlocked ? ' class="danger"' : ''}>${next[1]}</button>
           </form>` : '<p class="note">Signed and in force. A scope change issues a new version below.</p>'}
           ` : empty('No engagement yet — draft version 1 on the right.')}
         </div>
@@ -193,8 +223,25 @@ function register(app) {
       sc.put('engagement', { ...e, status: 'sent', sentAt: on });
       ctx.setFlash(`Engagement v${e.version} recorded as sent ${on}.`);
     } else if (ctx.body.to === 'signed' && e.status === 'sent') {
+      // Conflicts gate: a fee agreement cannot execute for a matter the firm
+      // has not cleared. Refuse and stay put — no signing, no marker.
+      if (!matterCleared(k, ctx.matter)) {
+        k.audit('engagement.sign.blocked', ctx.matter.id + ':v' + e.version + ':no-conflict-clearance');
+        ctx.setFlash('Cannot sign — no cleared conflict check on file for this matter. Run a clear or waiver in Ethics & Conflicts (room 02) first.', 'err');
+        redirect(res, `/r/${ROOM.id}`); return;
+      }
       sc.put('engagement', { ...e, status: 'signed', signedAt: on });
-      ctx.setFlash(`Engagement v${e.version} recorded as signed ${on} — retainer in force.`);
+      // Wire into the money side: post a firm-scope marker Trust & Books can
+      // see, so an executed fee agreement is not invisible to the ledger. No
+      // funds have moved — this records the commitment/expectation, not a txn.
+      const expected = expectedRetainerOf(e);
+      k.firm.put('engagementSigned', {
+        matterId: ctx.matter.id, engagementId: e.id, version: e.version,
+        feeModel: e.feeModel, rate: e.rate, flatAmount: e.flatAmount, contingencyPct: e.contingencyPct,
+        expectedRetainer: expected, signedAt: on, signedBy: ctx.user.name,
+      });
+      k.audit('engagement.signed', ctx.matter.id + ':v' + e.version + (expected != null ? ':expected ' + fmt(expected) : ':' + e.feeModel));
+      ctx.setFlash(`Engagement v${e.version} recorded as signed ${on} — retainer in force. Fee commitment posted to Trust & Books.`);
     } else {
       ctx.setFlash('Invalid status transition — engagements move draft to sent to signed.', 'err');
     }

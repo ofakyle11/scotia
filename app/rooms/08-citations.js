@@ -19,6 +19,10 @@ const CITE_PATTERNS = [
   /\b(?:19|20)\d{2}\s+[A-Z]{2,6}\s+\d{1,5}\b/g,
   // Volume–reporter–page: "376 F.3d 1113", "543 U.S. 220", "58 O.R. (3d) 165", "153 D.L.R. (4th) 193"
   /\b\d{1,4}\s+(?:F\.\s?(?:2d|3d|4th)|F\.\s?Supp\.(?:\s?[23]d)?|U\.S\.|S\.\s?Ct\.|S\.C\.R\.|O\.R\.|D\.L\.R\.|C\.C\.C\.|W\.W\.R\.|A\.C\.)(?:\s?\(\d(?:d|st|nd|rd|th)\))?\s+\d{1,5}\b/g,
+  // Rule-book citations: "FRCP 12(a)", "CPLR 213(2)", "FRE 702", "FRAP 4"
+  /\b(?:FRCP|FRAP|FRCrP|FRE|CPLR|CPR)\s+\d+(?:\.\d+)*(?:\([A-Za-z0-9]+\))*/g,
+  // Statutory pinpoints: "Limitations Act, 2002, s. 4", "Criminal Code, s. 718.2", "Rules, r. 3.02(1)"
+  /\b[A-Z][A-Za-z.'’-]+(?:\s+(?:of|and|the|[A-Z][A-Za-z.'’-]+)){0,5}\s+(?:Act|Code|Rules)(?:,?\s*(?:19|20)\d{2})?,?\s+(?:ss?|rr?|reg|art|para)\.?\s*\d+(?:\.\d+)*(?:\([A-Za-z0-9]+\))*/g,
 ];
 
 function extractCites(text) {
@@ -42,10 +46,19 @@ function extractCites(text) {
 const today = () => new Date().toISOString().slice(0, 10);
 const roomUrl = (draftId) => '/r/citations' + (draftId ? '?draft=' + encodeURIComponent(draftId) : '');
 const certUrl = (draftId) => '/r/citations/certificate?draft=' + encodeURIComponent(draftId);
-// The certificate's admission test: scanned, and every instance verified —
-// the same condition regate calls 'clear'. Nothing certifies a blocked or
-// unscanned draft.
-const isClear = (d, inst) => !!d.scannedAt && inst.every((i) => i.status === 'verified');
+// Staleness — closes the verify->edit->certify loophole. Every scan/verify
+// records a gateStamp holding the draft's updatedAt at the moment the gate was
+// last established. A later write to the draft (an edit from Brief Writer, which
+// also bumps updatedAt) leaves updatedAt ahead of the stamp: its verified
+// instances no longer describe the current text, so they are stale until the
+// draft is re-scanned and re-verified. A full-ISO stamp (not the date-only
+// scannedAt) is what makes this comparison meaningful.
+const stampAt = (s, draftId) => { const g = s.get('gateStamp', draftId); return g ? g.at : null; };
+const isStale = (d, at) => !!d.scannedAt && !!at && String(d.updatedAt || '') > String(at);
+// The certificate's admission test: scanned, not stale, and every instance
+// verified — the same condition regate calls 'clear'. Nothing certifies a
+// blocked, unscanned, or edited-since-scan draft.
+const isClear = (d, inst, stale) => !!d.scannedAt && !stale && inst.every((i) => i.status === 'verified');
 // A draft's text lives in .text (this room's registered drafts) or in the
 // Brief Writer's .sections — read BOTH, or section drafts would extract as
 // empty and sail through the gate unchecked.
@@ -58,14 +71,34 @@ function regate(s, draftId) {
   if (!draft) return null;
   const inst = s.list('citation_instance', (i) => i.draftId === draftId);
   const citeStatus = inst.every((i) => i.status === 'verified') ? 'clear' : 'blocked';
-  s.put('draft', { ...draft, citeStatus });
+  // Write citeStatus last, then stamp the gate to that write's own updatedAt —
+  // so a subsequent content edit (a later updatedAt) reads as stale.
+  const rec = s.put('draft', { ...draft, citeStatus });
+  s.put('gateStamp', { id: draftId, at: rec.updatedAt });
   return citeStatus;
 }
 
-function gateTag(d, inst) {
+// Extract, mint unverified instances for anything new, mark scanned, regate.
+// Shared by the manual Extract button and by auto-extract-on-open.
+function runScan(s, draft) {
+  const cites = extractCites(draftText(draft));
+  const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => i.cite.toLowerCase()));
+  let created = 0;
+  for (const cite of cites) {
+    if (have.has(cite.toLowerCase())) continue;
+    s.put('citation_instance', { cite, draftId: draft.id, status: 'unverified', pinpoint: '', quoteOk: null, treatmentCurrent: null, resolved: null });
+    created++;
+  }
+  s.put('draft', { ...s.get('draft', draft.id), scannedAt: today() });
+  const st = regate(s, draft.id);
+  return { cites, created, st };
+}
+
+function gateTag(d, inst, stale) {
   if (!inst.length && !d.scannedAt) return d.citeStatus === 'clear' ? tag('clear', 'ok') : tag('unchecked');
   if (inst.some((i) => i.status === 'failed')) return tag('blocked — failed cites', 'gate');
   if (inst.some((i) => i.status === 'unverified')) return tag('blocked — unverified', 'gate');
+  if (stale) return tag('blocked — edited since scan', 'gate');
   return tag('clear', 'ok');
 }
 
@@ -108,11 +141,22 @@ function register(app) {
       return;
     }
     const s = k.scope(ctx.matter.id);
+    // Auto-extract on open: a draft sent from Brief Writer arrives as
+    // 'cite-check' with no instances and no scan — run the pass now so the
+    // queue reliably appears without a second click. Guarded by !scannedAt, it
+    // runs once per draft.
+    for (const d of s.list('draft')) {
+      if (d.status === 'cite-check' && !d.scannedAt && !s.list('citation_instance', (i) => i.draftId === d.id).length) {
+        const r = runScan(s, d);
+        k.audit('citation.autoscan', ctx.matter.id + ':' + d.id + ':' + r.created);
+      }
+    }
     const drafts = s.list('draft').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const all = s.list('citation_instance');
     const want = ctx.query.get('draft');
     const sel = drafts.find((d) => d.id === want) || drafts[0] || null;
     const selInst = sel ? all.filter((i) => i.draftId === sel.id) : [];
+    const selStale = sel ? isStale(sel, stampAt(s, sel.id)) : false;
     const queue = selInst.filter((i) => i.status === 'unverified');
     const decided = selInst.filter((i) => i.status !== 'unverified');
 
@@ -120,28 +164,39 @@ function register(app) {
     const ncell = (n) => `<span class="num" style="display:block;text-align:right">${n}</span>`;
     const board = drafts.length ? table(['Draft', 'Cites', 'Unverified', 'Failed', 'Gate', ''], drafts.map((d) => {
       const inst = all.filter((i) => i.draftId === d.id);
+      const stale = isStale(d, stampAt(s, d.id));
       return [
         esc(d.title || '(untitled draft)'),
         ncell(inst.length),
         ncell(inst.filter((i) => i.status === 'unverified').length),
         ncell(inst.filter((i) => i.status === 'failed').length),
-        gateTag(d, inst),
+        gateTag(d, inst, stale),
         `<a href="${esc(roomUrl(d.id))}">open queue →</a>` +
-          (inst.length && isClear(d, inst) ? ` &middot; <a href="${esc(certUrl(d.id))}">Print certificate →</a>` : ''),
+          (inst.length && isClear(d, inst, stale) ? ` &middot; <a href="${esc(certUrl(d.id))}">Print certificate →</a>` : ''),
       ];
     })) : empty('No drafts on this matter yet — register one on the right, or send one from Brief Writer (18).');
 
     const selBlock = sel ? `
-    <h2 class="sec">Queue — ${esc(sel.title || '(untitled draft)')} ${gateTag(sel, selInst)}</h2>
+    <h2 class="sec">Queue — ${esc(sel.title || '(untitled draft)')} ${gateTag(sel, selInst, selStale)}</h2>
+    ${selStale ? `<div class="flash err">This draft was edited after its citations were verified — those verifications are stale. Re-extract and re-verify before certifying.</div>` : ''}
     <div class="card">
       ${kv([
         ['Draft', esc(sel.title || '(untitled draft)')],
         ['Text', `<span class="num">${draftText(sel).length}</span> characters`],
         ['Last extracted', sel.scannedAt ? date(sel.scannedAt) : '— not yet run'],
-        ['Gate', gateTag(sel, selInst)],
+        ['Gate', gateTag(sel, selInst, selStale)],
       ])}
       <form method="POST" action="/r/citations/scan"><input type="hidden" name="draftId" value="${esc(sel.id)}"><button>Extract citations from draft</button></form>
-      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral and volume cites) that over-captures on purpose; a human clears every row. eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07) — treatment classification stays human-confirmed (Gap 2).</p>
+      <p class="note">Extraction is a reference-regex pass (styles of cause, bracket-year reports, neutral, volume, rule-book and statutory cites) that over-captures on purpose; a human clears every row. eyecite extraction and CourtListener/CAP resolution wire in here (Build Sheet L07) — treatment classification stays human-confirmed (Gap 2).</p>
+    </div>
+    <div class="card">
+      <h2 class="sec" style="margin-top:0">Add a citation the extractor missed</h2>
+      <form method="POST" action="/r/citations/add">
+        <input type="hidden" name="draftId" value="${esc(sel.id)}">
+        ${input('cite', 'Citation text', { required: true, placeholder: 'e.g. Limitations Act, 2002, s. 4' })}
+        <button>Add to queue</button>
+      </form>
+      <p class="note">Nothing files unlisted — if the pass missed a case or statute, add it here so it must be verified too. The draft stays blocked until it is.</p>
     </div>
     ${queue.length ? `<h2 class="sec">Awaiting verification — ${queue.length}</h2>` + queue.map(verifyCard).join('')
       : (selInst.length ? '' : empty('No citation instances yet — run the extractor.'))}
@@ -193,20 +248,30 @@ function register(app) {
     const s = ctx.kernel.scope(ctx.matter.id);
     const draft = ctx.body.draftId ? s.get('draft', ctx.body.draftId) : null;
     if (!draft) { ctx.setFlash('Pick a draft to extract from.', 'err'); redirect(res, roomUrl()); return; }
-    const cites = extractCites(draftText(draft));
-    const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => i.cite.toLowerCase()));
-    let created = 0;
-    for (const cite of cites) {
-      if (have.has(cite.toLowerCase())) continue;
-      s.put('citation_instance', { cite, draftId: draft.id, status: 'unverified', pinpoint: '', quoteOk: null, treatmentCurrent: null, resolved: null });
-      created++;
-    }
-    s.put('draft', { ...s.get('draft', draft.id), scannedAt: today() });
-    const st = regate(s, draft.id);
+    const { cites, created, st } = runScan(s, draft);
     ctx.kernel.audit('citation.scan', ctx.matter.id + ':' + draft.id + ':' + created);
     ctx.setFlash(cites.length
       ? `Extracted ${cites.length} citation-like string${cites.length === 1 ? '' : 's'} (${created} new). Gate is ${st === 'clear' ? 'clear' : 'BLOCKED until each is verified'}.`
       : 'No citation-like strings found — gate is clear for this draft.');
+    redirect(res, roomUrl(draft.id));
+  });
+
+  // Manual add — a cite the over-capturing pass still missed. It enters the
+  // queue as unverified like any other, so nothing reaches filing unlisted.
+  app.route('POST', `/r/${ROOM.id}/add`, (req, res, ctx) => {
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, roomUrl()); return; }
+    const s = ctx.kernel.scope(ctx.matter.id);
+    const draft = ctx.body.draftId ? s.get('draft', ctx.body.draftId) : null;
+    if (!draft) { ctx.setFlash('Pick a draft to add the citation to.', 'err'); redirect(res, roomUrl()); return; }
+    const cite = String(ctx.body.cite || '').replace(/\s+/g, ' ').trim();
+    if (!cite) { ctx.setFlash('Enter the citation text to add.', 'err'); redirect(res, roomUrl(draft.id)); return; }
+    const have = new Set(s.list('citation_instance', (i) => i.draftId === draft.id).map((i) => i.cite.toLowerCase()));
+    if (have.has(cite.toLowerCase())) { ctx.setFlash('That citation is already on this draft’s queue.', 'err'); redirect(res, roomUrl(draft.id)); return; }
+    s.put('citation_instance', { cite, draftId: draft.id, status: 'unverified', pinpoint: '', quoteOk: null, treatmentCurrent: null, resolved: null });
+    if (!draft.scannedAt) s.put('draft', { ...s.get('draft', draft.id), scannedAt: today() });
+    regate(s, draft.id);
+    ctx.kernel.audit('citation.added', ctx.matter.id + ':' + draft.id);
+    ctx.setFlash('Added to the queue — verify it like any extracted cite. The draft stays blocked until it is.');
     redirect(res, roomUrl(draft.id));
   });
 
@@ -268,8 +333,11 @@ function register(app) {
     const draft = want ? s.get('draft', want) : null;
     if (!draft) { ctx.setFlash('Certificate refused — pick a draft to certify.', 'err'); redirect(res, roomUrl()); return; }
     const inst = s.list('citation_instance', (i) => i.draftId === draft.id);
-    if (!isClear(draft, inst)) {
-      ctx.setFlash('Certificate refused — the gate is not clear.', 'err');
+    const stale = isStale(draft, stampAt(s, draft.id));
+    if (!isClear(draft, inst, stale)) {
+      ctx.setFlash(stale
+        ? 'Certificate refused — the draft was edited since its citations were verified. Re-extract and re-verify first.'
+        : 'Certificate refused — the gate is not clear.', 'err');
       redirect(res, roomUrl(draft.id));
       return;
     }

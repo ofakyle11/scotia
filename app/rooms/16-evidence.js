@@ -12,6 +12,17 @@ function register(app) {
     const s = k.scope(ctx.matter.id);
     const exhibits = s.list('exhibit').sort((a, b) => String(a.number).localeCompare(String(b.number), undefined, { numeric: true }));
     const limine = s.list('inLimine');
+    // Reviewed documents from Document Review (room 13, same matter scope) an
+    // exhibit can point to by id — so its Bates/title is carried, not retyped.
+    const docs = s.list('document').sort((a, b) => (a.bates || '').localeCompare(b.bates || ''));
+    const docById = new Map(docs.map((d) => [d.id, d]));
+    const docOpts = [['', '— none (type description below) —'], ...docs.map((d) => [d.id, `${d.bates || '?'} — ${d.title || '(untitled)'}`])];
+    const docCell = (e) => {
+      if (!e.documentId) return '—';
+      const d = docById.get(e.documentId);
+      if (!d) return tag('doc removed', 'gate');
+      return `<a href="/r/review/doc/${encodeURIComponent(d.id)}"><span class="num">${esc(d.bates || '—')}</span> ${esc(d.title || '(untitled)')}</a>`;
+    };
     const body = `
     <div class="grid2">
       <div class="card">
@@ -21,6 +32,7 @@ function register(app) {
             <span>${select('side', 'Side', [['P', 'Plaintiff / Applicant'], ['D', 'Defendant / Respondent']], 'P')}</span>
             <span>${input('witness', 'Sponsoring witness (who authenticates)')}</span>
           </div>
+          ${select('documentId', 'Link a reviewed document (optional — carries its Bates/title)', docOpts, '')}
           ${input('description', 'Description', { required: true, placeholder: 'Service invoice, 12 March 2025' })}
           <div class="grid2">
             <span>${input('foundation', 'Foundation', { placeholder: 'Business record — maker or qualified witness' })}</span>
@@ -28,7 +40,7 @@ function register(app) {
           </div>
           <button>Number &amp; list</button>
         </form>
-        <p class="note">Numbers are assigned per side (P-1, P-2… / D-1…) and never reused. Foundation and hearsay rules per evidence code are reference data in production (FRE / provincial evidence acts).</p>
+        <p class="note">Numbers are assigned per side (P-1, P-2… / D-1…) and never reused. Link a document from <a href="/r/review">Document Review</a> to carry its Bates and title instead of retyping. An exhibit needs both a foundation note and a sponsoring witness before it can be admitted. Foundation and hearsay rules per evidence code are reference data in production (FRE / provincial evidence acts).</p>
       </div>
       <div class="card">
         <h2 class="sec" style="margin-top:0">Motions in limine</h2>
@@ -42,8 +54,8 @@ function register(app) {
       </div>
     </div>
     <h2 class="sec">Exhibit list — ${esc(ctx.matter.title)}</h2>
-    ${exhibits.length ? table(['No.', 'Description', 'Witness', 'Foundation', 'Hearsay path', 'Status', ''], exhibits.map((e) => [
-      `<span class="num">${esc(e.number)}</span>`, esc(e.description), esc(e.witness || ''), esc(e.foundation || ''), esc(e.hearsay || ''),
+    ${exhibits.length ? table(['No.', 'Description', 'Document', 'Witness', 'Foundation', 'Hearsay path', 'Status', ''], exhibits.map((e) => [
+      `<span class="num">${esc(e.number)}</span>`, esc(e.description), docCell(e), esc(e.witness || ''), esc(e.foundation || ''), esc(e.hearsay || ''),
       tag(e.status || 'listed', e.status === 'admitted' ? 'ok' : e.status === 'refused' ? 'gate' : ''),
       `<form method="POST" action="/r/evidence/status" style="margin:0"><input type="hidden" name="id" value="${esc(e.id)}"><select name="status" style="width:auto"><option>listed</option><option>offered</option><option>admitted</option><option>refused</option></select><button class="quiet">Set</button></form>`,
     ])) : empty('No exhibits listed yet — number the first with the form above.')}
@@ -58,17 +70,27 @@ function register(app) {
     const s = ctx.kernel.scope(ctx.matter.id);
     const side = ctx.body.side === 'D' ? 'D' : 'P';
     const n = s.list('exhibit', (e) => e.side === side).length + 1;
-    s.put('exhibit', { side, number: `${side}-${n}`, description: desc, witness: ctx.body.witness, foundation: ctx.body.foundation, hearsay: ctx.body.hearsay, status: 'listed' });
-    ctx.setFlash(`Exhibit ${side}-${n} listed.`);
+    // Optional link to a reviewed document — kept only if it resolves in this matter.
+    const documentId = String(ctx.body.documentId || '').trim();
+    const linkedDoc = documentId ? s.get('document', documentId) : null;
+    s.put('exhibit', { side, number: `${side}-${n}`, description: desc, witness: ctx.body.witness, foundation: ctx.body.foundation, hearsay: ctx.body.hearsay, documentId: linkedDoc ? linkedDoc.id : '', status: 'listed' });
+    ctx.setFlash(`Exhibit ${side}-${n} listed.${linkedDoc ? ` Linked to ${linkedDoc.bates || 'document'}.` : ''}`);
     redirect(res, '/r/evidence');
   });
 
   app.route('POST', `/r/${ROOM.id}/status`, (req, res, ctx) => {
-    if (ctx.matter) {
-      const s = ctx.kernel.scope(ctx.matter.id);
-      const e = s.get('exhibit', String(ctx.body.id || ''));
-      if (e && ['listed', 'offered', 'admitted', 'refused'].includes(ctx.body.status)) s.put('exhibit', { ...e, status: ctx.body.status });
+    if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/evidence'); return; }
+    const s = ctx.kernel.scope(ctx.matter.id);
+    const e = s.get('exhibit', String(ctx.body.id || ''));
+    const status = ctx.body.status;
+    if (!e || !['listed', 'offered', 'admitted', 'refused'].includes(status)) { redirect(res, '/r/evidence'); return; }
+    // An exhibit cannot be admitted without a foundation note AND a sponsoring witness.
+    if (status === 'admitted' && (!String(e.foundation || '').trim() || !String(e.witness || '').trim())) {
+      ctx.setFlash(`Exhibit ${e.number} cannot be admitted without both a foundation note and a sponsoring witness.`, 'err');
+      redirect(res, '/r/evidence'); return;
     }
+    s.put('exhibit', { ...e, status });
+    if (status === 'admitted') ctx.kernel.audit('evidence.admitted', ctx.matter.id + ':' + e.number);
     redirect(res, '/r/evidence');
   });
 

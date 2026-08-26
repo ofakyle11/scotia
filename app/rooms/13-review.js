@@ -2,7 +2,7 @@
 // Room 13 — Document Review. Encrypted review set: paste text in, code it,
 // keep the privilege log honest, and cut the production list. Document text
 // lives in per-matter encrypted blobs; only metadata rides in the index.
-const { layout, esc, table, empty, tag, input, textarea, select, date } = require('../kernel/html.js');
+const { layout, esc, table, empty, tag, input, textarea, select, date, kv } = require('../kernel/html.js');
 const { html, redirect } = require('../kernel/http.js');
 
 const ROOM = { num: 13, id: 'review', title: 'Document Review', phase: 'Discover' };
@@ -24,6 +24,14 @@ const parseIssues = (s) => String(s || '').split(',').map((x) => x.trim()).filte
 const issuesOf = (d) => (Array.isArray(d.issues) ? d.issues : []);
 const privOf = (d) => d.privilege || 'none';
 const respOf = (d) => d.responsive === 'yes' ? 'yes' : 'no';
+// Privilege-log descriptors, captured on the document. Author/recipients fall
+// back to the mail metadata for .eml intake; created date falls back to the
+// document date. The description is a neutral account of the withheld subject —
+// existence and basis only, never the content itself.
+const authorOf = (d) => d.author || d.custodian || '';
+const recipientsOf = (d) => d.recipients || d.to || '';
+const createdOf = (d) => d.dateCreated || d.date || '';
+const privDescOf = (d) => d.privDesc || '';
 
 function findSnippet(text, q) {
   const i = text.toLowerCase().indexOf(q.toLowerCase());
@@ -148,6 +156,9 @@ function codeForm(d) {
     <select name="privilege" aria-label="Privilege">${opts(PRIVILEGE, privOf(d))}</select>
     <select name="responsive" aria-label="Responsive">${opts(RESPONSIVE, respOf(d))}</select>
     <input name="issues" aria-label="Issue tags" placeholder="issue tags, comma-separated" value="${esc(issuesOf(d).join(', '))}">
+    <input name="author" aria-label="Author (privilege log)" placeholder="author (if withheld)" value="${esc(authorOf(d))}">
+    <input name="recipients" aria-label="Recipients (privilege log)" placeholder="recipients (if withheld)" value="${esc(recipientsOf(d))}">
+    <input name="privDesc" aria-label="Privilege-log description" placeholder="withheld subject — never content" value="${esc(privDescOf(d))}">
     <button class="quiet">Recode</button>
   </form>`;
 }
@@ -195,7 +206,7 @@ function register(app) {
     const rows = docs.map((d) => {
       const r = [
         `<span class="num">${esc(d.bates || '—')}</span>`,
-        esc(d.title || '') + (d.source === 'eml' ? ' ' + tag('eml', 'navy') + sentNote(d) : ''),
+        `<a href="/r/review/doc/${encodeURIComponent(d.id)}">${esc(d.title || '(untitled)')}</a>` + (d.source === 'eml' ? ' ' + tag('eml', 'navy') + sentNote(d) : ''),
         esc(d.custodian || '—'),
         date(d.date) || '—',
         privTag(d),
@@ -229,10 +240,13 @@ function register(app) {
           ${input('title', 'Title', { required: true, placeholder: 'Email re: schedule slippage' })}
           <div class="grid2">
             <span>${input('custodian', 'Custodian', { placeholder: 'Who held this document' })}</span>
-            <span>${input('docDate', 'Document date', { type: 'date' })}</span>
+            <span>${input('docDate', 'Document date (created)', { type: 'date' })}</span>
             <span>${select('privilege', 'Privilege call', PRIVILEGE, 'none')}</span>
             <span>${select('responsive', 'Responsive', RESPONSIVE, 'no')}</span>
+            <span>${input('author', 'Author (for the privilege log)', { placeholder: 'Who wrote it' })}</span>
+            <span>${input('recipients', 'Recipients (for the privilege log)', { placeholder: 'Who received it' })}</span>
           </div>
+          ${input('privDesc', 'Privilege-log description', { placeholder: 'Neutral description of the withheld subject — never its content' })}
           ${textarea('text', 'Document text (pasted)', { required: true, placeholder: 'Paste the text. It is stored as an encrypted blob under this matter’s key — never in the metadata index.' })}
           ${input('issues', 'Issue tags (comma-separated)', { placeholder: 'delay, notice, damages' })}
           <button>Add — next bates auto-assigned</button>
@@ -249,13 +263,15 @@ function register(app) {
     </div>
 
     <h2 class="sec">Privilege log ${withheld.length ? tag(withheld.length + ' withheld', 'gate') : ''}</h2>
-    ${table(['Bates', 'Date', 'Custodian', 'Basis'], withheld.map((d) => [
+    ${table(['Bates', 'Created', 'Author', 'Recipients', 'Description', 'Basis'], withheld.map((d) => [
       `<span class="num">${esc(d.bates || '—')}</span>`,
-      date(d.date) || '—',
-      esc(d.custodian || '—'),
+      date(createdOf(d)) || '—',
+      esc(authorOf(d) || '—'),
+      esc(recipientsOf(d) || '—'),
+      esc(privDescOf(d) || '—'),
       esc(PRIV_BASIS[privOf(d)] || privOf(d)),
     ])) || empty('Nothing withheld — no privilege claims coded.')}
-    <p class="note">The log discloses existence and basis only — never content. It is generated from coding, so it cannot drift from the set.</p>
+    <p class="note">Each withheld entry carries its own author, recipients, created date and a neutral description of the subject — captured on the document when it is coded. The log discloses existence and basis only, never content; it is generated from coding, so it cannot drift from the set. Fill the descriptors in the Coding form (or when adding the document) so the log stands on its own.</p>
 
     <h2 class="sec">Production list ${production.length ? tag(production.length + ' to produce', 'ok') : ''}</h2>
     ${table(['Bates', 'Title', 'Custodian', 'Date'], production.map((d) => [
@@ -267,6 +283,59 @@ function register(app) {
     <p class="note">Responsive and not privileged, by definition — a document cannot appear here and in the privilege log at once. OpenSearch indexing with Tika extraction, Presidio PII flags and X-Ray dedupe wire in at scale — Build Sheet L06.</p>
     `;
     render(body);
+  });
+
+  // Document view — the reviewer reads the FULL decrypted body, not the 45-char
+  // search snippet. Text is fetched from the encrypted blob at request time and
+  // escaped before it reaches the page; nothing is written.
+  app.route('GET', `/r/${ROOM.id}/doc/:id`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const render = (title, body) => html(res, layout({ ...ctx, room: ROOM.id },
+      { title: ROOM.title, sub: title, body }));
+    if (!ctx.matter) { render('Document view', empty('Open a matter to view its documents.')); return; }
+
+    const s = k.scope(ctx.matter.id);
+    const id = String(ctx.params.id || '').trim();
+    const doc = id ? s.get('document', id) : null;
+    if (!doc) {
+      render('Document view', empty('Document not found in this matter.')
+        + `<p class="note"><a href="/r/review">Back to the review set</a></p>`);
+      return;
+    }
+
+    let text = '', err = null;
+    if (doc.blobId) {
+      try { text = k.blob.get(ctx.matter.id, doc.blobId).toString('utf8'); }
+      catch (e) { err = 'The stored body could not be decrypted for this record.'; }
+    } else {
+      err = 'This record carries no stored body.';
+    }
+    k.audit('review.view', ctx.matter.id + ':' + (doc.bates || doc.id));
+
+    const meta = kv([
+      ['Bates', `<span class="num">${esc(doc.bates || '—')}</span>`],
+      ['Title', esc(doc.title || '(untitled)')],
+      ['Custodian', esc(doc.custodian || '—')],
+      ['Author', esc(authorOf(doc) || '—')],
+      ['Recipients', esc(recipientsOf(doc) || '—')],
+      ['Created', date(createdOf(doc)) || '—'],
+      ['Privilege', privTag(doc)],
+      ['Responsive', respTag(doc)],
+      ['Issues', issuesOf(doc).map((i) => tag(i, 'navy')).join(' ') || '—'],
+    ].concat(doc.source === 'eml' ? [['Source', tag('eml', 'navy')]] : []));
+
+    const bodyBlock = err
+      ? empty(err)
+      : `<pre style="white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:auto;background:var(--ground);border:1px solid var(--rule);padding:14px;margin:0;font-family:var(--f-mono);font-size:12.5px;line-height:1.6">${esc(text)}</pre>`;
+
+    const body = `
+    <p class="note"><a href="/r/review">Back to the review set</a></p>
+    <div class="card">${meta}</div>
+    <h2 class="sec">Full text${err ? '' : ` <span class="num">${text.length}</span> chars`}</h2>
+    ${bodyBlock}
+    <p class="note">Decrypted from this matter’s key at request time and escaped before display — the plaintext is never written back to the index or the page source.</p>
+    `;
+    render('Document view — full decrypted text', body);
   });
 
   app.route('POST', `/r/${ROOM.id}/add`, (req, res, ctx) => {
@@ -287,6 +356,9 @@ function register(app) {
       privilege: PRIVILEGE.some(([v]) => v === ctx.body.privilege) ? ctx.body.privilege : 'none',
       responsive: ctx.body.responsive === 'yes' ? 'yes' : 'no',
       issues: parseIssues(ctx.body.issues),
+      author: String(ctx.body.author || '').trim(),
+      recipients: String(ctx.body.recipients || '').trim(),
+      privDesc: String(ctx.body.privDesc || '').trim(),
     });
     ctx.setFlash(`${doc.bates} added — text encrypted under this matter’s key.`);
     redirect(res, '/r/review');
@@ -303,6 +375,9 @@ function register(app) {
       privilege: PRIVILEGE.some(([v]) => v === ctx.body.privilege) ? ctx.body.privilege : privOf(doc),
       responsive: ctx.body.responsive === 'yes' || ctx.body.responsive === 'no' ? ctx.body.responsive : respOf(doc),
       issues: 'issues' in ctx.body ? parseIssues(ctx.body.issues) : issuesOf(doc),
+      author: 'author' in ctx.body ? String(ctx.body.author).trim() : (doc.author || ''),
+      recipients: 'recipients' in ctx.body ? String(ctx.body.recipients).trim() : (doc.recipients || ''),
+      privDesc: 'privDesc' in ctx.body ? String(ctx.body.privDesc).trim() : (doc.privDesc || ''),
     });
     ctx.setFlash(`${doc.bates || 'Document'} recoded.`);
     redirect(res, '/r/review');

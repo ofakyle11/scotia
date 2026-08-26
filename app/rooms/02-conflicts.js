@@ -106,6 +106,15 @@ function register(app) {
     // provenance is a screened matter are dropped before display.
     const visibleMatters = new Set((ctx.matters || []).map((m) => m.id));
     const viewHits = (hits) => (hits || []).filter((h) => !h.mid || visibleMatters.has(h.mid));
+    const matterTitle = (id) => { const m = (ctx.matters || []).find((x) => x.id === id); return m ? m.title : null; };
+    const inquiryLabel = (id) => { const i = (k.firm.get('inquiry', id) || {}); return i.client || null; };
+    // What a stored run is tied to, wall-aware: a run on a matter this viewer is
+    // screened from shows no tie label rather than leaking the matter's title.
+    const runTie = (r) => {
+      if (r.matterId) return visibleMatters.has(r.matterId) ? 'matter — ' + (matterTitle(r.matterId) || r.matterId) : null;
+      if (r.inquiryId) return 'inquiry — ' + (inquiryLabel(r.inquiryId) || r.inquiryId);
+      return null;
+    };
     const parties = k.firm.list('party', (p) => !p.matterId || visibleMatters.has(p.matterId))
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const inquiries = k.firm.list('inquiry');
@@ -132,6 +141,7 @@ function register(app) {
         <h2 class="sec" style="margin-top:0">Run a conflict check</h2>
         <form method="POST" action="/r/conflicts/run">
           ${input('name', 'Name to clear', { required: true, placeholder: 'Person, company, insurer, witness…' })}
+          ${select('target', 'Clearing for — ties this run to the file the gate reads', targets, defaultTarget)}
           <button>Check against everything on file</button>
         </form>
         <p class="note">Token match against ${mattersAll.length} matter(s), ${inquiries.length} inquiry(ies) and ${parties.length} recorded part${parties.length === 1 ? 'y' : 'ies'} — clients, adverse parties and aliases. Probabilistic record linkage (Splink) wires in here — Build Sheet L06; until it lands, matching is exact token overlap and nothing is fabricated.</p>
@@ -153,14 +163,14 @@ function register(app) {
     <h2 class="sec">Awaiting re-check ${unscreened.length ? tag(String(unscreened.length) + ' unscreened', 'gate') : tag('graph screened', 'ok')}</h2>
     ${unscreened.length ? table(['Added', 'Name', 'Role', 'Attached to', ''], unscreened.map((p) => [
       date(p.createdAt), esc(p.name), esc(p.role || ''), esc(partyWhere(k, p)),
-      `<form method="POST" action="/r/conflicts/run" style="display:inline"><input type="hidden" name="name" value="${esc(p.name)}"><button class="quiet">Run check</button></form>`,
+      `<form method="POST" action="/r/conflicts/run" style="display:inline"><input type="hidden" name="name" value="${esc(p.name)}"><input type="hidden" name="target" value="${esc(p.matterId ? 'm:' + p.matterId : p.inquiryId ? 'i:' + p.inquiryId : '')}"><button class="quiet">Run check</button></form>`,
     ])) : empty(lastRunAt ? 'No parties added since the last conflict run.' : 'No parties on file yet — record one above.')}
     ${lastRunAt ? `<p class="note">Last conflict run: ${esc(String(lastRunAt).slice(0, 10))}.</p>` : ''}
 
     <h2 class="sec">Conflict runs</h2>
     ${runs.length ? table(['Date', 'Name checked', 'Hits — and the matter they came from', 'Outcome'], runs.map((r) => [
       date(r.createdAt),
-      esc(r.name),
+      esc(r.name) + (runTie(r) ? `<br><span class="note">${esc(runTie(r))}</span>` : ''),
       viewHits(r.hits).length
         ? viewHits(r.hits).map((h) => `<b>${esc(h.name)}</b> <span class="note">${esc(h.via)} · ${esc(h.from)} · matched: ${esc((h.shared || []).join(', '))}</span>`).join('<br>')
         : '<span class="note">no hits</span>',
@@ -252,14 +262,31 @@ function register(app) {
       ctx.setFlash('Enter a name with at least one matchable token (3+ letters).', 'err');
       redirect(res, '/r/conflicts'); return;
     }
+    // Tie the run to the file the other rooms gate on. The target list is built
+    // from wall-aware ctx.matters + screening inquiries; k.matter re-checks the
+    // wall so a garbage/walled matterId simply drops.
+    const target = String(ctx.body.target || '');
+    const matterId = target.startsWith('m:') ? target.slice(2) : null;
+    const inquiryId = target.startsWith('i:') ? target.slice(2) : null;
+    const tiedMatter = matterId ? k.matter(matterId) : null;
+    const tiedInquiry = inquiryId ? k.firm.get('inquiry', inquiryId) : null;
+    // Parties this run speaks for: the name checked, plus the client and adverse
+    // parties of the matter/inquiry it clears — per the shared conflictRun shape.
+    const parties = [name];
+    if (tiedMatter) { if (tiedMatter.client) parties.push(tiedMatter.client); for (const a of tiedMatter.adverse || []) if (a) parties.push(a); }
+    if (tiedInquiry) { if (tiedInquiry.client) parties.push(tiedInquiry.client); for (const a of tiedInquiry.adverse || []) if (a) parties.push(a); }
     const { hits } = runCheck(k, name);
     const run = k.firm.put('conflictRun', {
-      name, hits, outcome: hits.length ? 'pending' : 'clear', runBy: ctx.user.name,
+      name, hits, parties: [...new Set(parties.filter(Boolean))],
+      matterId: tiedMatter ? matterId : null, inquiryId: tiedInquiry ? inquiryId : null,
+      outcome: hits.length ? 'pending' : 'clear',
+      runBy: ctx.user.name, ranBy: ctx.user.name, ranAt: new Date().toISOString(),
     });
-    k.audit('conflicts.run', run.id + ':' + hits.length + ' hits');
+    k.audit('conflicts.run', run.id + ':' + hits.length + ' hits' + (matterId ? ':m=' + matterId : inquiryId ? ':i=' + inquiryId : ''));
+    const tiedTo = tiedInquiry ? ` — clearance recorded for inquiry ${tiedInquiry.client || inquiryId}` : tiedMatter ? ` — clearance recorded for matter ${tiedMatter.title || matterId}` : '';
     ctx.setFlash(hits.length
       ? `${hits.length} hit(s) for “${name}” — resolve the run: clear, waiver needed, or declined.`
-      : `“${name}” is clear against every matter, inquiry and party on file.`);
+      : `“${name}” is clear against every matter, inquiry and party on file${tiedTo}.`);
     redirect(res, '/r/conflicts');
   });
 

@@ -71,9 +71,17 @@ function register(app) {
     if (!d) { ctx.setFlash('Draft not found.', 'err'); redirect(res, '/r/briefs'); return; }
     const sections = {};
     for (const [k2] of SECTIONS) sections[k2] = String(ctx.body['s_' + k2] || '');
-    // Any edit reopens the citation gate: verified text is the text that was verified.
-    s.put('draft', { ...d, sections, court: ctx.body.court, wordLimit: ctx.body.wordLimit, status: d.status === 'final' ? 'draft' : d.status, citeStatus: 'none' });
-    ctx.setFlash('Draft saved — citation status reset (verified text is the text that was verified).');
+    // Only a change to the argument text reopens the citation gate — verified
+    // text is the text that was verified, so edited-after-verify sections can
+    // never stay 'clear'. Editing metadata alone (court, word limit) leaves a
+    // cleared, final draft as it was.
+    const sectionsChanged = SECTIONS.some(([k2]) => sections[k2] !== String((d.sections || {})[k2] || ''));
+    const next = { ...d, sections, court: ctx.body.court, wordLimit: ctx.body.wordLimit };
+    if (sectionsChanged) { next.citeStatus = 'none'; if (next.status === 'final') next.status = 'draft'; }
+    s.put('draft', next);
+    ctx.setFlash(sectionsChanged
+      ? 'Draft saved — sections changed, citation status reset (verified text is the text that was verified).'
+      : 'Draft saved.');
     redirect(res, '/r/briefs?d=' + d.id);
   });
 
@@ -88,8 +96,12 @@ function register(app) {
       s.put('draft', { ...d, status: 'final' });
       ctx.setFlash('Marked final — eligible for the Filing Room.');
     } else if (status === 'cite-check') {
+      // Genuinely mark the draft for extraction — Citation Check (room 08)
+      // auto-extracts a cite-check draft with no instances yet on open. We
+      // mint nothing here, so promise nothing here.
       s.put('draft', { ...d, status: 'cite-check' });
-      ctx.setFlash('Sent to Citation Check — room 08 extracts and queues its citations.');
+      ctx.kernel.audit('brief.cite-check', ctx.matter.id + ':' + d.id);
+      ctx.setFlash('Marked for cite-check — open Citation Check (room 08) to extract and verify its citations.');
     }
     redirect(res, '/r/briefs?d=' + d.id);
   });
