@@ -45,7 +45,7 @@ function register(app) {
       esc(name),
       `<span class="num" style="display:block;text-align:right">${k.rules.rulesFor(code).length}</span>`,
       k.rules.HOLIDAYS[code]
-        ? `<span class="num" style="display:block;text-align:right">${k.rules.HOLIDAYS[code].length}</span>`
+        ? `<span class="num" style="display:block;text-align:right">${k.rules.holidaysFor(code, new Date().getUTCFullYear()).length}</span>`
         : tag('falls back to us-fed'),
     ]));
 
@@ -200,8 +200,11 @@ function rulesTable(k, jur) {
 }
 
 function holidayTable(k, jur) {
-  const hs = k.rules.HOLIDAYS[jur];
-  if (!hs || !hs.length) return `<p class="note">No holiday table for this court — business-day math falls back to the US federal table. Load its own table before relying on a rolled date.</p>`;
+  if (!k.rules.HOLIDAYS[jur]) return `<p class="note">No holiday rules for this court — business-day math falls back to the US federal set. Load its own rules before relying on a rolled date.</p>`;
+  // Computed for this year and next, so the diary a lawyer plans against in
+  // December already shows January — the old page froze on one reference year.
+  const y = new Date().getUTCFullYear();
+  const hs = [...k.rules.holidaysFor(jur, y), ...k.rules.holidaysFor(jur, y + 1)];
   return table(['Date', 'Day'], hs.map((d) => [date(d), esc(weekday(d))]));
 }
 

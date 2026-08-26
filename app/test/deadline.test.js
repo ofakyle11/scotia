@@ -68,4 +68,50 @@ assert(rules.isBusinessDay(new Date(got5 + 'T00:00:00Z'), 'on'), `backward busin
 }
 console.log('PASS backward business-day: counts business days backward from the anchor');
 
+// --- holidays must exist for EVERY year, not just the one the table was
+// hand-written for -----------------------------------------------------------
+// The curated table covered 2026 only, so the engine believed Canada Day 2027
+// was a business day: every deadline past 2026 could roll ONTO a court holiday
+// and be served a day late. The seeded limitation dates already reach 2027.
+{
+  const H = rules.holidaysFor || null;
+  assert(typeof H === 'function', 'rules.holidaysFor(jur, year) must exist — holidays cannot expire');
+
+  // The generator must reproduce the curated 2026 table EXACTLY, per
+  // jurisdiction — that table is the reviewed reference tranche, so agreement
+  // with it is what makes the generator trustworthy for every other year.
+  for (const [jur, curated] of Object.entries(rules.HOLIDAYS)) {
+    const gen = H(jur, 2026).slice().sort();
+    assert.deepStrictEqual(gen, curated.slice().sort(),
+      `generator disagrees with the curated 2026 table for ${jur}:\n  gen ${gen}\n  cur ${curated.slice().sort()}`);
+  }
+  console.log('PASS holidays: generator reproduces the curated 2026 reference exactly, all 7 jurisdictions');
+
+  // Known 2027 facts, computed not hand-written.
+  const on27 = H('on', 2027), us27 = H('us-fed', 2027);
+  assert(on27.includes('2027-07-01'), 'Canada Day 2027 (Thursday) missing');
+  assert(on27.includes('2027-03-26'), 'Good Friday 2027 (Easter Mar 28) missing');
+  assert(on27.includes('2027-05-24'), 'Victoria Day 2027 (Monday before May 25) missing');
+  assert(on27.includes('2027-02-15'), 'Family Day 2027 (3rd Monday Feb) missing');
+  assert(on27.includes('2027-10-11'), 'Thanksgiving 2027 (2nd Monday Oct) missing');
+  assert(us27.includes('2027-01-18'), 'MLK Day 2027 missing');
+  assert(us27.includes('2027-05-31'), 'Memorial Day 2027 missing');
+  assert(us27.includes('2027-11-25'), 'US Thanksgiving 2027 missing');
+  assert(us27.includes('2027-07-05'), 'July 4 2027 falls Sunday — observed Monday Jul 5 missing');
+  assert(!rules.isBusinessDay(new Date('2027-07-01T00:00:00Z'), 'on'), 'engine still thinks Canada Day 2027 is a business day');
+  console.log('PASS holidays: 2027 computed correctly (Easter, nth-Monday, weekend observation)');
+
+  // A procedural deadline landing ON a 2027 holiday must roll off it.
+  const due = rules.compute(rules.rule('on-soc-defence'), '2027-06-11'); // +20 = Thu Jul 1 2027
+  assert.strictEqual(due, '2027-07-02', `defence due rolled wrong: ${due} (Jul 1 2027 is Canada Day)`);
+  console.log('PASS holidays: a 2027 deadline landing on Canada Day rolls to July 2');
+
+  // No expiry, ever: a far-future year still computes, including weekend
+  // substitution (Jan 1 2033 is a Saturday -> Ontario observes Monday Jan 3).
+  const on33 = H('on', 2033);
+  assert(on33.length >= 9, '2033 has almost no holidays: ' + on33.length);
+  assert(on33.includes('2033-01-03'), 'New Year 2033 (Saturday) — observed Monday Jan 3 missing');
+  console.log('PASS holidays: 2033 computes with weekend substitution — the table never expires again');
+}
+
 console.log('DEADLINE DIRECTION: ALL PASS');

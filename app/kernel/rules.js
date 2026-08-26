@@ -15,6 +15,97 @@ const HOLIDAYS = {
   'ny': ['2026-01-01', '2026-01-19', '2026-02-16', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-10-12', '2026-11-03', '2026-11-11', '2026-11-26', '2026-12-25'],
 };
 
+// ---- computed holidays -----------------------------------------------------
+// The curated table above is the REFERENCE TRANCHE: one reviewed year (2026)
+// per jurisdiction. It used to be the whole story, which meant every deadline
+// outside 2026 was computed as if courts never close — the engine believed
+// Canada Day 2027 was a business day, and the seeded limitation dates already
+// reach 2027. Every entry in the table is a deterministic rule (a fixed date
+// with a weekend-observation convention, an nth-weekday-of-month, or an
+// Easter-relative day), so holidays are now COMPUTED for any year, and the
+// deadline suite proves the generator reproduces the curated 2026 table
+// exactly before trusting it anywhere else. The table never expires again.
+const _iso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const _dow = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+const _nth = (y, m, dow, n) => { let c = 0; for (let d = 1; d <= 31; d++) { if (_dow(y, m, d) === dow && ++c === n) return d; } };
+const _last = (y, m, dow) => { for (let d = 31; d >= 1; d--) { if (new Date(Date.UTC(y, m - 1, d)).getUTCMonth() === m - 1 && _dow(y, m, d) === dow) return d; } };
+// Anonymous Gregorian computus — Easter Sunday for any year.
+function _easter(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(y, month - 1, day));
+}
+const _easterPlus = (y, off) => { const d = _easter(y); d.setUTCDate(d.getUTCDate() + off); return d.toISOString().slice(0, 10); };
+// Canadian convention (per the curated table and r 1.03's holiday definition):
+// the actual date is a holiday, and one falling on a weekend is ALSO observed
+// on the next free weekday — cascading, so Christmas Sat + Boxing Sun become
+// Monday and Tuesday.
+function _ca(set, y, m, d) {
+  set.add(_iso(y, m, d));
+  const w = _dow(y, m, d);
+  if (w !== 0 && w !== 6) return;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  for (;;) {
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    const iso = dt.toISOString().slice(0, 10);
+    if (dt.getUTCDay() === 0 || dt.getUTCDay() === 6 || set.has(iso)) continue;
+    set.add(iso); return;
+  }
+}
+// US federal convention (per the curated table: July 4 2026 appears as Jul 3):
+// Saturday holidays are observed the Friday before, Sunday ones the Monday
+// after — the observed date replaces the actual one.
+function _us(set, y, m, d) {
+  const w = _dow(y, m, d);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (w === 6) dt.setUTCDate(dt.getUTCDate() - 1);
+  if (w === 0) dt.setUTCDate(dt.getUTCDate() + 1);
+  set.add(dt.toISOString().slice(0, 10));
+}
+const _hcache = new Map();
+function holidaysFor(jur, year) {
+  const key = (HOLIDAYS[jur] ? jur : 'us-fed') + ':' + year;
+  if (_hcache.has(key)) return _hcache.get(key);
+  const y = year, j = HOLIDAYS[jur] ? jur : 'us-fed';
+  const S = new Set();
+  const CA = j === 'on' || j === 'bc' || j === 'ab' || j === 'qc' || j === 'ca-fed';
+  if (CA) _ca(S, y, 1, 1); else _us(S, y, 1, 1);                       // New Year's
+  if (j === 'us-fed' || j === 'ny') S.add(_iso(y, 1, _nth(y, 1, 1, 3)));  // MLK
+  if (j !== 'qc' && j !== 'ca-fed') S.add(_iso(y, 2, _nth(y, 2, 1, 3)));  // Family Day / Washington
+  if (CA) { S.add(_easterPlus(y, -2)); }                                  // Good Friday
+  if (j === 'qc' || j === 'ca-fed') S.add(_easterPlus(y, 1));             // Easter Monday
+  if (CA) { let d = 24; while (_dow(y, 5, d) !== 1) d--; S.add(_iso(y, 5, d)); } // Victoria Day
+  if (!CA) S.add(_iso(y, 5, _last(y, 5, 1)));                             // Memorial Day
+  if (!CA) _us(S, y, 6, 19);                                              // Juneteenth
+  if (j === 'qc') _ca(S, y, 6, 24);                                       // St-Jean-Baptiste
+  if (CA) _ca(S, y, 7, 1); else _us(S, y, 7, 4);                          // Canada Day / July 4
+  if (j === 'on' || j === 'bc') S.add(_iso(y, 8, _nth(y, 8, 1, 1)));      // Civic / BC Day
+  S.add(_iso(y, 9, _nth(y, 9, 1, 1)));                                    // Labour Day
+  if (j === 'bc' || j === 'ca-fed') _ca(S, y, 9, 30);                     // Truth & Reconciliation
+  S.add(_iso(y, 10, _nth(y, 10, 1, 2)));                                  // Thanksgiving CA / Columbus
+  if (j === 'ny') S.add(_iso(y, 11, _nth(y, 11, 1, 1) + 1));              // Election Day
+  if (j === 'bc' || j === 'ab' || j === 'ca-fed') _ca(S, y, 11, 11);      // Remembrance Day
+  if (!CA) _us(S, y, 11, 11);                                             // Veterans Day
+  if (!CA) S.add(_iso(y, 11, _nth(y, 11, 4, 4)));                         // US Thanksgiving
+  // Christmas and Boxing Day pair per r 1.03's holiday definition: Christmas
+  // on a Saturday makes the following Monday AND Tuesday holidays; on a Sunday,
+  // the following Monday. Boxing Day gets no substitution of its own — its
+  // weekend observance only ever arises through Christmas.
+  if (j === 'on' || j === 'ca-fed') {
+    S.add(_iso(y, 12, 25)); S.add(_iso(y, 12, 26));
+    const w25 = _dow(y, 12, 25);
+    if (w25 === 6) { S.add(_iso(y, 12, 27)); S.add(_iso(y, 12, 28)); }
+    else if (w25 === 0) { S.add(_iso(y, 12, 26)); S.add(_iso(y, 12, 27)); }
+  } else if (CA) _ca(S, y, 12, 25);
+  else _us(S, y, 12, 25);                                                 // Christmas
+  const out = [...S].sort();
+  _hcache.set(key, out);
+  return out;
+}
+
 const JURISDICTIONS = [
   ['on', 'Ontario (Superior Court of Justice)'],
   ['bc', 'British Columbia (Supreme Court)'],
@@ -59,7 +150,7 @@ function isBusinessDay(d, jur) {
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
   const iso = d.toISOString().slice(0, 10);
-  return !(HOLIDAYS[jur] || HOLIDAYS['us-fed']).includes(iso);
+  return !holidaysFor(jur, d.getUTCFullYear()).includes(iso);
 }
 
 // A limitation/prescription cutoff is statutory: its expiry is a fixed date and
@@ -119,4 +210,4 @@ function computeLimitation(rule, triggerDateISO) {
 function rulesFor(jur) { return RULES.filter((r) => r.jur === jur); }
 function rule(id) { return RULES.find((r) => r.id === id); }
 
-module.exports = { RULES, JURISDICTIONS, HOLIDAYS, compute, rulesFor, rule, isBusinessDay, isLimitation, landsOnNonBusinessDay, computeLimitation };
+module.exports = { RULES, JURISDICTIONS, HOLIDAYS, holidaysFor, compute, rulesFor, rule, isBusinessDay, isLimitation, landsOnNonBusinessDay, computeLimitation };
