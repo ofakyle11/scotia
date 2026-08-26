@@ -220,3 +220,5 @@ before or after use, as it has been in plaintext in a transcript.
 | T3 fix | 8 of 10 HIGH findings fixed, each red-green verified | gate 13 -> 18 suites, all green | `200ac6b`..`8dc1bb1` |
 | T5 e2e | 9 Opus agents, one owned suite each, TDD-enforced | gate 18 -> 27 suites; 3 defects found + fixed | `9f7a71d` |
 | T4 manual | 9 Opus documenters, 43 surfaces, 104pp PDF | `docs/manual/` + 3 lockouts found and fixed | `79e29e4` |
+| Bench | Competence bench: 48-question bar-style bank, key verified 48/48 by 2 independent Opus reviewers (0 flagged, statutes quoted) | `test/barbench.test.js` + live /admin run 44/48 vs Torts-blind stub | `2425e54` |
+| R37 | Counsel Panel: doctrine brief across the syllabus + 3 advisers (strategy/risk/duty), policy-checked, audited, unverified-by-default | `test/counsel.test.js` proves order, brief handoff, forbidden-matter no-leak | this commit |

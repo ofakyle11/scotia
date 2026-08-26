@@ -37,4 +37,5 @@ module.exports = [
   { num: 34, id: 'billing',     title: 'Billing',                phase: 'Always on' },
   { num: 35, id: 'affidavit',   title: 'Affidavit of Documents', phase: 'Discover' },
   { num: 36, id: 'portal',      title: 'Client Portal',          phase: 'Always on' },
+  { num: 37, id: 'counsel',     title: 'Counsel Panel',          phase: 'Always on' },
 ];
