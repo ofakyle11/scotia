@@ -1,0 +1,256 @@
+'use strict';
+// Room 01 — Intake Desk. Inquiry in, matter file out.
+// Reference implementation: this file is the pattern every room follows.
+const { layout, esc, table, empty, tag, kv, input, textarea, select, date } = require('../kernel/html.js');
+const { html, redirect } = require('../kernel/http.js');
+
+const ROOM = { num: 1, id: 'intake', title: 'Intake Desk', phase: 'Intake' };
+
+const CLAIM_TYPES = ['Commercial dispute', 'Personal injury', 'Employment', 'Estates', 'Real property', 'Other'];
+
+function register(app) {
+  app.route('GET', `/r/${ROOM.id}`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const inquiries = k.firm.list('inquiry').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Screening triage order: the closest limitation first — that is the file
+    // that can be lost. Inquiries with no date run stay at the back, newest first.
+    const open = inquiries.filter((i) => i.status === 'screening').sort((a, b) => {
+      const da = daysTo(a.limitation), db = daysTo(b.limitation);
+      if (da == null && db == null) return (b.createdAt || '').localeCompare(a.createdAt || '');
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da - db;
+    });
+    const disposed = inquiries.filter((i) => i.status !== 'screening');
+    const pressing = open.filter((i) => { const d = daysTo(i.limitation); return d != null && d <= 90; }).length;
+    const jurs = k.rules.JURISDICTIONS;
+    const body = `
+    <div class="grid2">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">New inquiry</h2>
+        <form method="POST" action="/r/intake/new">
+          ${input('client', 'Prospective client', { required: true })}
+          ${input('adverse', 'Adverse parties', { placeholder: 'Comma-separated — every name is screened' })}
+          <div class="grid3">
+            <span>${select('jurisdiction', 'Jurisdiction', jurs, 'on')}</span>
+            <span>${select('claimType', 'Claim type', CLAIM_TYPES)}</span>
+            <span>${input('discovered', 'Discovered', { type: 'date', required: true })}</span>
+          </div>
+          ${textarea('summary', 'What happened', { placeholder: 'Facts as told. Dates matter.' })}
+          <button>Open screening file</button>
+        </form>
+        <p class="note">Jurisdiction and claim type pick the limitation rule; the discovery date runs it. Duties to a prospective client attach at the first conversation — the clock starts here, not at the retainer.</p>
+      </div>
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">Screening ${open.length ? tag(open.length + ' open', pressing ? 'gate' : 'navy') : ''}</h2>
+        ${open.length ? open.map((i) => screeningCard(k, i)).join('') : empty('Nothing in screening — take a new inquiry on the left.')}
+      </div>
+    </div>
+    <h2 class="sec">Disposed inquiries</h2>
+    ${table(['Client', 'Claim', 'Jurisdiction', 'Limitation', 'Outcome'],
+      disposed.map((i) => [
+        esc(i.client), esc(i.claimType), esc(i.jurisdiction), limitationCell(i),
+        i.status === 'accepted'
+          ? `${tag('accepted', 'ok')} <span class="note" style="display:inline">matter opened</span>`
+          : `${tag('declined')} <span class="note" style="display:inline">non-engagement letter on file</span>`,
+      ])) || empty('No disposed inquiries yet — accept or decline a screening file above.')}
+    `;
+    html(res, layout({ ...ctx, room: ROOM.id }, { title: ROOM.title, sub: 'Inquiry in — matter file out', body }));
+  });
+
+  app.route('POST', `/r/${ROOM.id}/new`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const client = String(ctx.body.client || '').trim();
+    if (!client) { ctx.setFlash('An inquiry needs a prospective client name.', 'err'); redirect(res, '/r/intake'); return; }
+    const jur = ctx.body.jurisdiction || 'on';
+    const claimType = ctx.body.claimType || 'Other';
+    const discovered = String(ctx.body.discovered || '').trim();
+    // A limitation clock is only as good as the date it runs from. '2026-02-31'
+    // parses and rolls forward to March 3 — starting the statutory clock from a
+    // day the client never lived is worse than not starting it. Refuse, flash,
+    // never 500.
+    if (discovered && !isRealDate(discovered)) {
+      ctx.setFlash(`"${discovered}" is not a real calendar date — the limitation clock will not be run from a date that does not exist.`, 'err');
+      redirect(res, '/r/intake'); return;
+    }
+    // Key the clock to the claim type the inquiry collected — not the first
+    // rule whose id contains 'limitation'. Where the jurisdiction has no
+    // limitation rule on file, the clock is recorded as unknown, not silently
+    // null-but-screened, so counsel knows to diary it by hand.
+    const limRule = limitationRuleFor(k, jur, claimType);
+    let limitation = null, limNote = null;
+    if (!limRule) {
+      limNote = NO_RULE;
+    } else if (discovered) {
+      try { limitation = k.rules.compute(limRule, discovered); }
+      catch (e) { limitation = null; limNote = NO_DATE; } // no 500; unset clock stays explicit
+    } else {
+      limNote = NO_DATE; // rule on file, no trigger date yet — say so, do not leave a silent null
+    }
+    k.firm.put('inquiry', {
+      client, adverse: (ctx.body.adverse || '').split(',').map((s) => s.trim()).filter(Boolean),
+      jurisdiction: jur, claimType, discovered,
+      summary: ctx.body.summary, limitation, limRuleId: limRule ? limRule.id : null,
+      limCite: limRule ? limRule.cite : null, limNote, status: 'screening',
+    });
+    ctx.setFlash('Screening file opened — ' + (limitation
+      ? `limitation runs ${limitation} (${limRule.cite}). Clear the conflict check next.`
+      : limRule
+        ? `enter the discovery date to run the ${limRule.cite} clock.`
+        : `${NO_RULE} (${jur} / ${claimType}).`));
+    redirect(res, '/r/intake');
+  });
+
+  app.route('POST', `/r/${ROOM.id}/decide`, (req, res, ctx) => {
+    const k = ctx.kernel;
+    const inq = k.firm.get('inquiry', ctx.body.id);
+    if (!inq) { redirect(res, '/r/intake'); return; }
+    if (ctx.body.decision === 'accept') {
+      // Conflicts gate: no matter opens for a prospective client the firm has
+      // not cleared. A clear or waiver conflictRun for this inquiry is the key;
+      // without it we refuse and stay on intake.
+      if (!inquiryCleared(k, inq)) {
+        k.audit('intake.accept.blocked', inq.id + ':no-conflict-clearance');
+        ctx.setFlash(`Cannot open a matter for ${inq.client} — no cleared conflict check on file for this inquiry. Run a clear or waiver in Ethics & Conflicts (room 02) first.`, 'err');
+        redirect(res, '/r/intake'); return;
+      }
+      const m = k.firm.put('matter', {
+        title: `${inq.client} — ${inq.claimType}`, client: inq.client, adverse: inq.adverse,
+        jurisdiction: inq.jurisdiction, status: 'open', theory: '', posture: 'pre-filing',
+      });
+      k.firm.put('inquiry', { ...inq, status: 'accepted', matterId: m.id });
+      if (inq.limitation) {
+        // The firm-wide diary (27-desk) identifies a limitation bar — and hangs
+        // the LawPRO dual-diary tick on it — by the rules.js rule ID, not by the
+        // citation string. Carry the id of the rule that produced this date
+        // alongside its cite, or the single most consequential date in the file
+        // is invisible to the control built to catch it.
+        // Legacy inquiries screened before limRuleId existed carry only the
+        // cite, so fall back to the same claim-type lookup that produced them.
+        const limRule = (inq.limRuleId && k.rules.rule(inq.limRuleId))
+          || limitationRuleFor(k, inq.jurisdiction, inq.claimType);
+        const dl = {
+          desc: 'Limitation period expires', due: inq.limitation,
+          rule: inq.limCite || (limRule ? limRule.cite : 'limitation'),
+          trigger: 'Claim discovered ' + inq.discovered, status: 'open',
+        };
+        // Only ever a real rules.js id — never a placeholder, which would read
+        // as a rule on file that is not.
+        if (limRule) dl.ruleId = limRule.id;
+        k.scope(m.id).put('deadline', dl);
+      }
+      k.audit('intake.accept', inq.id + ' -> ' + m.id);
+      ctx.setFlash(`Matter opened: ${m.title}. Its encryption key was minted on creation. Draft the retainer in room 03.`);
+    } else {
+      k.firm.put('inquiry', { ...inq, status: 'declined' });
+      k.firm.put('letter', {
+        kind: 'non-engagement', to: inq.client,
+        text: `Dear ${inq.client}: Thank you for consulting us. We are unable to act for you in this matter. This letter is not legal advice; limitation periods may apply to your claim and you should consult other counsel promptly.`,
+      });
+      ctx.setFlash('Declined — non-engagement letter generated (the letter nobody remembers to send).');
+    }
+    redirect(res, '/r/intake');
+  });
+}
+
+const NO_RULE = 'none — no rule on file, counsel to diary manually';
+const NO_DATE = 'not run — no discovery date recorded, counsel to diary manually';
+
+// Round-trip an ISO date so a non-existent day ('2026-02-31') is refused rather
+// than silently rolled forward by Date to a day the client never gave us.
+function isRealDate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+// Whole days from today to an ISO date; null when there is no usable date, so
+// a garbage stored value reads as "no clock", never as "expired today".
+function daysTo(iso) {
+  if (!iso) return null;
+  const t = Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z');
+  if (Number.isNaN(t)) return null;
+  return Math.round((t - Date.parse(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')) / 86400000);
+}
+
+// A rule is a limitation/prescription rule when it says so (category, per the
+// shared rules contract) or, for the reference tranche that pre-dates that
+// field, by its id. Kept distinct from procedural deadlines.
+function isLimitationRule(r) {
+  return !!r && (r.category === 'limitation' || /limitation|prescription/.test(r.id));
+}
+
+// Choose the limitation rule for the claim type the inquiry collected. NY
+// splits by claim type (PI 3yr CPLR 214(5); contract/residual 6yr CPLR 213);
+// ON/BC/AB carry one basic limitation; QC one prescription. Returns null when
+// the jurisdiction has no limitation rule on file (e.g. us-fed, ca-fed).
+function limitationRuleFor(k, jur, claimType) {
+  const rules = k.rules.rulesFor(jur).filter(isLimitationRule);
+  if (!rules.length) return null;
+  const byId = (id) => rules.find((r) => r.id === id);
+  const ct = String(claimType || '').toLowerCase();
+  if (jur === 'ny') {
+    if (/injur|personal/.test(ct)) return byId('ny-limitation-pi') || rules[0];
+    return byId('ny-limitation-contract') || rules[0];
+  }
+  return rules[0];
+}
+
+// Which conflict run cleared THIS inquiry's prospective client, if any? Per the
+// shared conflictRun contract a run may carry inquiryId / parties; room 02's
+// runs are keyed by the name checked. Any of those, outcome clear or waiver,
+// on the client, opens the gate. The gate below asks only whether one exists;
+// the screening card shows counsel WHICH one, so a refusal is never a surprise.
+function clearanceFor(k, inq) {
+  if (!inq) return null;
+  const client = String(inq.client || '').trim().toLowerCase();
+  if (!client) return null;
+  return k.firm.list('conflictRun').find((r) => {
+    if (!r || (r.outcome !== 'clear' && r.outcome !== 'waiver')) return false;
+    if (r.inquiryId && r.inquiryId === inq.id) return true;
+    if (Array.isArray(r.parties) && r.parties.some((p) => String(p).trim().toLowerCase() === client)) return true;
+    if (r.name && String(r.name).trim().toLowerCase() === client) return true;
+    return false;
+  }) || null;
+}
+
+function inquiryCleared(k, inq) {
+  return !!clearanceFor(k, inq);
+}
+
+// The limitation date as counsel needs to read it: the day, how close it is,
+// and the rule that produced it — or, where no clock ran, why not.
+function limitationCell(i) {
+  if (!i.limitation) {
+    return i.limNote
+      ? `${tag(i.limRuleId ? 'clock not run' : 'no rule', 'gate')} <span class="note" style="display:inline">${esc(i.limNote)}</span>`
+      : '—';
+  }
+  const d = daysTo(i.limitation);
+  const flag = d == null ? ''
+    : d < 0 ? tag('expired', 'gate')
+      : d <= 90 ? tag(d + ' days left', 'gate') : '';
+  return `${date(i.limitation)} ${flag} <span class="note" style="display:inline">${esc(i.limCite || '')}</span>`;
+}
+
+function screeningCard(k, i) {
+  const cleared = clearanceFor(k, i);
+  const conflictCell = cleared
+    ? `${tag(cleared.outcome === 'waiver' ? 'waiver on file' : 'cleared', cleared.outcome === 'waiver' ? 'navy' : 'ok')} <span class="note" style="display:inline">run ${esc(String(cleared.createdAt || '').slice(0, 10))}${cleared.ranBy ? ' · ' + esc(cleared.ranBy) : ''}</span>`
+    : `${tag('not cleared', 'gate')} <a href="/r/conflicts">run the check in room 02</a>`;
+  return `<div style="border:1px solid var(--rule);padding:12px 14px;margin-bottom:10px;background:var(--ground)">
+    <b>${esc(i.client)}</b> · ${esc(i.claimType)} · ${esc(i.jurisdiction)}
+    ${kv([
+      ['Limitation', limitationCell(i)],
+      ['Conflicts', conflictCell],
+      ['Adverse', esc((i.adverse || []).join(', ') || '—')],
+      ['Discovered', date(i.discovered) || '—'],
+      ['Summary', esc(i.summary || '') || '—'],
+    ])}
+    <form method="POST" action="/r/intake/decide" style="display:inline"><input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="decision" value="accept"><button${cleared ? '' : ' class="danger"'}>Accept — open matter</button></form>
+    <form method="POST" action="/r/intake/decide" style="display:inline;margin-left:8px"><input type="hidden" name="id" value="${esc(i.id)}"><input type="hidden" name="decision" value="decline"><button class="danger">Decline</button></form>
+    ${cleared ? '' : '<p class="note">Accept is refused until a clear or waiver for this client is on file — the firm does not open a file it has not screened.</p>'}
+  </div>`;
+}
+
+module.exports = { ...ROOM, register };

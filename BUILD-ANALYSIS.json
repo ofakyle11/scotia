@@ -1,0 +1,215 @@
+{
+  "analysts": 12,
+  "roadmap": {
+    "summary": "Chambers is a genuinely deep 32-room legal practice platform: encryption-per-matter, ethical walls, audit logging, honest \"no fabrication\" discipline, and several real end-to-end gates (Research\u2192Citation Check\u2192Brief Writer\u2192Filing) are all built and green on the harness. The dominant failure mode is not missing rooms but promised controls that don't actually bind: the Conflicts \"gate\" enforces nothing, the limitation clock is computed off the wrong cause of action and rolled forward past a Saturday into a false-safe date, and the Citation Check certificate can be printed over text edited after verification. Highest leverage now is hardening the malpractice-critical seams already half-built \u2014 make the conflicts gate block intake/retainer, fix limitation date math, and close the verify\u2192edit\u2192certify loophole \u2014 because they are low-to-medium effort and each removes a way the tool can be quietly, dangerously wrong. After that, the biggest new-build value is closing the loops the connectors already reach (automated citation resolution via the CanLII/CourtListener code sitting unwired next door) and the revenue/production deliverables (document production+load files, billing run, trust By-Law 9) that keep work and money from staying trapped inside Chambers.",
+    "improve_slate": [
+      {
+        "rank": 1,
+        "item": "Make Room 02 an enforced gate, not an advisory checklist: block Intake's accept path from minting a matter/DEK and block Retainer draft/sign unless a conflictRun exists with outcome 'clear' or 'waiver'.",
+        "why": "The room is named a Gate and the whole promise is 'no one bills an hour before it clears', but as built a busy lawyer can open a matter and sign a retainer with a pending or declined conflict \u2014 the malpractice control does not actually bind.",
+        "area": "intake-conflicts",
+        "effort": "L",
+        "file_hint": "app/rooms/01-intake.js, app/rooms/03-retainer.js, app/rooms/02-conflicts.js"
+      },
+      {
+        "rank": 2,
+        "item": "Stop compute() from rolling limitation periods forward to the next business day; weekend/holiday roll-forward must apply to procedural deadlines only, never to on/bc/ab/qc/ny statutory limitations.",
+        "why": "A limitation that expires on a Saturday is NOT extended to Monday \u2014 the claim is statute-barred; the current unconditional roll calendars a false, later 'safe' date on the single most malpractice-critical deadline in the file. Tiny fix, catastrophic if wrong.",
+        "area": "argue",
+        "effort": "S",
+        "file_hint": "app/kernel/rules.js"
+      },
+      {
+        "rank": 3,
+        "item": "Key Intake's limitation lookup to the claim type it collected instead of rulesFor(jur).find(id.includes('limitation')), and handle jurisdictions (us-fed) with no limitation rule instead of silently leaving the clock null.",
+        "why": "In NY a contract claim silently gets the 3yr PI rule (should be 6yr CPLR 213(2)) and us-fed produces no clock at all, yet the file still reads 'screened' \u2014 a litigator relies on a date keyed to the wrong cause of action.",
+        "area": "intake-conflicts",
+        "effort": "M",
+        "file_hint": "app/rooms/01-intake.js, app/kernel/rules.js"
+      },
+      {
+        "rank": 4,
+        "item": "Close the verify\u2192edit\u2192certify loophole: invalidate verified citation_instances (or block the certificate) when a draft's updatedAt is later than scannedAt, so an edit in Brief Writer after a clean scan cannot still print a 'clear' certificate.",
+        "why": "The certificate is the exact artifact a lawyer hands a court under Ko v. Li / the Federal Court AI notice; certifying authorities for text that changed since verification is the precise failure this room exists to prevent.",
+        "area": "build-authority",
+        "effort": "M",
+        "file_hint": "app/rooms/08-citations.js, app/rooms/18-briefs.js"
+      },
+      {
+        "rank": 5,
+        "item": "Make Brief Writer's 'Send to Citation Check' actually extract and mint citation_instances (or queue extraction) instead of only flipping status to 'cite-check' while flashing that room 08 queued them.",
+        "why": "The sellable feature is the brief\u2192cite-check\u2192file gate; the lawyer trusts citations are queued when nothing was, and discovers an empty table of authorities at the worst moment.",
+        "area": "argue",
+        "effort": "M",
+        "file_hint": "app/rooms/18-briefs.js, app/rooms/08-citations.js"
+      },
+      {
+        "rank": 6,
+        "item": "Wire retainer signing into the money side: on status 'signed', post the fee/trust-replenishment expectation to Trust & Books and notify it, instead of writing only a date.",
+        "why": "The spec promises executed retainers 'become live commitments in Trust & Books the moment they're executed'; without the link the firm has a signed fee agreement the money side of the platform knows nothing about.",
+        "area": "intake-conflicts",
+        "effort": "M",
+        "file_hint": "app/rooms/03-retainer.js, app/rooms/28-books.js"
+      },
+      {
+        "rank": 7,
+        "item": "Add a document-view route in Document Review so a reviewer can read a document's full decrypted text; today blobs decrypt only to build a 45-char search snippet.",
+        "why": "Coding privilege/responsiveness on a title and a fragment is how privileged material gets produced and responsive material gets missed \u2014 a review tool you cannot read documents in is not a review tool.",
+        "area": "discovery",
+        "effort": "M",
+        "file_hint": "app/rooms/13-review.js"
+      },
+      {
+        "rank": 8,
+        "item": "When governing jurisdiction changes in Jurisdiction Desk, list/flag/route the now-stale computed deadlines (esp. the limitation bar) for recompute instead of leaving a prose caveat that they aren't retroactively recalculated.",
+        "why": "A jurisdiction change (ON\u2194NY, 2yr vs 3yr) is precisely when limitation math breaks; a note is not a control over the most malpractice-prone date in the file.",
+        "area": "build-authority",
+        "effort": "M",
+        "file_hint": "app/rooms/09-jurisdiction.js, app/rooms/21-calendar.js"
+      },
+      {
+        "rank": 9,
+        "item": "Give the privilege log real per-document descriptors \u2014 author, recipients, date created, and a description of the withheld subject \u2014 rather than mapping every entry to 'Solicitor-client privilege'.",
+        "why": "A log without author/recipient/description is facially deficient under Ontario Schedule B and US Rule 26(b)(5); opposing counsel and the court cannot test the claim, inviting a motion to compel or a waiver finding.",
+        "area": "discovery",
+        "effort": "M",
+        "file_hint": "app/rooms/13-review.js"
+      },
+      {
+        "rank": 10,
+        "item": "Extend Citation Check extraction to statute/section patterns (Limitations Act, 2002, s.4; FRCP 12(a)) and add a manual 'add a cite the extractor missed' row.",
+        "why": "Statutory miscites currently pass the gate untouched and the 'table of authorities verified' silently omits a whole class of citations while looking complete.",
+        "area": "build-authority",
+        "effort": "M",
+        "file_hint": "app/rooms/08-citations.js"
+      },
+      {
+        "rank": 11,
+        "item": "Link Evidence Room exhibits to the Document Review Bates/blob they actually are, so P-3/D-1 points at the produced document instead of being retyped by hand; also require a foundation + sponsoring witness before an exhibit can reach 'admitted'.",
+        "why": "A trial exhibit IS a produced document; retyping it breaks the chain from the Bates-stamped record and creates two sources of truth that drift, and free-text foundation lets an exhibit reach 'admitted' empty.",
+        "area": "discovery",
+        "effort": "M",
+        "file_hint": "app/rooms/16-evidence.js, app/rooms/13-review.js"
+      },
+      {
+        "rank": 12,
+        "item": "Build the Trial Calendar's headline 'computed back from the trial date' cascade: back-calculate expert disclosure/discovery close/dispositive-motion/pretrial dates and recalculate the chain when the trial date or a trigger moves, instead of independent fixed forward offsets.",
+        "why": "Back-from-trial computation with automatic recalculation is exactly what a trial lawyer buys a rules engine to do, and it is the room's advertised feature that is entirely unbuilt.",
+        "area": "argue",
+        "effort": "L",
+        "file_hint": "app/rooms/21-calendar.js, app/kernel/rules.js"
+      }
+    ],
+    "missing_slate": [
+      {
+        "rank": 1,
+        "item": "Automated citation resolution: call the already-built CanLII API (room 29) and CourtListener/uscourts connectors from inside the Citation Check gate so a cite is machine-resolved before a human verifies, distinguishing a real cite from a hallucinated one instead of only recording that a human said so.",
+        "why": "The spec calls this 'the room that makes the platform sellable'; the resolver is built next door and left unwired, so the firm backstops AI hallucination with the same unaided human judgment the tool is meant to check.",
+        "area": "build-authority",
+        "effort": "L",
+        "new_file_hint": "app/kernel/cite-resolve.js (wired into app/rooms/08-citations.js)"
+      },
+      {
+        "rank": 2,
+        "item": "Document production + export: Bates-stamped production volumes, a Concordance .dat/.opt load file the other side can load, and redaction \u2014 the review set can be coded but cannot be produced or exported.",
+        "why": "The spec's core discovery deliverable is 'produce the volumes and load file the other side can actually load' and 'apply redactions'; without it the review work stays trapped inside Chambers.",
+        "area": "discovery",
+        "effort": "L",
+        "new_file_hint": "app/rooms/33-production.js"
+      },
+      {
+        "rank": 3,
+        "item": "Billing / invoice run: generate invoices from ledger fees + unbilled WIP, with write-downs and a fee-agreement-aware run (hourly/flat/contingency).",
+        "why": "Flagged in prior review and still absent; the platform tracks time and trust but cannot turn recorded work into a bill, so revenue capture lives outside the tool.",
+        "area": "cross-cutting",
+        "effort": "L",
+        "new_file_hint": "app/rooms/34-billing.js"
+      },
+      {
+        "rank": 4,
+        "item": "Trust accounting By-Law 9 controls: three-way reconciliation, no-overdraw-per-matter enforcement, retainer replenishment triggers, and trust-transfer authorization records in Trust & Books.",
+        "why": "Flagged in prior review; a Law Society trust account without By-Law 9 controls is a compliance and defalcation risk, and retainer signing (improve #6) needs a compliant trust side to post into.",
+        "area": "cross-cutting",
+        "effort": "L",
+        "new_file_hint": "app/rooms/28-books.js (trust-controls module) / app/kernel/trust.js"
+      },
+      {
+        "rank": 5,
+        "item": "Former-client, positional and imputed-conflict handling plus a real lateral-hire prior-firm screening workflow (the 'Lateral hire' role exists but does nothing).",
+        "why": "Current-adverse token matching is only the easy third of the conflicts duty; former-client and imputed conflicts are where firms actually get disqualified, and the room claims to be the platform's rule-of-conduct anchor.",
+        "area": "intake-conflicts",
+        "effort": "L",
+        "new_file_hint": "app/rooms/02-conflicts.js (former-client + lateral module)"
+      },
+      {
+        "rank": 6,
+        "item": "Notice-period and discoverability trap rules beyond the single basic limitation: Ontario Municipal Act s.44(10) 10-day notice, notice to the Crown, and limitation variants keyed to claim type.",
+        "why": "Intake's spec promises 'limitation and notice periods including discoverability rules and municipal notice traps'; these short windows are where files die and none exist in the rules tranche or intake flow.",
+        "area": "intake-conflicts",
+        "effort": "L",
+        "new_file_hint": "app/kernel/rules.js (notice-rules tranche) + app/rooms/01-intake.js"
+      },
+      {
+        "rank": 7,
+        "item": "Chronology-driven downstream generation: a timeline/narrative export and a feed into Brief Writer's fact section and deposition outlines, so pleadings/briefs/exam outlines are generated from one sourced fact set.",
+        "why": "The anti-drift promise \u2014 one sourced set of facts feeding every filing \u2014 is the room's reason to exist, but today the chronology is read-only in one direction.",
+        "area": "build-authority",
+        "effort": "L",
+        "new_file_hint": "app/rooms/06-chronology.js (export/generator module)"
+      },
+      {
+        "rank": 8,
+        "item": "Affidavit of documents with Schedule A/B/C (Ontario r.30.03), derived from Document Review coding \u2014 the Canadian analogue to the production list and privilege log.",
+        "why": "A Toronto firm's sworn production instrument is absent while the US-style privilege log is present; it should generate from the same coding so it cannot drift.",
+        "area": "discovery",
+        "effort": "M",
+        "new_file_hint": "app/rooms/13-review.js (affidavit module) / app/rooms/35-affidavit.js"
+      },
+      {
+        "rank": 9,
+        "item": "Discovery plan / proportionality record (Ontario r.29.1, FRCP 26(f)), an interrogatory-count limiter (25-question cap), and a meet-and-confer / motion-to-compel log for FRCP 37(a)(1) certification.",
+        "why": "In Ontario a discovery plan is mandatory and its absence is itself sanctionable, and the deficiency letter promises a meet-and-confer the file has nowhere to record.",
+        "area": "discovery",
+        "effort": "M",
+        "new_file_hint": "app/rooms/12-discovery.js (plan + M&C module)"
+      },
+      {
+        "rank": 10,
+        "item": "Pleadings defence side: affirmative defences, counterclaims, and the waiver trap (defences waived if omitted); plus editable/jurisdictional element sets rather than a fixed 4-item menu.",
+        "why": "Half of pleadings practice is defensive and 'affirmative defences waived if omitted' is a named malpractice trap the room advertises and does not deliver; a real matter's causes rarely all sit in a hardcoded four-item list.",
+        "area": "build-authority",
+        "effort": "L",
+        "new_file_hint": "app/rooms/10-pleadings.js (defence + element-editor module)"
+      },
+      {
+        "rank": 11,
+        "item": "Client portal: authenticated client-facing view of matter status updates, decision memos, budget-vs-actual and document delivery, with actual send/delivery of the Client Desk updates that are today only recorded.",
+        "why": "Flagged in prior review; Client Desk is named for updates 'on a cadence instead of on request' but updates are never delivered and clients have no way to see their matter.",
+        "area": "cross-cutting",
+        "effort": "L",
+        "new_file_hint": "app/rooms/36-portal.js"
+      },
+      {
+        "rank": 12,
+        "item": "Expert disclosure instruments and independence tracking: Ontario Form 53 duty acknowledgment, FRCP 26(a)(2)(B) report-contents checklist, retention letters with rate bands by discipline, and prior-testimony/independence history.",
+        "why": "Ontario reports are inadmissible without the signed Form 53, and Daubert/White Burgess challenges turn on prior exclusions and independence \u2014 none of it can be produced or tracked today.",
+        "area": "discovery",
+        "effort": "M",
+        "new_file_hint": "app/rooms/15-experts.js (disclosure + retention module)"
+      }
+    ],
+    "selflearning_ideas": [
+      "Citation verification reuse bank: once an authority is human-verified (resolves/pinpoint/quote/treatment) with the stored source excerpt and pinpoint text, cache it firm-wide keyed by normalized citation; when the same authority is cited in a later brief it pre-fills as 'previously verified on [date] by [name]' so the verifier confirms rather than re-reads from scratch. Purely a lookup cache of the firm's own attestations, not model retraining.",
+      "Conflicts alias/normalization dictionary: accumulate the party-name variants, corporate stop-word patterns and known aliases seen across past conflict runs into a firm alias table, so repeat opposing parties resolve faster and recurring false-positive tokens can be down-weighted with a recorded human reason.",
+      "Deadline/rule correction ledger: every time a lawyer overrides a computed deadline, capture the corrected date + reason; surface 'this rule has been overridden N times' next to the rule in rules.js so the firm's own practice corrects the reference data instead of silently diverging from it.",
+      "Boilerplate-objection corpus: store the objection language the firm and its opponents actually used plus how each resolved (withdrawn / motion / sanctioned), turning the single length<90 regex into a firm-labeled phrase list that flags padded boilerplate the regex misses.",
+      "Element-set and cause-of-action reuse bank: persist the custom causes, elements and jurisdictional variants lawyers add in Pleadings so they are reusable across matters by jurisdiction, growing the hardcoded menu from real filings.",
+      "Clause/template bank for retainers and letters: freeze the evergreen, contingency-disclosure, termination and cost-responsibility clause sets from accepted retainers as reusable, jurisdiction-tagged templates the next engagement letter is assembled from.",
+      "Plain-language substitution list from Client Desk: track which status-update phrases were flagged by the Gunning-fog scorer and how the lawyer rewrote them, building a firm phrase-swap dictionary that pre-suggests plainer wording on the next update.",
+      "Court/judge directory freshness from filing outcomes: when a filing to a court succeeds or is bounced, auto-refresh that court's verified-on date in the Court Book and attach the observed reason (page limit, judge individual rule) so directory staleness is driven by real filing history.",
+      "Case-value calibration from recorded judgments: compare Case Value's predicted settle-vs-try bands against actual outcomes captured in the Judgment room and report the firm's own realized-vs-predicted spread, so the liability/damage multipliers are tuned to this firm's results (descriptive statistics, not a trained model).",
+      "Expert reuse bank: track experts the firm has used with their rate history, disciplines, and prior qualification/exclusion outcomes, so the roster pre-fills and flags a repeat expert's prior exclusion when they are next proposed.",
+      "Chronology fact-to-name resolution memory: record the confirmed actor-name mappings a lawyer accepts when the deposition outline's fuzzy match asks (e.g. 'J. Doe' = 'Jane Doe'), and reuse them per matter so future outline pulls stop dropping or mis-attributing facts."
+    ]
+  }
+}

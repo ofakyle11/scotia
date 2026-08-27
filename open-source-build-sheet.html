@@ -1,0 +1,752 @@
+<title>The 28-Room Build Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root{
+    --ground:#E7E9EE;
+    --surface:#FBFBFC;
+    --surface-2:#F1F3F6;
+    --ink:#101620;
+    --ink-soft:#4A5361;
+    --ink-faint:#79828F;
+    --rule:#C6CBD5;
+    --rule-soft:#DEE2E9;
+    --navy:#1B3A6B;
+    --oxide:#8E2B24;
+    --oxide-wash:rgba(142,43,36,0.08);
+    --navy-wash:rgba(27,58,107,0.07);
+
+    --f-display:"Spectral",Georgia,"Times New Roman",serif;
+    --f-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+    --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B0E14;
+      --surface:#141A23;
+      --surface-2:#1B222D;
+      --ink:#E8EBF1;
+      --ink-soft:#A7B0BE;
+      --ink-faint:#79838F;
+      --rule:#2C3542;
+      --rule-soft:#232B36;
+      --navy:#8FB3E6;
+      --oxide:#E08379;
+      --oxide-wash:rgba(224,131,121,0.12);
+      --navy-wash:rgba(143,179,230,0.10);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E14;
+    --surface:#141A23;
+    --surface-2:#1B222D;
+    --ink:#E8EBF1;
+    --ink-soft:#A7B0BE;
+    --ink-faint:#79838F;
+    --rule:#2C3542;
+    --rule-soft:#232B36;
+    --navy:#8FB3E6;
+    --oxide:#E08379;
+    --oxide-wash:rgba(224,131,121,0.12);
+    --navy-wash:rgba(143,179,230,0.10);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--f-body);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1080px;margin:0 auto;padding:0 20px 96px;}
+  h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;}
+  p{margin:0;}
+  code{font-family:var(--f-mono);font-size:0.92em;color:var(--navy);}
+
+  .eyebrow{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+
+  /* ---------- Caption ---------- */
+  .caption{margin-top:56px;background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--navy);}
+  .caption-grid{display:grid;grid-template-columns:1.35fr 1fr;}
+  .caption-left{padding:34px 32px 30px;}
+  .caption-right{padding:34px 32px 30px;border-left:1px solid var(--rule);display:flex;flex-direction:column;gap:13px;}
+  .court{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--ink-faint);padding-bottom:14px;border-bottom:1px solid var(--rule-soft);margin-bottom:22px;
+  }
+  h1{font-size:clamp(34px,5.2vw,54px);line-height:1.04;font-weight:700;letter-spacing:-0.015em;}
+  h1 em{font-style:italic;color:var(--navy);}
+  .dek{margin-top:18px;font-size:17px;line-height:1.62;color:var(--ink-soft);max-width:36em;}
+  .dek + .dek{margin-top:13px;}
+  .docket-line{display:flex;justify-content:space-between;gap:16px;font-size:13px;margin:0;}
+  .docket-line dt{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);padding-top:2px;}
+  .docket-line dd{margin:0;text-align:right;color:var(--ink);font-weight:500;}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--rule);border-top:0;background:var(--surface-2);}
+  .stat{padding:20px 24px;border-left:1px solid var(--rule);}
+  .stat:first-child{border-left:0;}
+  .stat .n{font-family:var(--f-display);font-size:32px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
+  .stat .l{margin-top:7px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);}
+  .stat.gate .n{color:var(--oxide);}
+
+  .stages{display:flex;flex-wrap:wrap;border:1px solid var(--rule);border-top:0;background:var(--surface);}
+  .stage{flex:1 1 auto;min-width:150px;padding:14px 20px;border-left:1px solid var(--rule-soft);display:flex;align-items:baseline;gap:9px;}
+  .stage:first-child{border-left:0;}
+  .stage b{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;}
+  .stage span{font-size:12px;color:var(--ink-faint);}
+
+  /* ---------- Sections ---------- */
+  section{margin-top:72px;}
+  .sec-head{display:flex;align-items:baseline;gap:16px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:26px;}
+  .sec-head h2{font-size:26px;font-weight:600;letter-spacing:-0.01em;}
+  .sec-note{margin-bottom:28px;color:var(--ink-soft);max-width:70ch;font-size:15.5px;}
+
+  /* ---------- Cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .card{background:var(--surface);padding:22px 22px 24px;}
+  .card h3{font-size:17px;font-weight:600;margin-bottom:9px;}
+  .card p{font-size:14px;color:var(--ink-soft);line-height:1.58;}
+  .card .from{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;}
+
+  /* ---------- Pleading paper / layers ---------- */
+  .pleading{background:var(--surface);border:1px solid var(--rule);padding:8px 0;}
+  .wing-head{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    margin:34px 30px 6px 96px;padding-bottom:10px;border-bottom:1px solid var(--rule-soft);
+  }
+  .wing:first-child .wing-head{margin-top:24px;}
+  .wing-head h3{font-size:19px;font-weight:600;letter-spacing:-0.005em;}
+  .wing-head .range{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);}
+  .wing-head .role{font-size:13.5px;color:var(--ink-soft);flex-basis:100%;}
+
+  .mod{display:grid;grid-template-columns:96px 1fr;align-items:start;padding:16px 30px 16px 0;border-bottom:1px solid var(--rule-soft);}
+  .mod:last-child{border-bottom:0;}
+  .mod .num{
+    font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-faint);
+    text-align:right;padding-right:26px;padding-top:4px;position:relative;
+  }
+  .mod .num::after{
+    content:"";position:absolute;top:-16px;bottom:-17px;right:8px;width:5px;
+    border-left:1px solid var(--rule);border-right:1px solid var(--rule);
+  }
+  .mod h4{
+    font-family:var(--f-display);font-size:18.5px;font-weight:600;margin:0 0 3px;
+    letter-spacing:-0.005em;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .mod .tagline{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px;}
+  .mod .job{font-size:14.5px;line-height:1.6;color:var(--ink-soft);max-width:74ch;}
+
+  .tag{
+    font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+    padding:3px 7px;border:1px solid var(--rule);color:var(--ink-faint);white-space:nowrap;font-weight:500;
+  }
+  .tag.gate{color:var(--oxide);border-color:var(--oxide);background:var(--oxide-wash);}
+  .tag.spine{color:var(--navy);border-color:var(--navy);background:var(--navy-wash);}
+
+  /* ---------- Tool rows ---------- */
+  .tools{margin-top:14px;display:grid;gap:0;border-top:1px solid var(--rule-soft);}
+  .trow{
+    display:grid;grid-template-columns:172px 118px 1fr;gap:14px;
+    padding:9px 0;border-bottom:1px solid var(--rule-soft);
+    font-size:13.5px;line-height:1.5;align-items:baseline;
+  }
+  .trow:last-child{border-bottom:0;}
+  .tname{font-family:var(--f-mono);font-size:12.5px;color:var(--ink);font-weight:500;}
+  .tlic{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);}
+  .tlic.isolate{color:var(--oxide);}
+  .tlic.ours{color:var(--navy);}
+  .tdesc{color:var(--ink-soft);max-width:66ch;}
+
+  /* ---------- Tables ---------- */
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);}
+  table{border-collapse:collapse;width:100%;min-width:720px;font-size:13.5px;}
+  th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--rule-soft);vertical-align:top;}
+  thead th{
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-faint);background:var(--surface-2);border-bottom:1px solid var(--rule);font-weight:500;
+  }
+  tbody tr:last-child td{border-bottom:0;}
+  td.room{font-weight:500;white-space:nowrap;}
+  td.room .rn{font-family:var(--f-mono);font-size:11px;color:var(--ink-faint);margin-right:8px;}
+  td.adopt{font-family:var(--f-mono);font-size:11.5px;color:var(--navy);line-height:1.65;}
+  td.build{color:var(--ink-soft);}
+
+  /* ---------- Kernel cards ---------- */
+  .kernel{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .kcard{background:var(--surface);padding:16px 18px 18px;}
+  .kcard h3{font-family:var(--f-mono);font-size:12.5px;font-weight:500;color:var(--navy);margin-bottom:8px;letter-spacing:.02em;}
+  .kcard ul{margin:0;padding:0;list-style:none;}
+  .kcard li{font-family:var(--f-mono);font-size:11px;color:var(--ink-soft);padding:2.5px 0;border-bottom:1px dotted var(--rule-soft);}
+  .kcard li:last-child{border-bottom:0;}
+  .kcard li b{color:var(--ink);font-weight:500;}
+  .kcard .knote{margin-top:9px;font-size:12px;color:var(--ink-faint);font-family:var(--f-body);line-height:1.5;}
+
+  /* ---------- Flow ---------- */
+  .flow{border:1px solid var(--rule);background:var(--surface);}
+  .fstep{
+    display:grid;grid-template-columns:96px 1fr;align-items:start;
+    padding:14px 26px 14px 0;border-bottom:1px solid var(--rule-soft);
+  }
+  .fstep:last-child{border-bottom:0;}
+  .fstep .num{
+    font-family:var(--f-mono);font-size:12px;color:var(--ink-faint);text-align:right;
+    padding-right:26px;padding-top:3px;position:relative;font-variant-numeric:tabular-nums;
+  }
+  .fstep .num::after{
+    content:"";position:absolute;top:-14px;bottom:-15px;right:8px;width:5px;
+    border-left:1px solid var(--rule);border-right:1px solid var(--rule);
+  }
+  .fstep h4{font-family:var(--f-display);font-size:16.5px;font-weight:600;margin:0 0 4px;}
+  .fstep p{font-size:13.5px;color:var(--ink-soft);line-height:1.55;max-width:70ch;}
+  .fstep .with{margin-top:6px;font-family:var(--f-mono);font-size:11px;color:var(--navy);}
+
+  /* ---------- Tree ---------- */
+  .tree{
+    border:1px solid var(--rule);background:var(--surface);overflow-x:auto;
+    padding:22px 26px;font-family:var(--f-mono);font-size:12.5px;line-height:1.75;
+    color:var(--ink-soft);
+  }
+  .tree b{color:var(--ink);font-weight:500;}
+  .tree i{color:var(--ink-faint);font-style:normal;}
+  .tree pre{margin:0;font-family:inherit;}
+
+  /* ---------- Phases ---------- */
+  .phases{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);}
+  .phase{background:var(--surface);display:grid;grid-template-columns:158px 1fr;gap:22px;padding:20px 24px;}
+  .phase .p-n{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--oxide);}
+  .phase .p-label h3{font-size:17px;font-weight:600;margin-top:4px;}
+  .phase p{font-size:14px;color:var(--ink-soft);line-height:1.58;}
+  .mods-in{margin-top:9px;font-family:var(--f-mono);font-size:11.5px;color:var(--navy);}
+
+  footer{margin-top:76px;padding-top:22px;border-top:1px solid var(--rule);font-size:13px;color:var(--ink-faint);line-height:1.62;max-width:76ch;}
+
+  @media (max-width:720px){
+    .caption-grid{grid-template-columns:1fr;}
+    .caption-right{border-left:0;border-top:1px solid var(--rule);}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .stat:nth-child(3){border-left:0;}
+    .stat:nth-child(n+3){border-top:1px solid var(--rule);}
+    .mod{grid-template-columns:58px 1fr;padding-right:18px;}
+    .mod .num{padding-right:16px;}
+    .wing-head{margin-left:58px;margin-right:18px;}
+    .trow{grid-template-columns:1fr;gap:2px;padding:10px 0;}
+    .fstep{grid-template-columns:58px 1fr;padding-right:16px;}
+    .fstep .num{padding-right:16px;}
+    .phase{grid-template-columns:1fr;gap:10px;}
+  }
+</style>
+
+<div class="page">
+
+  <header class="caption">
+    <div class="caption-grid">
+      <div class="caption-left">
+        <div class="court">Companion to The 28-Room Firm &nbsp;·&nbsp; the open-source bill of materials &nbsp;·&nbsp; United States &amp; Canada</div>
+        <h1>The 28-Room <em>Build Sheet</em></h1>
+        <p class="dek">Everything on this sheet is either open source you can audit or legal logic we author ourselves &mdash; nothing in the load-bearing path is a black box you rent. The doctrine is simple: adopt the plumbing, build the law. No open-source project knows what a limitation period is. Every one of them knows how to store a file, run a workflow, or serve a model.</p>
+        <p class="dek">Laid out A to Z: the ground rules, the eleven layers of the stack, what each of the 28 rooms adopts and what it builds, the matter file underneath them all, how a filing moves through the machine, the repository itself, and &mdash; honestly &mdash; where open source runs out.</p>
+      </div>
+      <div class="caption-right">
+        <dl class="docket-line"><dt>Core licences</dt><dd>Apache &middot; MIT &middot; BSD &middot; MPL</dd></dl>
+        <dl class="docket-line"><dt>AGPL policy</dt><dd>Isolated services only</dd></dl>
+        <dl class="docket-line"><dt>BSL / fair-code</dt><dd>Use the forks</dd></dl>
+        <dl class="docket-line"><dt>Languages</dt><dd>TypeScript &middot; Python</dd></dl>
+        <dl class="docket-line"><dt>System of record</dt><dd>PostgreSQL</dd></dl>
+        <dl class="docket-line"><dt>What we write</dt><dd>The legal logic</dd></dl>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">11</div><div class="l">Stack layers</div></div>
+      <div class="stat"><div class="n">28</div><div class="l">Rooms wired</div></div>
+      <div class="stat"><div class="n">90+</div><div class="l">OSS components</div></div>
+      <div class="stat gate"><div class="n">2</div><div class="l">Residency cells</div></div>
+    </div>
+    <div class="stages">
+      <div class="stage"><b>Adopt</b><span>permissive core</span></div>
+      <div class="stage"><b>Isolate</b><span>AGPL as services</span></div>
+      <div class="stage"><b>Replace</b><span>BSL with forks</span></div>
+      <div class="stage"><b>Build</b><span>the legal logic</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">01</span>
+      <h2>Ground rules</h2>
+    </div>
+    <p class="sec-note">Four decisions made once, before any code, so nobody has to re-make them under deadline pressure.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">Rule 1</div>
+        <h3>Adopt the plumbing, build the law</h3>
+        <p>The differentiated asset is rules-as-code, the citation gate, and the trust ledger &mdash; the legal logic. Storage, search, OCR, workflows, editors, inference: all commodity, all adopted. If a build-vs-adopt call is close, adopt; if the thing encodes a rule of law or professional conduct, build it and test it like the malpractice policy depends on it.</p>
+      </div>
+      <div class="card">
+        <div class="from">Rule 2</div>
+        <h3>Licence policy, decided once</h3>
+        <p>Permissive (Apache-2.0, MIT, BSD, MPL) links anywhere, including in-process. AGPL is welcome as a self-hosted, network-isolated service we don't modify &mdash; MinIO, OnlyOffice, Grafana, Documenso. Relicensed ex-OSS gets its community fork: OpenTofu for Terraform, OpenBao for Vault, Valkey for Redis, GlitchTip for Sentry. Nothing BSL or fair-code in the core.</p>
+      </div>
+      <div class="card">
+        <div class="from">Rule 3</div>
+        <h3>One system of record, one wall</h3>
+        <p>PostgreSQL holds everything &mdash; matters, facts, deadlines, the ledger, and the vectors. The ethical wall is enforced twice, independently: row-level security at the database and OpenFGA at the application, and both must agree. Because embeddings live in the same rows, retrieval cannot leak what the wall hides. There is no second store to forget to secure.</p>
+      </div>
+      <div class="card">
+        <div class="from">Rule 4</div>
+        <h3>Boring by default</h3>
+        <p>A modular monolith &mdash; one API service, one module per room &mdash; plus exactly three heavy services split out from day one because they scale differently: the document pipeline, model inference, and citation verification. Temporal owns anything long-running. No further microservice until a measured scaling fact forces one.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">02</span>
+      <h2>The stack, layer by layer</h2>
+    </div>
+    <p class="sec-note">Eleven layers, bottom to top. Each entry: the tool, its licence, and the one reason it earned the slot. Entries marked <code>ours</code> are the custom pieces &mdash; and they cluster exactly where the law lives.</p>
+
+    <div class="pleading">
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Foundations</h3>
+          <span class="range">Layers 01&ndash;04</span>
+          <span class="role">Runtime, data, identity, time. Everything above stands on these four.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">L01</div>
+          <div>
+            <h4>Runtime &amp; language</h4>
+            <div class="tagline">Two languages, one repo, typed at every boundary</div>
+            <p class="job">TypeScript for the application tier &mdash; the rooms, the API, every surface. Python for the document and AI pipeline, where the entire extraction/NLP ecosystem lives. Nothing else, so any engineer can move between rooms.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">Node 22 + TypeScript</span><span class="tlic">MIT / Apache-2.0</span><span class="tdesc">The application tier. Strict mode, no exceptions.</span></div>
+              <div class="trow"><span class="tname">Fastify + tRPC</span><span class="tlic">MIT</span><span class="tdesc">HTTP server and end-to-end typed RPC &mdash; the frontend cannot call an endpoint with the wrong shape and find out in production.</span></div>
+              <div class="trow"><span class="tname">Zod</span><span class="tlic">MIT</span><span class="tdesc">Runtime validation at every boundary: user input, model output, imported data. Nothing unvalidated touches the matter file.</span></div>
+              <div class="trow"><span class="tname">Python 3.12 + FastAPI</span><span class="tlic">PSF / MIT</span><span class="tdesc">The pipeline tier: extraction, OCR, NLP, entity resolution, model glue &mdash; run as Temporal workers, not ad-hoc scripts.</span></div>
+              <div class="trow"><span class="tname">pnpm + Turborepo · uv</span><span class="tlic">MIT</span><span class="tdesc">Monorepo tooling, JS and Python sides respectively. One repo, one CI, atomic cross-room changes.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L02</div>
+          <div>
+            <h4>Data plane</h4>
+            <div class="tagline">One record, one bus, one immutable trail</div>
+            <p class="job">Postgres is the matter file. Objects (originals, productions, exhibits) live in S3-compatible storage with versioning and WORM locks. Rooms talk to each other over an event stream, never by reaching into each other's tables.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">PostgreSQL 16</span><span class="tlic">PostgreSQL</span><span class="tdesc">The single system of record. Row-level security on every table, keyed by tenant, matter, and wall.</span></div>
+              <div class="trow"><span class="tname">pgvector</span><span class="tlic">PostgreSQL</span><span class="tdesc">Embeddings as columns inside the RLS perimeter &mdash; the architectural trick that makes AI retrieval wall-safe by construction.</span></div>
+              <div class="trow"><span class="tname">MinIO</span><span class="tlic isolate">AGPL · isolate</span><span class="tdesc">S3-compatible object store: content-addressed blobs, versioning, and object-lock (WORM) for productions and the audit anchor. SeaweedFS (Apache-2.0) is the lighter alternative.</span></div>
+              <div class="trow"><span class="tname">Valkey</span><span class="tlic">BSD-3</span><span class="tdesc">Cache, sessions, rate limits &mdash; the Linux Foundation fork, since Redis relicensed.</span></div>
+              <div class="trow"><span class="tname">NATS JetStream</span><span class="tlic">Apache-2.0</span><span class="tdesc">The event backbone: every state change publishes to the matter's stream; Workflow, Trial Calendar and the audit trail subscribe.</span></div>
+              <div class="trow"><span class="tname">Audit chain</span><span class="tlic ours">ours</span><span class="tdesc">Append-only <code>audit_event</code> table, BLAKE3 hash-chained, anchored daily into object-locked storage. No extra database to run; immudb (Apache-2.0) if a regulator wants a dedicated one.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L03</div>
+          <div>
+            <h4>Identity &amp; walls</h4>
+            <div class="tagline">Who you are, and what the wall says you can see</div>
+            <p class="job">Authentication is a solved problem &mdash; adopt it whole. Authorization is where legal ethics meets engineering: an ethical screen is modelled as data, enforced in two independent places, and auditable on demand.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">Keycloak</span><span class="tlic">Apache-2.0</span><span class="tdesc">SSO, OIDC and SAML for enterprise firms, enforced MFA, session policy. Zitadel (Apache-2.0) as the lighter-weight alternative.</span></div>
+              <div class="trow"><span class="tname">OpenFGA</span><span class="tlic">Apache-2.0</span><span class="tdesc">Zanzibar-style relationship authorization: user &rarr; role &rarr; matter &rarr; wall as tuples. &ldquo;Screened from Matter X&rdquo; is a relation you can list and prove, not an if-statement you hope holds.</span></div>
+              <div class="trow"><span class="tname">Postgres RLS</span><span class="tlic">PostgreSQL</span><span class="tdesc">The same wall enforced a second time at the row. A bug in one layer is contained by the other &mdash; defence in depth for Rule 1.6.</span></div>
+              <div class="trow"><span class="tname">Presidio + spaCy</span><span class="tlic">MIT</span><span class="tdesc">PII detection feeding redaction, filing checks, and data-handling decisions.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L04</div>
+          <div>
+            <h4>Orchestration &amp; time</h4>
+            <div class="tagline">Durable workflows and the court-rules calendar</div>
+            <p class="job">When the timer is a limitation period, &ldquo;the cron box rebooted&rdquo; is not an acceptable sentence. Everything long-running &mdash; deadline cascades, document pipelines, retention clocks that fire in seven years &mdash; is a durable workflow that survives deploys, crashes, and staff turnover.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">Temporal</span><span class="tlic">MIT</span><span class="tdesc">Durable execution for every multi-step or long-lived process. The single most important infrastructure choice on this sheet.</span></div>
+              <div class="trow"><span class="tname">dateutil · workalendar · holidays</span><span class="tlic">Apache / MIT</span><span class="tdesc">Civil date arithmetic and national/regional holiday calendars underneath the court-rules engine.</span></div>
+              <div class="trow"><span class="tname">Rules-as-code DSL</span><span class="tlic ours">ours</span><span class="tdesc">Each court's computation rules &mdash; counting method, service extensions, holiday tables &mdash; as versioned, dated data run by one interpreter, property-tested (Hypothesis, MPL-2.0) against published worked examples. The crown jewel.</span></div>
+              <div class="trow"><span class="tname">Radicale + ICS</span><span class="tlic isolate">GPL · isolate</span><span class="tdesc">CalDAV server and ICS feeds so every deadline lands in Outlook and Google Calendar with zero plugins.</span></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>The document is the product</h3>
+          <span class="range">Layers 05&ndash;08</span>
+          <span class="role">Ingest it, find it, verify it, reason over it. The four layers the practice actually touches.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">L05</div>
+          <div>
+            <h4>Document plane</h4>
+            <div class="tagline">Every format in, court-ready paper out</div>
+            <p class="job">The richest OSS territory on the sheet, anchored by the single most battle-tested piece of legal open source in existence &mdash; docassemble &mdash; and by the Free Law Project's toolchain.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">Apache Tika</span><span class="tlic">Apache-2.0</span><span class="tdesc">Text and metadata extraction for 1,400+ formats &mdash; the first thing every uploaded file meets.</span></div>
+              <div class="trow"><span class="tname">OCRmyPDF + Tesseract</span><span class="tlic">MPL / Apache</span><span class="tdesc">Scans become searchable PDFs with a text layer. (Ghostscript underneath is AGPL &mdash; runs in the isolated pipeline container.) PaddleOCR (Apache-2.0) for degraded scans.</span></div>
+              <div class="trow"><span class="tname">unstructured</span><span class="tlic">Apache-2.0</span><span class="tdesc">Layout-aware parsing and chunking &mdash; feeds clean sections to search and the AI plane instead of raw text soup.</span></div>
+              <div class="trow"><span class="tname">Gotenberg · Doctor</span><span class="tlic">MIT / BSD-2</span><span class="tdesc">Containerised conversion APIs (Chromium + LibreOffice; Free Law Project's legal-tuned converter). Anything &rarr; PDF, deterministically.</span></div>
+              <div class="trow"><span class="tname">Collabora Online</span><span class="tlic">MPL-2.0</span><span class="tdesc">Real Word-compatible editing in the browser, with track changes &mdash; lawyers will not give up redlines, so we give them redlines. OnlyOffice (AGPL, isolated) as alternative.</span></div>
+              <div class="trow"><span class="tname">TipTap + Yjs</span><span class="tlic">MIT</span><span class="tdesc">The structured drafting surface: facts and authorities are live nodes, comments anchor to paragraphs (the Moot Room writes here), collaboration is CRDT.</span></div>
+              <div class="trow"><span class="tname">docassemble</span><span class="tlic">MIT</span><span class="tdesc">Guided legal interviews &mdash; intake, retainers, standard motions. A decade of production use in courts and legal aid; we adopt the engine and author our interview library on it.</span></div>
+              <div class="trow"><span class="tname">python-docx + docxtpl</span><span class="tlic">MIT / LGPL</span><span class="tdesc">DOCX templating for the letter and pleading mills.</span></div>
+              <div class="trow"><span class="tname">Typst · WeasyPrint</span><span class="tlic">Apache / BSD-3</span><span class="tdesc">Programmatic court-formatted PDF: numbered pleading lines, caption pages, tables of authorities, per-court stylesheets.</span></div>
+              <div class="trow"><span class="tname">pikepdf · PDF.js</span><span class="tlic">MPL / Apache</span><span class="tdesc">Assembly, Bates stamping, true redaction flattening; viewing everywhere with highlights that link back to Facts.</span></div>
+              <div class="trow"><span class="tname">Documenso</span><span class="tlic isolate">AGPL · isolate</span><span class="tdesc">The signature ceremony &mdash; who signed what, when, sealed into the audit chain. DocuSeal (AGPL) as alternative.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L06</div>
+          <div>
+            <h4>Search &amp; review</h4>
+            <div class="tagline">Investigative-scale review without the vendor invoice</div>
+            <p class="job">The ICIJ ran the Panama Papers on Tika + Tesseract + a search index. We run the same proven pipeline natively, and add the two pieces a firm needs that a newsroom doesn't: entity resolution for conflicts, and redaction QC before anything leaves the building.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">OpenSearch</span><span class="tlic">Apache-2.0</span><span class="tdesc">The review workhorse: BM25, highlighting, aggregations by custodian, date, and issue across million-document sets.</span></div>
+              <div class="trow"><span class="tname">Meilisearch</span><span class="tlic">MIT</span><span class="tdesc">Instant-as-you-type search for the small fast surfaces: matter switcher, contacts, clause bank.</span></div>
+              <div class="trow"><span class="tname">Splink</span><span class="tlic">MIT</span><span class="tdesc">Probabilistic record linkage from the UK Ministry of Justice &mdash; resolves &ldquo;Robert Smith&rdquo;, &ldquo;Bob Smith&rdquo;, and &ldquo;R. Smith Holdings LLC&rdquo; into one entity. The engine under the conflicts graph.</span></div>
+              <div class="trow"><span class="tname">datasketch</span><span class="tlic">MIT</span><span class="tdesc">MinHash near-duplicate detection and email thread grouping for review sets.</span></div>
+              <div class="trow"><span class="tname">X-Ray</span><span class="tlic">BSD-2</span><span class="tdesc">Free Law Project's bad-redaction detector &mdash; runs on every outbound production, because a failed redaction is a waiver.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L07</div>
+          <div>
+            <h4>Authority &amp; legal data</h4>
+            <div class="tagline">The Free Law Project stack, plus the official sources</div>
+            <p class="job">The Authority wing runs on the most under-used treasure in legal tech: the Free Law Project's tooling and corpora, built and battle-tested on CourtListener's fifty-plus million citations.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">eyecite</span><span class="tlic">BSD-2</span><span class="tdesc">Extracts and normalises every citation in any text &mdash; full, short-form, supra, id. Powers Citation Check and the TOA generator. The single most important library on this sheet.</span></div>
+              <div class="trow"><span class="tname">courts-db · reporters-db</span><span class="tlic">BSD-2</span><span class="tdesc">Canonical identities for every US court and reporter &mdash; the reference data under citation resolution and authority weighting.</span></div>
+              <div class="trow"><span class="tname">juriscraper</span><span class="tlic">BSD-2</span><span class="tdesc">Maintained scrapers for hundreds of US courts' opinions and PACER &mdash; keeps the Court Book and the corpus current.</span></div>
+              <div class="trow"><span class="tname">CourtListener + RECAP</span><span class="tlic">data / API</span><span class="tdesc">Opinions, dockets, the citation graph, judge data &mdash; free API, open bulk data.</span></div>
+              <div class="trow"><span class="tname">Caselaw Access Project</span><span class="tlic">data</span><span class="tdesc">Harvard's digitisation of US case law &mdash; the bulk corpus Citation Check resolves against.</span></div>
+              <div class="trow"><span class="tname">govinfo · eCFR</span><span class="tlic">data / API</span><span class="tdesc">US statutes, regulations, and federal materials from the source.</span></div>
+              <div class="trow"><span class="tname">Justice Laws · e-Laws · BC Laws</span><span class="tlic">data</span><span class="tdesc">Canadian federal and provincial consolidations under open licences &mdash; the statute side of the Canadian corpus.</span></div>
+              <div class="trow"><span class="tname">Open States (Plural)</span><span class="tlic">data</span><span class="tdesc">State legislative data and tracking.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L08</div>
+          <div>
+            <h4>AI plane</h4>
+            <div class="tagline">Models behind one gateway, schemas on every output</div>
+            <p class="job">Every model sits behind one internal gateway that enforces the matter's data-handling policy &mdash; local-only for the client who requires it, frontier API where the engagement permits it. No model output touches the matter file until it has passed schema validation, and the drafting prompts are regression-tested in CI like any other code.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">vLLM</span><span class="tlic">Apache-2.0</span><span class="tdesc">GPU inference serving for the drafting, analysis, and adversary models.</span></div>
+              <div class="trow"><span class="tname">llama.cpp · Ollama</span><span class="tlic">MIT</span><span class="tdesc">CPU and on-premise inference &mdash; the solo tier and the data-residency hardliner both run local.</span></div>
+              <div class="trow"><span class="tname">Open-weight models</span><span class="tlic">varies</span><span class="tdesc">Qwen and Mistral families ship Apache-2.0; Llama is a community licence, not open source &mdash; tracked per model. The gateway keeps the platform model-agnostic.</span></div>
+              <div class="trow"><span class="tname">BGE-M3 + bge-reranker</span><span class="tlic">MIT</span><span class="tdesc">Multilingual embeddings and reranking &mdash; multilingual is non-optional the day the first Qu&eacute;bec matter opens. Stored in pgvector, behind the wall.</span></div>
+              <div class="trow"><span class="tname">Instructor · Pydantic AI</span><span class="tlic">MIT</span><span class="tdesc">Schema-validated model output with automatic retry &mdash; a hallucinated field shape dies at the boundary, not in the matter file.</span></div>
+              <div class="trow"><span class="tname">faster-whisper + WhisperX</span><span class="tlic">MIT</span><span class="tdesc">Deposition and hearing audio to word-timestamped transcripts, aligned for video sync and impeachment clips.</span></div>
+              <div class="trow"><span class="tname">promptfoo · Ragas</span><span class="tlic">MIT / Apache</span><span class="tdesc">Prompt and RAG regression suites wired into CI &mdash; the Citation Check and Moot Room behaviours are tested like code, because they are code.</span></div>
+              <div class="trow"><span class="tname">textstat</span><span class="tlic">MIT</span><span class="tdesc">Reading-level scoring for every Client Desk artifact.</span></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="wing">
+        <div class="wing-head">
+          <h3>Surface &amp; operations</h3>
+          <span class="range">Layers 09&ndash;11</span>
+          <span class="role">What the firm sees, how the money is kept honest, and how the whole thing stays up.</span>
+        </div>
+
+        <article class="mod">
+          <div class="num">L09</div>
+          <div>
+            <h4>Interface</h4>
+            <div class="tagline">Three surfaces: the rooms, the portal, the pocket</div>
+            <p class="job">One component system across the firm app (the 28 rooms), the client portal (a restricted view of the same kernel), and Today (a PWA, because nobody installs a firm's native app). In half the rooms the grid is the product &mdash; so the grids get the engineering.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">React 19 + Vite</span><span class="tlic">MIT</span><span class="tdesc">The three surfaces, one component library between them.</span></div>
+              <div class="trow"><span class="tname">TanStack Router · Query · Table · Virtual</span><span class="tlic">MIT</span><span class="tdesc">Routing, server state, and virtualised tables that stay smooth at a million review rows.</span></div>
+              <div class="trow"><span class="tname">Radix UI + shadcn/ui + Tailwind</span><span class="tlic">MIT</span><span class="tdesc">Accessible primitives, components we own outright, no design-system rental.</span></div>
+              <div class="trow"><span class="tname">AG Grid Community</span><span class="tlic">MIT</span><span class="tdesc">The heavy grids &mdash; review coding, the cost report &mdash; where TanStack Table runs out.</span></div>
+              <div class="trow"><span class="tname">FullCalendar</span><span class="tlic">MIT</span><span class="tdesc">Trial Calendar's visual surfaces, fed by the rules engine, never the other way around.</span></div>
+              <div class="trow"><span class="tname">React Flow · Cytoscape.js</span><span class="tlic">MIT</span><span class="tdesc">Waterfall and workflow diagrams; the conflicts entity graph you can actually explore.</span></div>
+              <div class="trow"><span class="tname">ECharts</span><span class="tlic">Apache-2.0</span><span class="tdesc">Outcome bands, the settlement sankey, budget burn &mdash; with the error bars drawn, per the accuracy doctrine.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L10</div>
+          <div>
+            <h4>Money plane</h4>
+            <div class="tagline">The one layer where we adopt almost nothing</div>
+            <p class="job">No open-source project ships law-society-compliant trust accounting, and an ERP bent to fit one is a disbarment with extra steps. The ledger is ours: small, append-only, double-entry, and verified two independent ways.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">Trust &amp; billing ledger</span><span class="tlic ours">ours</span><span class="tdesc">Append-only double-entry on Postgres. Corrections by reversal, never update. Trust and operating strictly segregated; the ledger physically cannot net fees from trust. Three-way reconciliation runs as a scheduled Temporal workflow producing a signed report.</span></div>
+              <div class="trow"><span class="tname">hledger</span><span class="tlic">GPL · CLI</span><span class="tdesc">An independent re-derivation of every balance in CI &mdash; two implementations must agree before a release ships. Cheap paranoia, correctly placed.</span></div>
+              <div class="trow"><span class="tname">LEDES writer</span><span class="tlic ours">ours</span><span class="tdesc">1998B and XML e-billing output, tested against insurer validators. Small, boring, mandatory for corporate clients.</span></div>
+              <div class="trow"><span class="tname">Typst invoices</span><span class="tlic">Apache-2.0</span><span class="tdesc">Invoices and disbursement statements from the same print pipeline as the pleadings.</span></div>
+              <div class="trow"><span class="tname">Payments</span><span class="tlic">integration</span><span class="tdesc">Card and ACH acquiring is processor territory &mdash; no OSS does it. The ledger constrains the flows (unearned to trust, fees never netted); the processor just moves money.</span></div>
+              <div class="trow"><span class="tname">Superset · Metabase</span><span class="tlic">Apache / AGPL</span><span class="tdesc">Firm analytics off read replicas &mdash; realization, lockup, room utilisation.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mod">
+          <div class="num">L11</div>
+          <div>
+            <h4>Operations &amp; residency</h4>
+            <div class="tagline">Two cells, forks where licences turned, restore drills on the calendar</div>
+            <p class="job">Two residency cells minimum &mdash; US and Canada &mdash; and a Canadian matter's rows, blobs, embeddings, and backups never leave the Canadian cell. Enterprise gets a dedicated cell on their metal via the same deployment bundle.</p>
+            <div class="tools">
+              <div class="trow"><span class="tname">Kubernetes · Kamal</span><span class="tlic">Apache / MIT</span><span class="tdesc">K8s for the shared cells; Kamal for single-tenant and on-premise installs from the identical images.</span></div>
+              <div class="trow"><span class="tname">OpenTofu · OpenBao</span><span class="tlic">MPL-2.0</span><span class="tdesc">Infrastructure as code and secrets &mdash; the community forks, since Terraform and Vault went BSL. Infisical (MIT core) as the lighter secrets option.</span></div>
+              <div class="trow"><span class="tname">OpenTelemetry + Prometheus</span><span class="tlic">Apache-2.0</span><span class="tdesc">Traces and metrics from every room, tagged by tenant and matter class &mdash; never by content.</span></div>
+              <div class="trow"><span class="tname">Grafana · Loki · Tempo</span><span class="tlic isolate">AGPL · isolate</span><span class="tdesc">Dashboards, logs, and trace storage, self-hosted per cell.</span></div>
+              <div class="trow"><span class="tname">GlitchTip</span><span class="tlic">MIT</span><span class="tdesc">Error tracking &mdash; Sentry-compatible SDKs, still open source.</span></div>
+              <div class="trow"><span class="tname">pgBackRest + Restic</span><span class="tlic">MIT / BSD-2</span><span class="tdesc">Point-in-time database recovery and encrypted object backups, in-cell. Restore drills are scheduled Temporal workflows &mdash; a backup you haven't restored is a rumour.</span></div>
+              <div class="trow"><span class="tname">Woodpecker CI · Renovate</span><span class="tlic">Apache / AGPL</span><span class="tdesc">Pipelines and automated dependency updates &mdash; the licence and CVE watch is standing policy, not an annual scramble.</span></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">03</span>
+      <h2>Room by room: adopt vs. build</h2>
+    </div>
+    <p class="sec-note">The bill of materials for each of the 28 rooms. The pattern to notice: the <em>adopt</em> column is engines and infrastructure; the <em>build</em> column is almost entirely rules of law, encoded and versioned. That column is the moat.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Room</th><th>Adopt — open source</th><th>Build — the legal logic</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="room"><span class="rn">01</span>Intake Desk</td><td class="adopt">Tika · Tesseract/OCRmyPDF · spaCy · docassemble · Cal.com</td><td class="build">Limitation &amp; notice rulebook for 64 jurisdictions, merits screen, non-engagement letters</td></tr>
+          <tr><td class="room"><span class="rn">02</span>Ethics &amp; Conflicts</td><td class="adopt">Splink · Cytoscape.js · OpenFGA</td><td class="build">Conflict rules per bar/law society, waiver letters, screen provisioning, continuous re-check on new parties</td></tr>
+          <tr><td class="room"><span class="rn">03</span>Retainer</td><td class="adopt">docassemble · docxtpl · Documenso</td><td class="build">Fee model library, contingency caps data, scope-change re-issue flow</td></tr>
+          <tr><td class="room"><span class="rn">04</span>Case Value</td><td class="adopt">ECharts · public award data</td><td class="build">Outcome-band model, decision tree engine, phase budgets, contingency viability check</td></tr>
+          <tr><td class="room"><span class="rn">05</span>Client Desk</td><td class="adopt">Chatwoot · textstat · IMAP ingest</td><td class="build">Update cadence engine, decision memos with authority record, EN/FR pipeline</td></tr>
+          <tr><td class="room"><span class="rn">06</span>Chronology</td><td class="adopt">TanStack Table · TipTap · PDF.js</td><td class="build">Fact schema, source-or-drop enforcement, gap detection, dispute map</td></tr>
+          <tr><td class="room"><span class="rn">07</span>Research Desk</td><td class="adopt">OpenSearch + pgvector · BGE-M3 · CourtListener/CAP</td><td class="build">Hierarchy-aware authority weighting, memo builder, adverse-authority surfacing</td></tr>
+          <tr><td class="room"><span class="rn">08</span>Citation Check</td><td class="adopt">eyecite · CourtListener · CAP corpus</td><td class="build">Quote &amp; pinpoint matcher, treatment classifier with human queue, the blocking gate itself</td></tr>
+          <tr><td class="room"><span class="rn">09</span>Jurisdiction Desk</td><td class="adopt">courts-db · official consolidation feeds</td><td class="build">The 64-jurisdiction procedure encyclopedia — versioned, dated, sourced</td></tr>
+          <tr><td class="room"><span class="rn">10</span>Pleadings</td><td class="adopt">docassemble · docxtpl · TipTap</td><td class="build">Element sets per cause of action, element-to-fact coverage matrix</td></tr>
+          <tr><td class="room"><span class="rn">11</span>Court Book</td><td class="adopt">juriscraper · RECAP</td><td class="build">Verified court directory: fees, portals, standing orders, each entry dated</td></tr>
+          <tr><td class="room"><span class="rn">12</span>Discovery Desk</td><td class="adopt">docxtpl · Temporal</td><td class="build">Objection library, per-jurisdiction limits, ESI protocol templates, deficiency flow</td></tr>
+          <tr><td class="room"><span class="rn">13</span>Document Review</td><td class="adopt">OpenSearch · Tika/Tesseract · Presidio · datasketch · X-Ray</td><td class="build">Review UI, privilege model &amp; log formats, DAT/Opticon production writer</td></tr>
+          <tr><td class="room"><span class="rn">14</span>Depositions</td><td class="adopt">faster-whisper + WhisperX · TanStack</td><td class="build">Outline builder from Chronology, admission index, impeachment table, undertakings tracker</td></tr>
+          <tr><td class="room"><span class="rn">15</span>Experts</td><td class="adopt">kernel + OpenSearch</td><td class="build">Rate-band data, Daubert/Mohan scaffolds, disclosure wiring to Trial Calendar</td></tr>
+          <tr><td class="room"><span class="rn">16</span>Evidence Room</td><td class="adopt">PDF.js · MinIO (hashed) · pikepdf</td><td class="build">Foundation rules per evidence code, in-limine scaffolds, exhibit numbering</td></tr>
+          <tr><td class="room"><span class="rn">17</span>Tools ×20</td><td class="adopt">pikepdf · Presidio · holidays · BLAKE3 · textstat</td><td class="build">Twenty micro-tools: Bates, interest, affidavits, records requests, tariffs…</td></tr>
+          <tr><td class="room"><span class="rn">18</span>Brief Writer</td><td class="adopt">TipTap + Yjs · Typst/WeasyPrint · eyecite</td><td class="build">Argument scaffolds, limit-fitting from Court Book, TOA/TOC generation</td></tr>
+          <tr><td class="room"><span class="rn">19</span>Moot Room</td><td class="adopt">vLLM · TipTap comment anchors</td><td class="build">Opposition harness, hot-bench question banks, motion base rates</td></tr>
+          <tr><td class="room"><span class="rn">20</span>Trial Book</td><td class="adopt">kernel · print pipeline</td><td class="build">Pattern jury instruction library, verdict forms, objection sheet</td></tr>
+          <tr><td class="room"><span class="rn">21</span>Trial Calendar</td><td class="adopt">Temporal · dateutil/workalendar/holidays · Radicale</td><td class="build">The rules DSL + per-court date data, cascade recompute, rule shown per date</td></tr>
+          <tr><td class="room"><span class="rn">22</span>Filing Room</td><td class="adopt">Gotenberg · pikepdf · Documenso · X-Ray</td><td class="build">Packet builders per portal, identifier-redaction checks, provenance seal</td></tr>
+          <tr><td class="room"><span class="rn">23</span>Mediation &amp; ADR</td><td class="adopt">Cal.com · docxtpl</td><td class="build">Provider directory, offer-to-settle cost math, settlement paper</td></tr>
+          <tr><td class="room"><span class="rn">24</span>Settlement Waterfall</td><td class="adopt">ECharts (sankey)</td><td class="build">Lien &amp; subrogation formulas, disbursement statement, staged trust entries</td></tr>
+          <tr><td class="room"><span class="rn">25</span>Judgment &amp; Enforcement</td><td class="adopt">Temporal · kernel</td><td class="build">Interest accrual, exemption schedules, domestication playbooks</td></tr>
+          <tr><td class="room"><span class="rn">26</span>Closing Room</td><td class="adopt">MinIO object-lock</td><td class="build">Retention schedules per jurisdiction, closing letters, destruction certificates</td></tr>
+          <tr><td class="room"><span class="rn">27</span>Workflow</td><td class="adopt">NATS · ECharts · Superset</td><td class="build">Read models &amp; risk scoring, staffing view, the Today PWA</td></tr>
+          <tr><td class="room"><span class="rn">28</span>Trust &amp; Books</td><td class="adopt">hledger (verify) · Typst</td><td class="build">The double-entry trust core, three-way reconciliation, LEDES writer, pre-bill lint</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">04</span>
+      <h2>The matter file</h2>
+    </div>
+    <p class="sec-note">The shared kernel every room reads and writes &mdash; seventeen entities in Postgres. Every row carries <code>tenant_id</code>, <code>matter_id</code> and the wall context for RLS; audited tables add a hash-chain pointer. Rooms own their private tables, but cross-room truth lives only here.</p>
+    <div class="kernel">
+      <div class="kcard"><h3>matter</h3><ul><li><b>jurisdiction_lock</b> — court, division, governing law</li><li><b>posture</b> · theory · budget ceiling</li><li><b>wall_id</b> · privilege class · status</li></ul><div class="knote">The root aggregate. Room 01 creates it; everything else references it.</div></div>
+      <div class="kcard"><h3>person_org</h3><ul><li><b>canonical_id</b> · names[] · aliases</li><li><b>splink_cluster</b> — resolved entity</li><li>corporate parents / subsidiaries</li></ul><div class="knote">One identity across every matter — the conflicts graph's nodes.</div></div>
+      <div class="kcard"><h3>party</h3><ul><li>matter · person_org · <b>role</b></li><li>adverse? · represented_by</li><li>added_at — triggers conflict re-check</li></ul></div>
+      <div class="kcard"><h3>wall</h3><ul><li><b>members</b> · screened[] · basis</li><li>mirrored to OpenFGA tuples</li><li>attestation log</li></ul></div>
+      <div class="kcard"><h3>document</h3><ul><li><b>blob_hash</b> (BLAKE3) · source · custodian</li><li>privilege state · Bates range</li><li>ocr/extraction status</li></ul></div>
+      <div class="kcard"><h3>doc_version</h3><ul><li>document · editor · diff</li><li><b>provenance</b> — drafted / edited / authored</li><li>hash → audit chain</li></ul><div class="knote">The record shown when someone asks what the machine wrote.</div></div>
+      <div class="kcard"><h3>fact</h3><ul><li><b>date</b> · actor · text</li><li><b>source_pin</b> — doc, page, line</li><li>disputed? · issues[]</li></ul><div class="knote">No source pin, no row — enforced by constraint, not review.</div></div>
+      <div class="kcard"><h3>authority</h3><ul><li><b>cite</b> (eyecite-normalised) · court · date</li><li>treatment · <b>verified_at</b></li><li>corpus pointer (CAP / CourtListener)</li></ul></div>
+      <div class="kcard"><h3>citation_instance</h3><ul><li>doc_version · authority · <b>pinpoint</b></li><li>quote_match? · proposition_ok?</li><li><b>status</b> — verified / blocked</li></ul><div class="knote">The gate's working table: one row per cite per draft.</div></div>
+      <div class="kcard"><h3>deadline</h3><ul><li><b>trigger_event</b> · rule_ref · computed_date</li><li>chain — recompute cascade</li><li>Temporal timer id · escalation</li></ul></div>
+      <div class="kcard"><h3>task</h3><ul><li>room · assignee · due · state</li><li>blocking? · linked deadline</li></ul></div>
+      <div class="kcard"><h3>exhibit</h3><ul><li>document · <b>number</b> · list</li><li><b>foundation</b> — witness, rule, hearsay path</li><li>offered / admitted state</li></ul></div>
+      <div class="kcard"><h3>undertaking</h3><ul><li>examination · text · owed_by</li><li>due · answered_at</li></ul><div class="knote">Canadian discovery runs on these.</div></div>
+      <div class="kcard"><h3>time_entry</h3><ul><li>timekeeper · <b>utbms</b> · narrative</li><li>state — draft / pre-billed / billed</li><li>pre-bill lint flags</li></ul></div>
+      <div class="kcard"><h3>ledger_entry</h3><ul><li><b>account</b> (trust | operating) · dr/cr</li><li>immutable · <b>reversal_of</b></li><li>reconciliation batch</li></ul><div class="knote">Append-only. The schema itself refuses commingling.</div></div>
+      <div class="kcard"><h3>filing</h3><ul><li>court · <b>packet_hash</b> · signed_by</li><li>filed_at · confirmation</li><li>service records</li></ul></div>
+      <div class="kcard"><h3>audit_event</h3><ul><li>actor · action · object</li><li><b>prev_hash · hash</b> — BLAKE3 chain</li><li>anchored daily to WORM storage</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">05</span>
+      <h2>How a filing moves</h2>
+    </div>
+    <p class="sec-note">The whole machine in one pass &mdash; from a banker's box of scans to a stamped filing &mdash; with the tool doing the work at each step. Steps 08 and 09 are the gates: they block, they do not warn.</p>
+    <div class="flow">
+      <div class="fstep"><div class="num">01</div><div><h4>Ingest</h4><p>Upload or email-in. Blob hashed and stored content-addressed; type sniffed; the matter's event stream announces it.</p><div class="with">MinIO · BLAKE3 · Tika · NATS</div></div></div>
+      <div class="fstep"><div class="num">02</div><div><h4>Extract</h4><p>Text and metadata out of any format; scans OCR'd into searchable PDFs; layout-aware chunking for downstream use.</p><div class="with">Tika · OCRmyPDF + Tesseract · unstructured</div></div></div>
+      <div class="fstep"><div class="num">03</div><div><h4>Resolve &amp; tag</h4><p>People and dates recognised, PII flagged, parties linked to canonical entities &mdash; which silently re-runs the conflicts check.</p><div class="with">spaCy · Presidio · Splink</div></div></div>
+      <div class="fstep"><div class="num">04</div><div><h4>Index</h4><p>Full-text into the review index; embeddings into Postgres, inside the wall's row policies.</p><div class="with">OpenSearch · BGE-M3 → pgvector</div></div></div>
+      <div class="fstep"><div class="num">05</div><div><h4>Capture facts</h4><p>A reviewer promotes passages to Facts, each pinned to its page and line. The Chronology grows; gaps surface.</p><div class="with">Room 06 · PDF.js anchors</div></div></div>
+      <div class="fstep"><div class="num">06</div><div><h4>Draft</h4><p>The brief assembles in the structured editor &mdash; facts and authorities as live nodes; form documents run through interviews and templates.</p><div class="with">TipTap + Yjs · docassemble · docxtpl</div></div></div>
+      <div class="fstep"><div class="num">07</div><div><h4>Adversary pass</h4><p>The Moot Room writes the other side's best response and pins its objections to the paragraphs they attack.</p><div class="with">Room 19 · vLLM</div></div></div>
+      <div class="fstep"><div class="num">08</div><div><h4>Verify — gate</h4><p>Every cite parsed, resolved against the corpus, quote and pinpoint matched, treatment checked. One unresolved cite blocks the document.</p><div class="with">eyecite · CourtListener / CAP · Room 08</div></div></div>
+      <div class="fstep"><div class="num">09</div><div><h4>Ethics pass — gate</h4><p>Conflicts re-confirmed against the current party graph; required disclosures (including AI-use certifications) attached.</p><div class="with">Room 02 · OpenFGA</div></div></div>
+      <div class="fstep"><div class="num">10</div><div><h4>Format</h4><p>Court stylesheet applied &mdash; caption, line numbers, tables, exhibit tabs &mdash; identifiers redacted, redactions QC'd, packet assembled.</p><div class="with">Typst / WeasyPrint · Gotenberg · pikepdf · X-Ray</div></div></div>
+      <div class="fstep"><div class="num">11</div><div><h4>Sign</h4><p>The attorney of record reviews and signs. Provenance &mdash; drafted, edited, authored, by whom &mdash; seals into the audit chain. Nothing transmits before this.</p><div class="with">Documenso · audit chain</div></div></div>
+      <div class="fstep"><div class="num">12</div><div><h4>File &amp; ripple</h4><p>Packet out to the portal (a human files where no API exists), confirmation ingested back, the deadline cascade recomputes, and the fee lands in the books.</p><div class="with">Room 22 · Temporal · Rooms 21 &amp; 28</div></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">06</span>
+      <h2>The repository</h2>
+    </div>
+    <p class="sec-note">One monorepo. The API is a modular monolith &mdash; one module per room &mdash; with three heavy services split out because they scale on different hardware. The rules packages are versioned data, reviewed like code, because they are the product.</p>
+    <div class="tree"><pre>
+firm/
+├─ apps/
+│  ├─ firm-web/            <i># the 28 rooms — React 19 · Vite · TanStack</i>
+│  ├─ client-portal/       <i># Client Desk surface — restricted kernel view</i>
+│  └─ today/               <i># the day-in-your-pocket PWA</i>
+├─ services/
+│  ├─ api/                 <i># Fastify + tRPC — modular monolith</i>
+│  │  └─ rooms/            <i># one module per room, no cross-imports —</i>
+│  │     ├─ intake/  conflicts/  retainer/  …  trust/
+│  │     └─ …              <i>#   rooms talk via the kernel and NATS only</i>
+│  ├─ docpipe/             <i># Python — Tika · OCR · unstructured · Presidio · Splink</i>
+│  ├─ inference/           <i># vLLM serving + the model gateway (policy per matter)</i>
+│  └─ verify/              <i># eyecite resolution · quote matching · treatment queue</i>
+├─ packages/
+│  ├─ kernel/              <i># the matter file: entities, events, RLS policies</i>
+│  ├─ rules/
+│  │  ├─ engine/           <i># the DSL interpreter — property-tested</i>
+│  │  ├─ us/               <i># per-court deadline &amp; procedure data, versioned + dated</i>
+│  │  └─ ca/               <i># provinces + federal, incl. civil-law Québec branch</i>
+│  ├─ citations/           <i># eyecite bindings · TOA builder · corpus clients</i>
+│  ├─ ledger/              <i># double-entry core · LEDES writers · reconciliation</i>
+│  ├─ ui/                  <i># Radix/shadcn components · grids · viewers · print styles</i>
+│  └─ templates/           <i># docassemble interviews · docxtpl/Typst masters, per jurisdiction</i>
+├─ infra/
+│  ├─ cells/us/  cells/ca/ <i># OpenTofu per residency cell — data never crosses</i>
+│  └─ onprem/              <i># Kamal bundle for dedicated / on-metal installs</i>
+└─ ops/                    <i># dashboards · runbooks · restore-drill workflows</i>
+</pre></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">07</span>
+      <h2>Where open source runs out</h2>
+    </div>
+    <p class="sec-note">The honest section, in the accuracy-doctrine spirit: six places nothing on a repo shelf solves, with the plan for each. Budget these like the product they are &mdash; because they are.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="from">Gap 1</div>
+        <h3>Court rules content</h3>
+        <p>The deadline engine is open source all the way down &mdash; but the <em>rules data</em> for every court must be authored, versioned, and maintained by people who read amendments for a living. This is the largest ongoing cost on the sheet and the deepest moat. Treat the rules packages as a data product with editors, review, and effective-dating.</p>
+      </div>
+      <div class="card">
+        <div class="from">Gap 2</div>
+        <h3>Citator treatment</h3>
+        <p>There is no open Shepard's. Day one, Citation Check verifies existence, quote, and pinpoint against the open corpora &mdash; already ahead of the sanctions cases. Treatment flags come next: the CourtListener citation graph plus a negative-treatment classifier, with every flag through a human verification queue before it blocks or clears anything.</p>
+      </div>
+      <div class="card">
+        <div class="from">Gap 3</div>
+        <h3>E-filing APIs</h3>
+        <p>CM/ECF has no public write API, and most state and provincial portals are commercial gateways. The Filing Room therefore perfects the packet and a human files it; confirmations and stamped copies are ingested back automatically. Where a real API exists, it's an adapter behind the same room &mdash; the workflow never changes shape.</p>
+      </div>
+      <div class="card">
+        <div class="from">Gap 4</div>
+        <h3>Canadian case law</h3>
+        <p>CanLII's terms restrict bulk and commercial use &mdash; its licence is a business negotiation, not a scraper. Statutes are fine: federal and provincial consolidations ship under open licences. Plan the Canadian authority corpus around negotiated access plus the open primary sources.</p>
+      </div>
+      <div class="card">
+        <div class="from">Gap 5</div>
+        <h3>Verdict &amp; settlement data</h3>
+        <p>Comparable-outcome data is mostly commercial. Case Value starts from public awards databases and the firm's own closed matters, and its bands widen honestly where data is thin &mdash; a wide honest band beats a narrow invented one, per the accuracy doctrine.</p>
+      </div>
+      <div class="card">
+        <div class="from">Gap 6</div>
+        <h3>Moving money</h3>
+        <p>Card and ACH acquiring is regulated processor territory; no open-source project does it and none should. The boundary is drawn so the processor only moves money while our ledger decides what is permitted to move &mdash; trust rules enforced on our side of the line, always.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">08</span>
+      <h2>Releases against the stack</h2>
+    </div>
+    <p class="sec-note">Same four releases as the room spec &mdash; here mapped to which layers each one stands up. Release one needs no AI plane at all, which is exactly why it's credible to a skeptical firm.</p>
+    <div class="phases">
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release one</div><h3>The rooms that pay rent</h3></div>
+        <div>
+          <p>Stand up L01&ndash;L04, L09, L10, and enough of L11 for one cell. The stars: Temporal, the rules engine with a first tranche of court data, docassemble, Documenso, and the ledger. No inference hardware, no corpus &mdash; nothing to distrust.</p>
+          <div class="mods-in">Rooms 01 · 02 · 03 · 21 · 27 · 28</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release two</div><h3>The gates and the reference</h3></div>
+        <div>
+          <p>Add L07 &mdash; eyecite, the corpora, courts-db &mdash; and the verify service. The Citation Check gate ships before any drafting does, so trust is never asked for on credit.</p>
+          <div class="mods-in">Rooms 05 · 08 · 09 · 11</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release three</div><h3>The paper</h3></div>
+        <div>
+          <p>The full document plane (L05), search (L06), and the AI plane (L08) behind the gates. Drafting rooms open in risk order: correspondence and discovery, then pleadings and briefs, then the Filing Room.</p>
+          <div class="mods-in">Rooms 06 · 07 · 10 · 12 · 17 · 18 · 22</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="p-label"><div class="p-n">Release four</div><h3>The litigation file</h3></div>
+        <div>
+          <p>Scale L06 to review-set volume and L08 to transcript and adversary workloads; light up the remaining rooms on the layers already standing.</p>
+          <div class="mods-in">Rooms 04 · 13 · 14 · 15 · 16 · 19 · 20 · 23 · 24 · 25 · 26</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Companion to The 28-Room Firm. Licences noted are the projects' primary licences as commonly published and should be re-verified against each repository at adoption time &mdash; licences change, which is why Rule 2 exists and Renovate watches. Product architecture, not legal advice: everything here produces attorney work product for review by a licensed lawyer, and the platform assists the practice of law without practising it.</p>
+  </footer>
+
+</div>
