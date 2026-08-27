@@ -79,8 +79,20 @@ class Auth {
   seatCap() { return SEATS.length; }
   seats() { return SEATS; }
   userByEmail(email) {
-    return this.store.firm.list('user', (u) => u.email.toLowerCase() === String(email).toLowerCase() && u.active)[0];
+    // String() on BOTH sides, deliberately. This ran u.email.toLowerCase() over
+    // every user record, so one account whose email was missing threw a
+    // TypeError here — and this is the first thing login() calls. A single
+    // malformed record therefore did not merely make that account unreachable,
+    // it made EVERY sign-in fail for everyone, recoverable only with a shell on
+    // the box. A lookup must never be the thing that ends the deployment.
+    const want = String(email == null ? '' : email).toLowerCase();
+    if (!want) return undefined;
+    return this.store.firm.list('user', (u) => String(u.email == null ? '' : u.email).toLowerCase() === want && u.active)[0];
   }
+  // One definition of a usable sign-in, used when an invite is minted and again
+  // when it is redeemed. An account whose email is empty or malformed can never
+  // sign in, and it still consumes one of the two seats.
+  static validEmail(e) { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || '').trim()); }
   // True the FIRST time a bucket trips inside its window. The chain must record
   // that throttling happened, but /login is public and unauthenticated, so an
   // entry per attempt let anyone append to the tamper-evident log at will.
@@ -163,6 +175,14 @@ class Auth {
   logout(t) { if (t) this.sessions.delete(sha256(t)); }
   createInvite(email, role, name, by) {
     if (this.activeCount() >= this.seatCap()) { this.audit.log(by, 'invite.refused.seatlock', String(this.seatCap())); return null; }
+    // Refuse to mint an invite that cannot become a working account. Redemption
+    // used to validate the email only on the SEAT path, so an admin-issued
+    // invite carried whatever the form sent — including nothing — straight into
+    // a persisted user. That account could never sign in and still held a seat.
+    const addr = String(email || '').trim().toLowerCase();
+    if (!Auth.validEmail(addr)) { this.audit.log(by, 'invite.refused.email', 'invalid'); return null; }
+    if (this.userByEmail(addr)) { this.audit.log(by, 'invite.refused.email', 'already enrolled'); return null; }
+    email = addr;
     const code = token(24);
     this.store.firm.put('invite', { code, email, role, name, exp: Date.now() + 24 * 60 * 60 * 1000, used: false }, by);
     this.audit.log(by, 'invite.created', email + ':' + role);
@@ -185,12 +205,16 @@ class Auth {
     if (!inv || Date.now() > inv.exp) return null;
     if (this.activeCount() >= this.seatCap()) return { error: 'Seat lock: every seat in this build is already enrolled.' };
     if (String(password).length < 12) return { error: 'Password must be at least 12 characters.' };
-    let userEmail = inv.email;
-    if (inv.seat) {
-      userEmail = String(email || '').trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(userEmail)) return { error: 'Enter a valid email — it becomes your sign-in.' };
-      if (this.userByEmail(userEmail)) return { error: 'That email is already enrolled.' };
+    // A seat invite is bound to a NAME and the holder supplies their own email;
+    // an admin-issued invite carries the address the admin typed. Either way the
+    // SAME two checks apply before anything is persisted — they used to run only
+    // on the seat path, so the other one could write a user with no usable email
+    // at all, burning a seat on an account nobody can ever sign in as.
+    const userEmail = String((inv.seat ? email : inv.email) || '').trim().toLowerCase();
+    if (!Auth.validEmail(userEmail)) {
+      return { error: inv.seat ? 'Enter a valid email — it becomes your sign-in.' : 'This invite carries no usable email address. Ask an administrator to issue a new one.' };
     }
+    if (this.userByEmail(userEmail)) return { error: 'That email is already enrolled.' };
     const user = this.store.firm.put('user', {
       email: userEmail, name: inv.name || userEmail, role: inv.role, active: true, pw: hashPassword(password),
     }, 'invite');

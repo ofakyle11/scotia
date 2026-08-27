@@ -95,7 +95,7 @@ let danSession = danS;
 
   // --- 3. a seat must be re-issuable -------------------------------------
   // Both seats are enrolled, so the lock is at its cap and refuses new invites.
-  if (auth.createInvite({ email: 'third@f', role: 'lawyer' }, matt.id)) {
+  if (auth.createInvite('third@firm.test', 'lawyer', 'Third Person', matt.id)) {
     fails.push('seat lock let a THIRD account be invited');
   }
   // Matt loses his authenticator. Dan must be able to release Matt's seat...
@@ -104,13 +104,36 @@ let danSession = danS;
     fails.push('LOCKOUT: a seat cannot be released — a lost authenticator ends the deployment');
   }
   // ...and then re-issue it.
-  if (!auth.createInvite({ email: 'matt2@f', name: 'Matt D', role: 'admin' }, dan.id)) {
+  if (!auth.createInvite('matt2@firm.test', 'admin', 'Matt D', dan.id)) {
     fails.push('seat still not re-issuable after releasing it');
   }
   // But nobody may release their own seat and strand the firm.
   await post('/admin/deactivate', danSession, { userId: dan.id });
   if (!freshUser(dan.id).active) {
     fails.push('an admin deactivated themselves — the firm can now be locked out with nobody left');
+  }
+
+  // --- 3b. an invite must not be able to create an unusable account -------
+  // The fourth lockout, and the cheapest to trigger: redemption validated the
+  // email only on the SEAT path, so an admin-issued invite carried whatever the
+  // form sent straight into a persisted user. An account with no usable email
+  // can never sign in and still holds one of the two seats.
+  if (auth.createInvite('', 'lawyer', 'No Address', dan.id)) {
+    fails.push('an invite was minted with an EMPTY email — redeeming it burns a seat on an account nobody can sign in as');
+  }
+  if (auth.createInvite('not-an-email', 'lawyer', 'Malformed', dan.id)) {
+    fails.push('an invite was minted with a malformed email');
+  }
+  if (auth.createInvite('dan@f', 'lawyer', 'Duplicate', dan.id)) {
+    fails.push("an invite was minted for an address that is already enrolled — the second holder could never sign in");
+  }
+  // And the lookup that login() calls first must survive a malformed record
+  // rather than taking every sign-in down with it.
+  store.firm.put('user', { name: 'Broken', role: 'clerk', active: true, pw: 'x' }, 't');
+  let lookupOk = true;
+  try { auth.userByEmail('dan@f'); } catch (e) { lookupOk = false; }
+  if (!lookupOk) {
+    fails.push('TOTAL LOCKOUT: one user record with no email makes userByEmail throw, so EVERY sign-in fails for everyone');
   }
 
   // --- 4. a deployment nobody enrolled in must still be enterable ---------

@@ -403,7 +403,12 @@ app.route('GET', '/admin', (req, res, ctx) => {
 });
 app.route('POST', '/admin/invite', (req, res, ctx) => {
   if (!ctx.kernel.isAdmin()) { send(res, 404, 'Not found.'); return; }
-  const code = auth.createInvite(ctx.body.email, ['lawyer', 'clerk', 'admin'].includes(ctx.body.role) ? ctx.body.role : 'lawyer', ctx.body.name, ctx.user.id);
+  // Checked here as well as in createInvite so the message can say which of the
+  // two refusals it was; the check inside is the one that actually guards.
+  const addr = String(ctx.body.email || '').trim();
+  if (!Auth.validEmail(addr)) { ctx.setFlash('Enter a valid email address — it becomes that person\'s sign-in.', 'err'); redirect(res, '/admin'); return; }
+  if (auth.userByEmail(addr)) { ctx.setFlash('That email is already enrolled.', 'err'); redirect(res, '/admin'); return; }
+  const code = auth.createInvite(addr, ['lawyer', 'clerk', 'admin'].includes(ctx.body.role) ? ctx.body.role : 'lawyer', ctx.body.name, ctx.user.id);
   if (!code) { ctx.setFlash(`Seat lock: this build is limited to ${auth.seatCap()} enrolled accounts.`, 'err'); redirect(res, '/admin'); return; }
   ctx.setFlash('Invite created — share the single-use link from the open invites list.');
   redirect(res, '/admin');
