@@ -68,6 +68,7 @@ const KNOWN = {
   'pleadcite.test.js': { tier: TIER_FAST, order: 80, timeout: MINUTE, why: 'a pleading is citation-scannable end to end' },
   'seam.test.js':      { tier: TIER_FAST, order: 90, timeout: MINUTE, why: 'R-A / R-D cross-room seams hold' },
   'seats.test.js':     { tier: TIER_FAST, order: 100, timeout: MINUTE, why: 'two named seats, no third account, self-set credentials' },
+  'staleverify.test.js': { tier: TIER_FAST, order: 110, timeout: MINUTE, why: 'a superseded or dark-day deadline is flagged on both diaries and refuses the dual-diary tick' },
 
   'harness.js':        { tier: TIER_ROOMS, order: 10, timeout: 3 * MINUTE, why: 'all 36 rooms render + no POST 500s (EMPTY state)' },
   'seeded.test.js':    { tier: TIER_ROOMS, order: 20, timeout: 3 * MINUTE, why: 'all 36 rooms render WITH real records of every type' },

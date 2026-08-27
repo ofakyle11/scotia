@@ -193,8 +193,10 @@ function register(app) {
     </div>
     <h2 class="sec">Diary — ${esc(ctx.matter.title)} ${chips}</h2>
     ${deadlines.length ? table(['Due', 'Deadline', 'Trigger', 'Authority', 'Status', ''], deadlines.map((d) => [
-      date(d.due) + (d.due < today && d.status === 'open' ? ' ' + tag('OVERDUE', 'gate') : (daysOut(d.due) <= 14 && d.status === 'open' ? ' ' + tag(daysOut(d.due) + 'd', 'navy') : '')),
-      esc(d.desc) + (d.anchor === 'trial' ? ' ' + tag('trial', 'navy') + (d.source === CASCADE_SOURCE ? '' : ' ' + tag('not cascade-managed', '')) : ''), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`,
+      date(d.due) + (d.due < today && d.status === 'open' ? ' ' + tag('OVERDUE', 'gate') : (daysOut(d.due) <= 14 && d.status === 'open' ? ' ' + tag(daysOut(d.due) + 'd', 'navy') : ''))
+        + (d.nonBusinessDay ? '<br>' + tag('weekend/holiday — not rolled forward', 'gate') : ''),
+      esc(d.desc) + (d.anchor === 'trial' ? ' ' + tag('trial', 'navy') + (d.source === CASCADE_SOURCE ? '' : ' ' + tag('not cascade-managed', '')) : ''), esc(d.trigger || ''), `<span class="note">${esc(d.rule || '')}</span>`
+        + (d.stale ? '<br>' + tag('STALE — ' + (d.staleReason || 'governing law changed'), 'gate') : ''),
       d.status === 'done' ? tag('done', 'ok') : tag('open'),
       d.status === 'open' ? `<span class="no-print"><form method="POST" action="/r/calendar/done" style="margin:0"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Done</button></form></span>` : '',
     ])) : empty('No deadlines calendared for this matter yet — pick a rule and a trigger date above; one click computes and calendars it.')}

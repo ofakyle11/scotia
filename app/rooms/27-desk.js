@@ -43,6 +43,15 @@ const isLimitation = (k, d) => classify(k, d, LIMITATION_RX, 'limitation');
 // with a ruleId, or by hand with only 'Notice of appeal due' on it.
 const isAppealClock = (k, d) => classify(k, d, APPEAL_RX, null);
 
+// A deadline whose governing law moved after the date was computed.
+// 09-jurisdiction stamps `stale` on every open deadline when the matter's
+// jurisdiction changes — but that flag lived ONLY on that room's own recompute
+// card. This page is where a lawyer actually reads deadlines, and it showed a
+// superseded date with no mark on it and offered it the dual-diary tick, so the
+// stale date came out of the control rendered `verified` in green: certified
+// under a rulebook that no longer governs, and looking better for it.
+const isStale = (d) => !!(d && d.stale);
+
 // Printing this page yields the Monday-meeting paper: the dated firm diary,
 // the appeal alarms and the bring-forwards. The shared base in kernel/html.js
 // drops the chrome, every form and everything marked .no-print and re-points
@@ -101,6 +110,8 @@ function register(app) {
     // Limitation bars still awaiting the second tick — the dual-diary control
     // as a number, so a missed one is visible without reading the table.
     const limUnticked = diary.filter((r) => isLimitation(k, r.d) && !r.d.verifiedBy).length;
+    // Deadlines computed under a rulebook that no longer governs the matter.
+    const staleN = diary.filter((r) => isStale(r.d)).length;
 
     const inquiries = k.firm.list('inquiry', (i) => i.status === 'screening');
     const trust = k.ledger.balances()['trust:bank'] || 0;
@@ -118,11 +129,28 @@ function register(app) {
       if (lim) parts.push(tag('LIMITATION', 'gate'));
       if (d.verifiedBy) {
         parts.push(tag('verified — ' + d.verifiedBy + ' ' + String(d.verifiedAt || '').slice(0, 10), 'ok'));
+      } else if (isStale(d)) {
+        // No tick on a superseded date. Recompute first — certifying it is the
+        // failure mode, not the fix, and the button is withheld as well as the
+        // POST refused because a control that only hides is not a control.
+        parts.push(`<a class="quiet" href="/r/jurisdiction?m=${encodeURIComponent(String(m.id))}">Recompute before verifying &rarr;</a>`);
       } else if (lim) {
         parts.push(`<form method="POST" action="/r/desk/verify" style="margin:6px 0 0"><input type="hidden" name="matterId" value="${esc(m.id)}"><input type="hidden" name="id" value="${esc(d.id)}"><button class="quiet">Verify date</button></form>`);
       }
       return parts.join(' ');
     };
+    // A limitation date landing on a weekend or court holiday is NOT rolled
+    // forward — kernel/rules.js deliberately refuses to push a statutory expiry
+    // to a later, false-safe day. 21-calendar computes and stores that on the
+    // record, then announced it in one flash to whoever happened to be at the
+    // keyboard; the stored flag was read back on no page at all. The warning has
+    // to travel with the date every time anyone looks at it.
+    const dueCell = (d) => date(d.due)
+      + (d.nonBusinessDay ? '<br>' + tag('weekend/holiday — not rolled forward', 'gate') : '');
+    // Which rulebook computed this date; a stale flag means: not the one that
+    // governs the matter now.
+    const authorityCell = (d) => `<span class="note">${esc(d.rule || '')}</span>`
+      + (isStale(d) ? '<br>' + tag('STALE — ' + (d.staleReason || 'governing law changed'), 'gate') : '');
     const daysCell = (due) => {
       const n = daysLeft(due);
       if (n === null) return '';
@@ -132,11 +160,11 @@ function register(app) {
 
     const diaryTable = diary.length
       ? table(['Due', 'Days', 'Matter', 'Deadline', 'Authority', 'Limitation'], diary.map((r) => [
-          date(r.d.due),
+          dueCell(r.d),
           daysCell(r.d.due),
           `<a href="${mlink('calendar', r.matter.id)}">${esc(r.matter.title)}</a>`,
           esc(r.d.desc),
-          `<span class="note">${esc(r.d.rule || '')}</span>`,
+          authorityCell(r.d),
           limCell(r.matter, r.d),
         ]))
       : empty('No open deadline on any visible matter — compute the next one from its rule in Trial Calendar (21).');
@@ -158,6 +186,7 @@ function register(app) {
       ${statCard(overdue, 'Overdue', overdue ? 'bad' : '')}
       ${statCard(dueSoon, 'Due in 14 days')}
       ${statCard(limUnticked, 'Limitation bars unticked', limUnticked ? 'bad' : '')}
+      ${statCard(staleN, 'Stale — rulebook changed', staleN ? 'bad' : '', '/r/jurisdiction')}
       ${statCard(matters.filter((m) => m.status === 'open').length, 'Open matters')}
       ${statCard(inquiries.length, 'In screening', '', '/r/intake')}
       ${statCard(money(trust), 'Held in trust', '', '/r/books')}
@@ -199,6 +228,16 @@ function register(app) {
     try { d = k.scope(matterId).get('deadline', id); } catch { d = null; }
     if (!d) { ctx.setFlash('That deadline is not available to verify.', 'err'); redirect(res, '/r/desk'); return; }
     if (d.verifiedBy) { ctx.setFlash('Already verified — ' + d.verifiedBy + ' ticked it on ' + String(d.verifiedAt || '').slice(0, 10) + '.', 'err'); redirect(res, '/r/desk'); return; }
+    // The whole point of the second tick is that it certifies the date. A date
+    // computed under superseded law is the one thing that must never collect it:
+    // once ticked it renders `verified` and reads as the most trustworthy row on
+    // the diary. Recompute in Trial Calendar, then clear the flag.
+    if (d.stale) {
+      ctx.setFlash('Dual diary refused: this date was computed under a rulebook that no longer governs this matter'
+        + (d.staleReason ? ' (' + d.staleReason + ')' : '')
+        + '. Rebuild it in Trial Calendar (21) and clear the flag in Governing Law (09) before it can be verified.', 'err');
+      redirect(res, '/r/desk'); return;
+    }
     if (ctx.user.id === d.createdBy) {
       ctx.setFlash('Dual diary refused: the verifying lawyer must be a different person than the one who calendared the date. Ask your colleague for the second tick.', 'err');
       redirect(res, '/r/desk'); return;

@@ -8,7 +8,7 @@ const SESSION_TTL = 8 * 60 * 60 * 1000;
 // A session may slide for eight hours at a time, but never live longer than
 // this in total — the audit's own witness to "who was signed in" is worthless
 // if a session from a month ago is still valid.
-const SESSION_MAX = 12 * 3600 * 1000; // 8h
+const SESSION_MAX = 12 * 3600 * 1000; // 12h absolute cap; SESSION_TTL above is the 8h sliding window
 const RATE = { windowMs: 15 * 60 * 1000, max: 20 };
 
 // Seat lock: enrollment is limited to exactly these named seats. Override
