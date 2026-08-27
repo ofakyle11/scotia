@@ -69,6 +69,7 @@ const KNOWN = {
   'seam.test.js':      { tier: TIER_FAST, order: 90, timeout: MINUTE, why: 'R-A / R-D cross-room seams hold' },
   'seats.test.js':     { tier: TIER_FAST, order: 100, timeout: MINUTE, why: 'two named seats, no third account, self-set credentials' },
   'staleverify.test.js': { tier: TIER_FAST, order: 110, timeout: MINUTE, why: 'a superseded or dark-day deadline is flagged on both diaries and refuses the dual-diary tick' },
+  'deploylog.test.js': { tier: TIER_FAST, order: 120, timeout: MINUTE, why: 'enrolment tokens stay out of the reverse proxy access log, and the installer fallback stays in sync' },
 
   'harness.js':        { tier: TIER_ROOMS, order: 10, timeout: 3 * MINUTE, why: 'all 36 rooms render + no POST 500s (EMPTY state)' },
   'seeded.test.js':    { tier: TIER_ROOMS, order: 20, timeout: 3 * MINUTE, why: 'all 36 rooms render WITH real records of every type' },
@@ -206,8 +207,18 @@ function killGroup(child, sig) {
 
 // A suite that exits 0 and says it skipped (no Chromium, no optional tooling) is
 // green-with-a-note, never a failure. Exit code still has to be 0 to get here.
+//
+// Scoped to the suite's VERDICT — its last meaningful line — not to the whole
+// output. Scanning everything meant any suite that merely used the word
+// anywhere, including inside a success message, was silently relabelled SKIP;
+// deploylog.test.js announced 'ALL PASS (invite path skipped, ...)' and the
+// gate reported it as skipped. A passing suite reported as skipped is the
+// dangerous direction of that error: this runner's contract is that CI treats a
+// skip as needing a look, so a suite could stop being evidence without anyone
+// being told. Every real skip here is a print-and-exit-0 before any work, so it
+// is always the last line.
 function looksSkipped(out) {
-  return /\bskipp(?:ed|ing)\b/i.test(out);
+  return /\bskipp(?:ed|ing)\b/i.test(lastMeaningfulLine(out));
 }
 
 function lastMeaningfulLine(out) {

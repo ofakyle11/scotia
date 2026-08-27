@@ -74,8 +74,19 @@ fi
 log "reverse proxy"
 sed "s|chambers.example.com|${DOMAIN}|" "$DEPLOY_DIR/Caddyfile" > /etc/caddy/Caddyfile
 if have caddy; then
-  caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
-    || die "/etc/caddy/Caddyfile is invalid — run: caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile"
+  if ! caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+    # The Caddyfile keeps enrolment tokens out of the access log with `log_skip`,
+    # which needs Caddy >= 2.5. An older Caddy rejects the whole file, and dying
+    # here would block the install on deploy day over a hardening line. Drop that
+    # block instead and say plainly what the firm loses by it.
+    sed -i '/BEGIN invite-log-skip/,/END invite-log-skip/d' /etc/caddy/Caddyfile
+    if caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+      warn "this Caddy predates log_skip — enrolment links WILL be written to /var/log/caddy/chambers-access.log in plaintext."
+      warn "  Redeem both seat links promptly, then: truncate -s0 /var/log/caddy/chambers-access.log  (or upgrade Caddy and re-run)"
+    else
+      die "/etc/caddy/Caddyfile is invalid — run: caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile"
+    fi
+  fi
 fi
 if systemd_live; then
   systemctl enable caddy >/dev/null 2>&1 || true

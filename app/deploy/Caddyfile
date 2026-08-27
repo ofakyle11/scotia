@@ -34,6 +34,19 @@ chambers.example.com {
 	}
 	respond @external_health 404
 
+	# BEGIN invite-log-skip
+	# An enrolment link creates a FULL ADMIN SEAT and stays live for up to seven
+	# days. Caddy's access log records the request URI, so /invite/<token> would
+	# sit in a plaintext, root-readable file for that entire window — and in
+	# whatever log shipper collects it afterwards. Nothing evidential is lost by
+	# not writing the secret down a second time: the app's own hash-chained,
+	# 0600 audit log already records invite.created and the redemption, with who
+	# and when. Needs Caddy >= 2.5; install.sh drops this block, warns, and
+	# continues if the installed Caddy rejects it.
+	@invite path /invite/*
+	log_skip @invite
+	# END invite-log-skip
+
 	log {
 		output file /var/log/caddy/chambers-access.log
 		format json
