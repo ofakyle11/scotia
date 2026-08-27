@@ -8,7 +8,7 @@
 const path = require('path');
 const fs = require('fs');
 const { App, html, send, redirect, cookie, NONCE } = require('./kernel/http.js');
-const { Keyring, token } = require('./kernel/crypto.js');
+const { Keyring, token, sha256 } = require('./kernel/crypto.js');
 const { Store } = require('./kernel/store.js');
 const { Audit } = require('./kernel/audit.js');
 const { Auth } = require('./kernel/auth.js');
@@ -53,9 +53,45 @@ if (store.firm.list('user').length === 0
   console.log('  Hand each link to its holder, then delete the file.\n');
 }
 
-const flashes = new Map(); // one-shot flash messages keyed by session cookie
-function setFlash(req, msg, kind) { const t = (req._cookies || {}).s; if (t) flashes.set(t, { msg, kind }); }
-function takeFlash(req) { const t = (req._cookies || {}).s; const f = flashes.get(t); flashes.delete(t); return f; }
+// One-shot flash messages, keyed by the HASH of the session cookie — never the
+// cookie itself. kernel/auth.js stores only sha256(token) precisely so that a
+// heap dump or a memory-disclosure bug cannot hand over a live session; this map
+// then held the raw token as a key for every signed-in seat, which gave that
+// decision away for nothing. Entries are also swept: a flash set and never
+// collected (the user closes the tab, or the redirect is never followed) used to
+// sit in the map for the life of the process.
+const FLASH_TTL_MS = 10 * 60 * 1000;
+const flashes = new Map();
+const flashKey = (req) => { const t = (req._cookies || {}).s; return t ? sha256(t) : null; };
+function sweepFlashes() {
+  const cutoff = Date.now() - FLASH_TTL_MS;
+  for (const [k, v] of flashes) if ((v.at || 0) < cutoff) flashes.delete(k);
+}
+function setFlash(req, msg, kind) {
+  const k = flashKey(req);
+  if (!k) return;
+  sweepFlashes();
+  flashes.set(k, { msg, kind, at: Date.now() });
+}
+function takeFlash(req) {
+  const k = flashKey(req);
+  if (!k) return undefined;
+  const f = flashes.get(k);
+  flashes.delete(k);
+  return f && Date.now() - (f.at || 0) <= FLASH_TTL_MS ? f : undefined;
+}
+// Any change to the credentials that protect a session ends that session and
+// starts a new one. Without this, a password change or a 2FA change left every
+// previously-issued cookie for the account still working — so the one action a
+// person takes BECAUSE they think someone else has their session did not put
+// that someone else out.
+function rotateSession(req, res, ctx, to, msg, kind) {
+  const old = (req._cookies || {}).s;
+  const t = auth.createSession(ctx.user.id);
+  if (old) auth.logout(old);
+  if (msg) flashes.set(sha256(t), { msg, kind: kind || '', at: Date.now() });
+  redirect(res, to, cookie('s', t, { maxAge: 8 * 3600 }));
+}
 
 const PUBLIC = new Set(['GET /', 'POST /login', 'POST /login/totp', 'GET /healthz', 'GET /robots.txt']);
 
@@ -195,7 +231,7 @@ app.route('POST', '/invite/:code', (req, res, ctx) => {
   if (!out) { send(res, 404, 'Not found.'); return; }
   if (out.error) { html(res, ui.enrollPage(inv, out.error)); return; }
   const t = auth.createSession(out.user.id);
-  flashes.set(t, { msg: 'Enrolled. Next: enable two-factor authentication below — it takes thirty seconds.', kind: '' });
+  flashes.set(sha256(t), { msg: 'Enrolled. Next: enable two-factor authentication below — it takes thirty seconds.', kind: '', at: Date.now() });
   redirect(res, '/account', cookie('s', t, { maxAge: 8 * 3600 }));
 });
 app.route('POST', '/matter/select', (req, res, ctx) => {
@@ -222,7 +258,7 @@ app.route('GET', '/account', (req, res, ctx) => {
         <p class="num" style="font-size:15px;word-break:break-all">${ui.esc(pending)}</p>
         <p class="note" style="word-break:break-all">${ui.esc(totpKit.otpauthUri(u.email, pending))}</p>
         <form method="POST" action="/account/totp-confirm">${ui.input('code', 'Current 6-digit code', { required: true })}<button>Confirm &amp; enable</button></form>` : ''}
-      ${enrolled ? `<form method="POST" action="/account/totp-disable">${ui.input('code', 'Current code to disable', { required: true })}<button class="danger">Disable 2FA</button></form>` : ''}
+      ${enrolled ? `<form method="POST" action="/account/totp-disable">${ui.input('code', 'Current code to disable', { required: true })}${ui.input('password', 'Your password', { type: 'password', required: true })}<button class="danger">Disable 2FA</button></form>` : ''}
     </div>
     <div class="card">
       <h2 class="sec" style="margin-top:0">Password</h2>
@@ -248,8 +284,7 @@ app.route('POST', '/account/password', (req, res, ctx) => {
   // lawyer out of the practice permanently, and the other admin could not help.
   const out = auth.changePassword(ctx.user.id, ctx.body.current || '', ctx.body.password || '', ctx.body.password2 || '');
   if (out.error) { ctx.setFlash(out.error, 'err'); redirect(res, '/account'); return; }
-  ctx.setFlash('Password changed.');
-  redirect(res, '/account');
+  rotateSession(req, res, ctx, '/account', 'Password changed. This device has been re-signed in and every other session for your account is now closed.');
 });
 app.route('POST', '/account/totp-start', (req, res, ctx) => {
   const u = ctx.kernel.firm.get('user', ctx.user.id);
@@ -264,8 +299,7 @@ app.route('POST', '/account/totp-confirm', (req, res, ctx) => {
   if (enrollStep === null) { ctx.setFlash('That code did not verify — try again with a fresh one.', 'err'); redirect(res, '/account'); return; }
   ctx.kernel.firm.put('user', { ...u, totp: u.pendingTotp, pendingTotp: null, totpLastStep: enrollStep });
   ctx.kernel.audit('user.2fa.enabled', ctx.user.id);
-  ctx.setFlash('Two-factor authentication enabled. It is now required at every sign-in.');
-  redirect(res, '/account');
+  rotateSession(req, res, ctx, '/account', 'Two-factor authentication enabled. It is now required at every sign-in, and every other session for your account has been closed.');
 });
 app.route('POST', '/account/totp-disable', (req, res, ctx) => {
   const u = ctx.kernel.firm.get('user', ctx.user.id);
@@ -278,12 +312,20 @@ app.route('POST', '/account/totp-disable', (req, res, ctx) => {
     ctx.setFlash('Too many attempts. Wait a few minutes before trying again.', 'err');
     redirect(res, '/account'); return;
   }
+  // The code alone was the whole gate, and a valid session is exactly what an
+  // attacker holds when they reach this route — so the second factor could be
+  // removed by someone who never knew the first. Turning 2FA OFF now costs the
+  // password as well as a live code.
+  if (!auth.reauth(u.id, ctx.body.password || '')) {
+    ctx.kernel.audit('user.2fa.disable.denied', ctx.user.id);
+    ctx.setFlash('That password is wrong. Disabling two-factor authentication needs your password as well as a current code.', 'err');
+    redirect(res, '/account'); return;
+  }
   if (!auth.consumeTotp(u.id, ctx.body.code)) { ctx.setFlash('That code did not verify.', 'err'); redirect(res, '/account'); return; }
   const u2 = ctx.kernel.firm.get('user', u.id);
   ctx.kernel.firm.put('user', { ...u2, totp: null, pendingTotp: null, totpLastStep: null });
   ctx.kernel.audit('user.2fa.disabled', ctx.user.id);
-  ctx.setFlash('Two-factor authentication disabled.');
-  redirect(res, '/account');
+  rotateSession(req, res, ctx, '/account', 'Two-factor authentication disabled. Every other session for your account has been closed.');
 });
 
 // ---------- firm administration (kernel-level, not one of the rooms) ----------
@@ -471,4 +513,8 @@ if (require.main === module) {
   console.log(`Chambers listening on http://localhost:${PORT} (bound to ${HOST}, data: ${DATA})`);
 }
 
-module.exports = { app, makeCtx, store, audit, auth, keyring, PORT };
+// `flashes` is exported for one reason: test/reauth.test.js asserts that no RAW
+// session token is ever used as a key in it. That property has no observable
+// behaviour — a map keyed on the token and one keyed on its hash behave
+// identically — so the only way to keep it from silently regressing is to look.
+module.exports = { app, makeCtx, store, audit, auth, keyring, flashes, PORT };

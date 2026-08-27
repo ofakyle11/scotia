@@ -41,8 +41,20 @@ function register(app) {
     const key = k.canlii.apiKey();
     if (!key) { ctx.setFlash('Link-out mode: no API key. Use the CanLII search link, or an admin can add a key for live resolution.', 'err'); redirect(res, '/r/canlii'); return; }
     const cached = k.firm.get('canliiCase', databaseId + '/' + caseId);
+    // Audited only when the call actually goes out — a cache hit discloses
+    // nothing. A neutral citation is a public court identifier, not client
+    // content, so unlike the free-text connectors this one records the id.
+    if (!cached) k.audit('canlii.fetch', (ctx.matter ? ctx.matter.id : 'no-matter') + ':' + databaseId + '/' + caseId);
     const out = cached ? { ok: true, data: cached.meta, cached: true } : await k.canlii.fetchCase({ databaseId, caseId }, key);
     if (!out.ok) { ctx.setFlash('CanLII: ' + out.message, 'err'); redirect(res, '/r/canlii'); return; }
+    // A 200 whose body parsed but carries no case is not a resolution. Caching
+    // it wrote a permanent firm-wide entry for a case nobody can name, and every
+    // later lookup hit that entry and reported 'Resolved (cache): undefined'.
+    // The cache has no invalidation, so 'permanent' is literal.
+    if (!out.data || !out.data.title) {
+      ctx.setFlash('CanLII answered, but the response carried no case for that citation — nothing was cached. Treat the citation as unresolved.', 'err');
+      redirect(res, '/r/canlii'); return;
+    }
     if (!cached) k.firm.put('canliiCase', { id: databaseId + '/' + caseId, databaseId, caseId, meta: out.data, fetched: new Date().toISOString() });
     // Re-scanning the same factum is normal, so resolving a cite already on the
     // file adds nothing: one authority per cite, not one per scan.
@@ -73,6 +85,7 @@ function register(app) {
     const key = k.canlii.apiKey();
     if (!key) { ctx.setFlash('Citator needs live mode (API key).', 'err'); redirect(res, '/r/canlii'); return; }
     const ids = { databaseId: rec.databaseId, caseId: rec.caseId };
+    k.audit('canlii.citator', (ctx.matter ? ctx.matter.id : 'no-matter') + ':' + ids.databaseId + '/' + ids.caseId);
     const citing = await k.canlii.fetchCitator(ids, 'citingCases', key);
     const cited = await k.canlii.fetchCitator(ids, 'citedCases', key);
     if (!citing.ok && !cited.ok) { ctx.setFlash('CanLII: ' + citing.message, 'err'); redirect(res, '/r/canlii'); return; }

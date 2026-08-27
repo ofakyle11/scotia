@@ -70,7 +70,9 @@ const KNOWN = {
   'seats.test.js':     { tier: TIER_FAST, order: 100, timeout: MINUTE, why: 'two named seats, no third account, self-set credentials' },
   'staleverify.test.js': { tier: TIER_FAST, order: 110, timeout: MINUTE, why: 'a superseded or dark-day deadline is flagged on both diaries and refuses the dual-diary tick' },
   'deploylog.test.js': { tier: TIER_FAST, order: 120, timeout: MINUTE, why: 'enrolment tokens stay out of the reverse proxy access log, and the installer fallback stays in sync' },
-  'durability.test.js': { tier: TIER_FAST, order: 130, timeout: MINUTE, why: 'a saved record is on the disk, not just in the page cache' },
+  'durability.test.js': { tier: TIER_FAST, order: 130, timeout: MINUTE, why: 'a saved record is on the disk, not just in the page cache, and no wider than the keys beside it' },
+  'reauth.test.js':    { tier: TIER_FAST, order: 140, timeout: MINUTE, why: 'removing 2FA costs the password too, and a credential change rotates the session' },
+  'egress.test.js':    { tier: TIER_FAST, order: 150, timeout: MINUTE, why: 'every outbound connector call is audited to its matter, without its query text' },
 
   'harness.js':        { tier: TIER_ROOMS, order: 10, timeout: 3 * MINUTE, why: 'all 36 rooms render + no POST 500s (EMPTY state)' },
   'seeded.test.js':    { tier: TIER_ROOMS, order: 20, timeout: 3 * MINUTE, why: 'all 36 rooms render WITH real records of every type' },

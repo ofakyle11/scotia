@@ -67,7 +67,16 @@ class Scope {
     // milliseconds on a slow volume. A two-seat firm writes a few hundred
     // records a day and cannot perceive either, which makes durability the
     // obviously correct default here even though it would not be at scale.
-    const fd = fs.openSync(this.file, 'a');
+    // 0600 to match the key material sitting beside it. The contents are
+    // AES-256-GCM sealed, so a wider mode is not a plaintext leak — but the file
+    // sizes, record counts and write timestamps are real metadata about a
+    // client's file, and the deliberate 0600 on root.key/keyring.json was worth
+    // nothing if the logs next to them were world-readable at the umask. Mode
+    // applies only at creation, so an existing log written before this is
+    // repaired in place, the same way audit.js does it.
+    const existed = fs.existsSync(this.file);
+    const fd = fs.openSync(this.file, 'a', 0o600);
+    if (existed) { try { if ((fs.fstatSync(fd).mode & 0o777) !== 0o600) fs.fchmodSync(fd, 0o600); } catch (_) { /* best effort */ } }
     try {
       fs.writeSync(fd, line + '\n');
       fs.fsyncSync(fd);
@@ -145,8 +154,8 @@ class Store {
     const key = this.keyring.matterKey(matterId);
     const id = uuid();
     const dir = path.join(this.dataDir, 'blobs', matterId);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, id), seal(key, buf, 'blob:' + id));
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(dir, id), seal(key, buf, 'blob:' + id), { mode: 0o600 });
     return id;
   }
   getBlob(matterId, id) {

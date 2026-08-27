@@ -56,6 +56,15 @@ class Auth {
     return { ok: true };
   }
 
+  // Re-authentication for a credential-sensitive action. A live session is not
+  // evidence of identity here: the session is precisely what an attacker has
+  // when they reach a route that turns a protection off.
+  reauth(userId, password) {
+    const u = this.store.firm.get('user', userId);
+    if (!u || !u.active) return false;
+    return verifyPassword(password, u.pw);
+  }
+
   // Release a seat so it can be re-issued. Never your own: an admin who
   // deactivates themselves strands the firm with nobody able to invite anyone.
   deactivate(targetId, byId) {

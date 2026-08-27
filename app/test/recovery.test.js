@@ -37,22 +37,37 @@ const post = (path, session, body) => fetch(base + path, {
   body: new URLSearchParams(body).toString(),
 });
 const freshUser = (id) => store.firm.get('user', id);
+// A credential change rotates the session, so the cookie a browser holds after
+// one is not the cookie it sent. A test that kept sending the old token would
+// go unauthenticated from that point on and every later assertion would pass
+// vacuously — which is exactly what happened here the first time the rotation
+// landed. Follow the Set-Cookie the way a browser does.
+const rotated = (res, current) => {
+  const m2 = (res.headers.get('set-cookie') || '').match(/(?:^|[;\s])s=([^;]+)/);
+  return m2 ? m2[1] : current;
+};
+let danSession = danS;
 
 (async () => {
   const fails = [];
 
   // --- 1. a lawyer must be able to change their own password ---------------
-  await post('/account/password', danS, { current: DAN_PW, password: 'dan-brand-new-password', password2: 'dan-brand-new-password' });
+  const pwRes = await post('/account/password', danSession, { current: DAN_PW, password: 'dan-brand-new-password', password2: 'dan-brand-new-password' });
   if (!verifyPassword('dan-brand-new-password', freshUser(dan.id).pw)) {
     fails.push('LOCKOUT: a lawyer cannot change their own password — a typo at enrolment is permanent');
   }
+  danSession = rotated(pwRes, danSession);
+  // The rest of this file depends on Dan still being signed in. If the rotation
+  // ever stops issuing a usable cookie, say so here rather than letting a dozen
+  // downstream assertions quietly stop testing anything.
+  if (!auth.resolve(danSession)) fails.push('after changing his password Dan holds no working session — every assertion below this line is vacuous');
   // ...and only with the current one.
-  await post('/account/password', danS, { current: 'not-the-password', password: 'attacker-chosen-pw', password2: 'attacker-chosen-pw' });
+  await post('/account/password', danSession, { current: 'not-the-password', password: 'attacker-chosen-pw', password2: 'attacker-chosen-pw' });
   if (verifyPassword('attacker-chosen-pw', freshUser(dan.id).pw)) {
     fails.push('a stolen session could change the password without knowing the current one');
   }
   // ...and the two entries must match, so a typo cannot become the password.
-  await post('/account/password', danS, { current: 'dan-brand-new-password', password: 'typed-one-way', password2: 'typed-another-way' });
+  await post('/account/password', danSession, { current: 'dan-brand-new-password', password: 'typed-one-way', password2: 'typed-another-way' });
   if (verifyPassword('typed-one-way', freshUser(dan.id).pw)) {
     fails.push('mismatched confirmation was accepted — the original enrolment trap, again');
   }
@@ -66,7 +81,7 @@ const freshUser = (id) => store.firm.get('user', id);
   // A screened lawyer must NOT be able to lift their own wall; that would make
   // walls meaningless.
   const wall2 = store.firm.put('wall', { matterId: m.id, screened: [dan.id], basis: 'prior retainer' }, matt.id);
-  await post('/admin/wall/remove', danS, { wallId: wall2.id });
+  await post('/admin/wall/remove', danSession, { wallId: wall2.id });
   if (!store.firm.get('wall', wall2.id)) {
     fails.push('a screened lawyer lifted the very wall that screens them');
   }
@@ -84,7 +99,7 @@ const freshUser = (id) => store.firm.get('user', id);
     fails.push('seat lock let a THIRD account be invited');
   }
   // Matt loses his authenticator. Dan must be able to release Matt's seat...
-  await post('/admin/deactivate', danS, { userId: matt.id });
+  await post('/admin/deactivate', danSession, { userId: matt.id });
   if (freshUser(matt.id).active) {
     fails.push('LOCKOUT: a seat cannot be released — a lost authenticator ends the deployment');
   }
@@ -93,7 +108,7 @@ const freshUser = (id) => store.firm.get('user', id);
     fails.push('seat still not re-issuable after releasing it');
   }
   // But nobody may release their own seat and strand the firm.
-  await post('/admin/deactivate', danS, { userId: dan.id });
+  await post('/admin/deactivate', danSession, { userId: dan.id });
   if (!freshUser(dan.id).active) {
     fails.push('an admin deactivated themselves — the firm can now be locked out with nobody left');
   }

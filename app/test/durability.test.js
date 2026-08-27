@@ -56,6 +56,36 @@ if (reread.matterScope(m.id).damagedLines) fails.push('a freshly written log rep
 // 5. The flush targets the log's own descriptor, not some unrelated fd.
 if (fsyncedFds.some((fd) => typeof fd !== 'number')) fails.push('fsync was called with a non-descriptor');
 
+// 6. The sealed logs and blobs must be as private as the keys beside them.
+//    root.key and keyring.json were deliberately 0600 while the logs they
+//    protect were created at the process umask — 0644 in practice. The contents
+//    are AES-256-GCM sealed, so this is not a plaintext leak, but file sizes,
+//    record counts and write times are real metadata about a client's file, and
+//    the deliberate 0600 next door bought nothing while this stayed open.
+const mode = (f) => fs.statSync(f).mode & 0o777;
+const blobId = store.putBlob(m.id, Buffer.from('privileged bytes'));
+const bid = typeof blobId === 'string' ? blobId : blobId.id;
+const expect600 = {
+  'root.key': path.join(dir, 'root.key'),
+  'keyring.json': path.join(dir, 'keyring.json'),
+  'firm.log': path.join(dir, 'firm.log'),
+  'matter log': path.join(dir, 'matters', m.id + '.log'),
+  'blob': path.join(dir, 'blobs', m.id, bid),
+};
+for (const [name, f] of Object.entries(expect600)) {
+  const got = mode(f);
+  if (got !== 0o600) fails.push(`${name} is ${got.toString(8).padStart(4, '0')}, expected 0600`);
+}
+const bdirMode = mode(path.join(dir, 'blobs', m.id));
+if (bdirMode !== 0o700) fails.push(`the blob directory is ${bdirMode.toString(8).padStart(4, '0')}, expected 0700 — its listing names every attachment on the matter`);
+if (store.getBlob(m.id, bid).toString() !== 'privileged bytes') fails.push('the blob did not round-trip after the mode change');
+
+// 7. A log that already exists at a looser mode is repaired, not left. An
+//    upgrade must fix the firm's existing data directory, not only new ones.
+fs.chmodSync(path.join(dir, 'firm.log'), 0o644);
+store.firm.put('user', { email: 'c@f', name: 'C', role: 'lawyer', active: true }, 't');
+if (mode(path.join(dir, 'firm.log')) !== 0o600) fails.push('an existing log left at 0644 was not repaired on the next append — an upgraded deployment keeps the old mode forever');
+
 fs.fsyncSync = realFsync;
 if (fails.length) { console.log('DURABILITY FAIL:\n - ' + fails.join('\n - ')); process.exit(1); }
-console.log('DURABILITY: ALL PASS (every append flushed, new logs flush their directory entry, records replay intact from disk)');
+console.log('DURABILITY: ALL PASS (every append flushed, new logs flush their directory entry, records replay intact, logs and blobs 0600 and repaired in place)');

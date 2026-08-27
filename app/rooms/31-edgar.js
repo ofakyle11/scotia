@@ -33,6 +33,16 @@ function register(app) {
     const q = trim(ctx.body.q);
     const forms = trim(ctx.body.forms);
     if (!q) { ctx.setFlash('Enter a search.', 'err'); redirect(res, '/r/edgar'); return; }
+    // Matter content is leaving the building. Every other egress in this product
+    // is audited per call (the model gateway most of all), and these four
+    // connector calls were not audited at all — so a client's name could be sent
+    // to a third party with nothing in the record that it ever happened.
+    // The QUERY TEXT is deliberately not recorded: operator-typed search text can
+    // name a client or an adverse party, and the audit log is plaintext, survives
+    // crypto-shredding and rides in every backup. What the record needs is that a
+    // disclosure occurred, to whom, on which matter, by whom and when — so the
+    // line carries the target and the query's length, never its words.
+    ctx.kernel.audit('edgar.search', (ctx.matter ? ctx.matter.id : 'no-matter') + ':qlen=' + q.length);
     const out = await ctx.kernel.edgar.search(q, { forms: forms || undefined, contact: ctx.kernel.edgar.contact() });
     if (!out.ok) { ctx.setFlash('EDGAR: ' + out.message, 'err'); redirect(res, '/r/edgar'); return; }
     render(res, ctx, { q, forms, ...out });
