@@ -49,8 +49,12 @@ let log = ''; srv.stdout.on('data', (d) => { log += d; });
 
 (async () => {
   await new Promise((r) => setTimeout(r, 4000));
-  const m = log.match(/Dan G \(admin\):\s+(\S+)/);
-  if (!m) throw new Error('no seat invite printed on first boot');
+  // Seat links are admin credentials and no longer go to stdout (they would land
+  // in the systemd journal); first boot writes them to a 0600 file instead.
+  const linkFile = path.join(DATA, 'first-boot-invites.txt');
+  if (!fs.existsSync(linkFile)) throw new Error('no first-boot-invites.txt written on first boot; server said: ' + log.slice(0, 300));
+  const m = fs.readFileSync(linkFile, 'utf8').match(/Dan G \(admin\):\s+(\S+)/);
+  if (!m) throw new Error('no Dan G seat link in first-boot-invites.txt');
   const invite = m[1].replace(/http:\/\/localhost:\d+/, 'http://localhost:' + PORT);
   const b = await chromium.launch({ executablePath: CHROME });
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });

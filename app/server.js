@@ -39,9 +39,18 @@ const app = new App();
 if (store.firm.list('user').length === 0
     && store.firm.list('invite', (i) => !i.used && Date.now() < i.exp).length === 0) {
   const seats = auth.createSeatInvites();
-  console.log('\n  FIRST BOOT — seat invites (single use each, 7 days):');
-  for (const s2 of seats) console.log(`  ${s2.name} (${s2.role}):  http://localhost:${PORT}/invite/${s2.code}`);
-  console.log('');
+  // The codes are live admin-seat credentials. Printing them to stdout put them
+  // in the systemd journal (and the runbook told the operator to recover them
+  // with `journalctl | grep /invite/`), so anyone with sudo — or any log
+  // shipper — could claim a seat before its intended holder. They go to a 0600
+  // file in the data directory instead; stdout gets the PATH, not the secret.
+  const linkFile = path.join(DATA, 'first-boot-invites.txt');
+  const body = seats.map((s2) => `${s2.name} (${s2.role}):  http://localhost:${PORT}/invite/${s2.code}`).join('\n');
+  fs.writeFileSync(linkFile, `Chambers first-boot seat invites — single use each, 7 days.\nDelete this file once both seats are enrolled.\n\n${body}\n`, { mode: 0o600 });
+  try { fs.chmodSync(linkFile, 0o600); } catch (_) { /* best effort on odd filesystems */ }
+  console.log('\n  FIRST BOOT — seat invites written to:');
+  console.log(`  ${linkFile}  (mode 0600 — not printed here, and not in the journal)`);
+  console.log('  Hand each link to its holder, then delete the file.\n');
 }
 
 const flashes = new Map(); // one-shot flash messages keyed by session cookie
@@ -261,6 +270,14 @@ app.route('POST', '/account/totp-confirm', (req, res, ctx) => {
 app.route('POST', '/account/totp-disable', (req, res, ctx) => {
   const u = ctx.kernel.firm.get('user', ctx.user.id);
   if (!u.totp) { ctx.setFlash('2FA is not enabled.', 'err'); redirect(res, '/account'); return; }
+  // Throttled like every other credential path. This one TURNS OFF the second
+  // factor, and it was the only unthrottled endpoint of the set: a stolen
+  // session could walk six digits at full speed until it stripped 2FA off the
+  // account. Shares the login limiter's bucket, keyed on the real client.
+  if (auth.rateLimited(clientIp(req))) {
+    ctx.setFlash('Too many attempts. Wait a few minutes before trying again.', 'err');
+    redirect(res, '/account'); return;
+  }
   if (!auth.consumeTotp(u.id, ctx.body.code)) { ctx.setFlash('That code did not verify.', 'err'); redirect(res, '/account'); return; }
   const u2 = ctx.kernel.firm.get('user', u.id);
   ctx.kernel.firm.put('user', { ...u2, totp: null, pendingTotp: null, totpLastStep: null });

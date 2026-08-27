@@ -4,7 +4,11 @@
 const { hashPassword, verifyPassword, token, sha256 } = require('./crypto.js');
 const totp = require('./totp.js');
 
-const SESSION_TTL = 8 * 60 * 60 * 1000; // 8h
+const SESSION_TTL = 8 * 60 * 60 * 1000;
+// A session may slide for eight hours at a time, but never live longer than
+// this in total — the audit's own witness to "who was signed in" is worthless
+// if a session from a month ago is still valid.
+const SESSION_MAX = 12 * 3600 * 1000; // 8h
 const RATE = { windowMs: 15 * 60 * 1000, max: 20 };
 
 // Seat lock: enrollment is limited to exactly these named seats. Override
@@ -129,7 +133,10 @@ class Auth {
   }
   createSession(uid) {
     const t = token(32);
-    this.sessions.set(sha256(t), { uid, exp: Date.now() + SESSION_TTL });
+    // `iat` is what gives the session a CEILING. resolve() slides `exp` forward
+    // on every request, so without an issued-at nothing capped total lifetime:
+    // a session touched once a day lived for ever.
+    this.sessions.set(sha256(t), { uid, iat: Date.now(), exp: Date.now() + SESSION_TTL });
     return t;
   }
   resolve(t) {
@@ -137,6 +144,9 @@ class Auth {
     const s = this.sessions.get(sha256(t));
     if (!s) return null;
     if (Date.now() > s.exp) { this.sessions.delete(sha256(t)); return null; }
+    // Absolute ceiling, independent of the sliding window: a session cannot
+    // outlive SESSION_MAX no matter how often it is used. Sign in again.
+    if (Date.now() - (s.iat || 0) > SESSION_MAX) { this.sessions.delete(sha256(t)); return null; }
     s.exp = Date.now() + SESSION_TTL; // sliding
     const user = this.store.firm.get('user', s.uid);
     return user && user.active ? user : null;

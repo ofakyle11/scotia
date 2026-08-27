@@ -77,20 +77,35 @@ class Keyring {
 }
 
 // Password hashing: scrypt, constant-time compare, uniform-cost verify.
-const SCRYPT = { N: 16384, r: 8, p: 1 };
+// Password hashing is VERSIONED by prefix so the cost can be raised without
+// locking anyone out: s2$ is the original 2^14 tranche, s3$ the current one.
+// verifyPassword reads either; hashPassword only ever writes the current.
+// maxmem must be raised explicitly — node's 32 MB default rejects 2^17.
+const SCRYPT_V = {
+  s2: { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 },
+  s3: { N: 131072, r: 8, p: 1, maxmem: 192 * 1024 * 1024 },
+};
+const CURRENT = 's3';
 function hashPassword(pw) {
   const salt = crypto.randomBytes(16);
-  const key = crypto.scryptSync(String(pw), salt, 32, SCRYPT);
-  return 's2$' + salt.toString('base64') + '$' + key.toString('base64');
+  const key = crypto.scryptSync(String(pw), salt, 32, SCRYPT_V[CURRENT]);
+  return CURRENT + '$' + salt.toString('base64') + '$' + key.toString('base64');
 }
-const DUMMY = hashPassword(crypto.randomBytes(9).toString('hex'));
+// Built on first use, not at module load: at the current cost this is ~0.4s,
+// and every process that merely REQUIRES this file would otherwise pay it.
+let _dummy = null;
+const dummy = () => (_dummy || (_dummy = hashPassword(crypto.randomBytes(9).toString('hex'))));
 function verifyPassword(pw, stored) {
-  const rec = typeof stored === 'string' && stored.startsWith('s2$') ? stored : DUMMY;
-  const [, saltB64, keyB64] = rec.split('$');
+  const v = typeof stored === 'string' ? String(stored).split('$')[0] : '';
+  // An unknown account still costs a full CURRENT-cost hash: the uniform-time
+  // property that makes "no such user" indistinguishable from "wrong password".
+  const DUMMY = dummy();
+  const rec = SCRYPT_V[v] ? stored : DUMMY;
+  const [ver, saltB64, keyB64] = rec.split('$');
   const salt = Buffer.from(saltB64, 'base64');
   const expect = Buffer.from(keyB64, 'base64');
-  const got = crypto.scryptSync(String(pw), salt, 32, SCRYPT);
-  const ok = crypto.timingSafeEqual(expect, got);
+  const got = crypto.scryptSync(String(pw), salt, 32, SCRYPT_V[ver]);
+  const ok = expect.length === got.length && crypto.timingSafeEqual(expect, got);
   return ok && rec !== DUMMY;
 }
 

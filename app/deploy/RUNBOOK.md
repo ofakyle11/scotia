@@ -48,7 +48,11 @@ Then, in order:
 1. Open the enrolment link, set a 12+ character password, turn on 2FA at
    `/account` immediately. The link is **single-use and expires in 7 days**;
    treat it as a credential and never paste it into email, chat, or a ticket.
-   Missed it? `sudo journalctl -u chambers | grep /invite/`
+   Missed it? The links are in `$CHAMBERS_DATA/first-boot-invites.txt` (mode
+   0600, root-only). They are deliberately NOT in the journal: a live seat link
+   creates a full admin account, and the journal is readable by anyone with
+   sudo and captured by any log shipper. **Delete that file once both seats are
+   enrolled.**
 2. **Escrow the root key** (below). Do it the day you deploy.
 3. Prove the backup works (below). Do it before you have real matters.
 

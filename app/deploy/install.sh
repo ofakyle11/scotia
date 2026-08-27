@@ -129,7 +129,8 @@ fi
 # store. It is a 7-day, single-use credential: shown once, here, on your own
 # terminal, because that is the only channel that exists for it. It is never
 # written to a file by this kit. Set SHOW_INVITE=0 for an unattended install
-# and read it later with: sudo journalctl -u chambers | grep /invite/
+# and read it later from $CHAMBERS_DATA/first-boot-invites.txt (0600, root-only).
+# NOT from the journal — seat links are admin credentials and never go there.
 if [ "$SHOW_INVITE" = "1" ] && systemd_live; then
   log "first-boot enrolment"
   invites=$(journalctl -u "$CHAMBERS_UNIT" --since '-5 min' --no-pager 2>/dev/null \
