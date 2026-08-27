@@ -13,6 +13,9 @@ class Scope {
     this.label = label;
     this.types = new Map(); // type -> Map(id -> obj)
     fs.mkdirSync(path.dirname(file), { recursive: true });
+    // The log is created lazily by the first append; that append must also flush
+    // the directory entry into existence.
+    this._dirSyncPending = !fs.existsSync(file);
     if (fs.existsSync(file)) {
       // A damaged line must cost you that line, not the whole matter.
       //
@@ -53,7 +56,34 @@ class Scope {
   }
   _append(ev) {
     const line = seal(this.key, Buffer.from(JSON.stringify(ev)), this.label).toString('base64');
-    fs.appendFileSync(this.file, line + '\n');
+    // appendFileSync returns once the kernel has the bytes in page cache, not
+    // once they are on the disk. So the app told a lawyer a record was saved
+    // while a power cut in the next few seconds would still lose it — and this
+    // log IS the file: there is no other copy of a matter's history between
+    // nightly backups. O_APPEND keeps the write atomic against any other
+    // writer; the flush is what makes "saved" mean saved.
+    //
+    // It costs a fraction of a millisecond per write on an SSD and a few
+    // milliseconds on a slow volume. A two-seat firm writes a few hundred
+    // records a day and cannot perceive either, which makes durability the
+    // obviously correct default here even though it would not be at scale.
+    const fd = fs.openSync(this.file, 'a');
+    try {
+      fs.writeSync(fd, line + '\n');
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    // Flushing the file is not enough the first time: until the directory entry
+    // itself is flushed, a crash can lose the whole new log — the first record
+    // of a brand-new matter is exactly when that matters.
+    if (this._dirSyncPending) {
+      this._dirSyncPending = false;
+      let dfd = null;
+      try { dfd = fs.openSync(path.dirname(this.file), 'r'); fs.fsyncSync(dfd); }
+      catch (_) { /* not all platforms allow fsync on a directory */ }
+      finally { if (dfd !== null) { try { fs.closeSync(dfd); } catch (_) {} } }
+    }
     this._apply(ev);
   }
   list(type, filter) {
