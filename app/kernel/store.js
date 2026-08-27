@@ -51,7 +51,18 @@ class Scope {
   _apply(ev) {
     if (!this.types.has(ev.type)) this.types.set(ev.type, new Map());
     const m = this.types.get(ev.type);
-    if (ev.t === 'put') m.set(ev.obj.id, ev.obj);
+    // Frozen on the way into the projection, because get() handed out the
+    // committed object itself and list() copied the array but not its elements.
+    // Mutating a field on one of those changed live state with NO event
+    // appended, no updatedAt/updatedBy and no audit line — so a rebuild from the
+    // log would legitimately differ from what the app had been showing. In an
+    // append-only audited store that is the log quietly ceasing to be the
+    // record. Every file here is 'use strict', so an in-place write now throws
+    // instead of diverging silently, and the copy-then-put idiom the rooms
+    // already use everywhere (`s.put('deadline', { ...d, status: 'done' })`) is
+    // unaffected. Freezing at write also costs nothing on the read path, which
+    // matters where 27-desk walks every deadline on every matter.
+    if (ev.t === 'put') m.set(ev.obj.id, Object.freeze(ev.obj));
     else if (ev.t === 'del') m.delete(ev.id);
   }
   _append(ev) {

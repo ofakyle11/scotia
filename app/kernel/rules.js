@@ -210,4 +210,38 @@ function computeLimitation(rule, triggerDateISO) {
 function rulesFor(jur) { return RULES.filter((r) => r.jur === jur); }
 function rule(id) { return RULES.find((r) => r.id === id); }
 
-module.exports = { RULES, JURISDICTIONS, HOLIDAYS, holidaysFor, compute, rulesFor, rule, isBusinessDay, isLimitation, landsOnNonBusinessDay, computeLimitation };
+// Is this stored DEADLINE a limitation/prescription bar? isLimitation() above
+// answers that for a RULE; this answers it for a record, which is what every
+// room actually holds.
+//
+// It lived in rooms/27-desk.js, and two other rooms needed it: 09-jurisdiction
+// had its own copy whose text fallback was case-SENSITIVE, so it matched none of
+// 01-intake's records ('Limitation period expires', 'Limitations Act, 2002,
+// s. 4') and the bar stayed dark; 21-calendar had none at all. Rooms may only
+// require html.js and http.js, so the shared home is here.
+//
+// Match on ANY of: the recorded flag, the rules.js id, the citation string or
+// description every writer sets, or the rule standing behind the id. Never on
+// ruleId alone — 01-intake, 12-discovery, 15-experts and 23-adr write no id, and
+// keying off it made the limitation bar whose miss IS the claim invisible to
+// both the flag and the dual-diary tick.
+const LIMITATION_TEXT = /limitation|prescription/i;
+function isLimitationDeadline(d) {
+  if (!d) return false;
+  // The recorded flag may only ADD, never subtract. 09-jurisdiction wrote
+  // staleLimitation using its own case-sensitive fallback, so an existing record
+  // can carry `false` on a bar that really is one; letting the stored value win
+  // outright would quietly downgrade exactly the dates this exists to protect.
+  if (d.staleLimitation === true) return true;
+  const ruleId = String(d.ruleId || '');
+  if (LIMITATION_TEXT.test(ruleId)) return true;
+  if (LIMITATION_TEXT.test(String(d.rule || '') + ' ' + String(d.desc || ''))) return true;
+  if (!ruleId) return false;
+  let r = null;
+  try { r = rule(ruleId); } catch (_) { r = null; }
+  if (!r) return false;
+  if (r.category === 'limitation') return true;
+  return LIMITATION_TEXT.test(String(r.desc || '') + ' ' + String(r.cite || ''));
+}
+
+module.exports = { RULES, JURISDICTIONS, HOLIDAYS, holidaysFor, compute, rulesFor, rule, isBusinessDay, isLimitation, isLimitationDeadline, landsOnNonBusinessDay, computeLimitation };

@@ -31,18 +31,42 @@ class Audit {
     fs.mkdirSync(dataDir, { recursive: true });
     this.key = readOrMintKey(this.keyFile);
     this.prev = 'genesis';
-    if (fs.existsSync(this.file)) {
-      const lines = fs.readFileSync(this.file, 'utf8').trim().split('\n').filter(Boolean);
-      if (lines.length) this.prev = JSON.parse(lines[lines.length - 1]).hash;
+    this.damagedLines = 0;
+    this._syncPrev();
+  }
+  // Read the log, keeping what parses and COUNTING what does not.
+  //
+  // Every read here used to be a bare JSON.parse, and the one in the
+  // constructor ran at module load in server.js. So a single torn last line — a
+  // crash mid-append, a full disk — threw before the server could listen, and
+  // Chambers did not start at all, with a JSON syntax error for a diagnosis.
+  // This is the same defect, in the same shape, that once bricked a whole
+  // matter in kernel/store.js; the fix there was to make damage cost the
+  // damaged line and nothing else, and it is the right fix here too.
+  //
+  // The damage is NOT healed: a torn line stays torn, verify() keeps reporting
+  // it, and a later append chains from the last entry that reads. That is the
+  // point — this is tamper-evidence, so damage must remain evidence. What it
+  // must not do is stop the firm opening its own practice.
+  _read() {
+    if (!fs.existsSync(this.file)) return { entries: [], damaged: [] };
+    const lines = fs.readFileSync(this.file, 'utf8').trim().split('\n').filter(Boolean);
+    const entries = [], damaged = [];
+    for (let i = 0; i < lines.length; i++) {
+      let e = null;
+      try { e = JSON.parse(lines[i]); } catch (_) { e = null; }
+      if (e && typeof e === 'object' && typeof e.hash === 'string') entries.push({ e, line: i + 1 });
+      else damaged.push(i + 1);
     }
+    return { entries, damaged };
   }
   // Re-sync to the file's true tail before appending, so two writers (the
   // server plus a console tool) extend one chain instead of forking it.
   // Tamper evidence is unaffected: verify() still walks every link.
   _syncPrev() {
-    if (!fs.existsSync(this.file)) { this.prev = 'genesis'; return; }
-    const lines = fs.readFileSync(this.file, 'utf8').trim().split('\n').filter(Boolean);
-    this.prev = lines.length ? JSON.parse(lines[lines.length - 1]).hash : 'genesis';
+    const { entries, damaged } = this._read();
+    this.damagedLines = damaged.length;
+    this.prev = entries.length ? entries[entries.length - 1].e.hash : 'genesis';
   }
   // Cross-process mutual exclusion around read-tail + append. Without it, two
   // writers (server + console tool) can both read the same tail hash and both
@@ -132,31 +156,42 @@ class Audit {
       if (head && head.n > 0) return { ok: false, reason: `audit.log is missing but ${head.n} entries were recorded`, entries: 0 };
       return { ok: true, entries: 0 };
     }
-    const lines = fs.readFileSync(this.file, 'utf8').trim().split('\n').filter(Boolean);
+    const { entries, damaged } = this._read();
+    // An unreadable entry is a FINDING, not an exception. This function exists
+    // to report that the chain is not what it should be; throwing instead told
+    // the caller nothing and took the page down with it.
+    if (damaged.length) {
+      return {
+        ok: false, at: damaged[0], entries: entries.length, damaged: damaged.length,
+        reason: damaged.length === 1
+          ? `entry ${damaged[0]} is unreadable — the chain cannot be verified across it`
+          : `${damaged.length} entries are unreadable (first at ${damaged[0]}) — the chain cannot be verified across them`,
+      };
+    }
     let prev = 'genesis';
-    for (let i = 0; i < lines.length; i++) {
-      const e = JSON.parse(lines[i]);
+    for (const { e, line } of entries) {
       const expect = this._link(prev, e.ts, e.actor, e.action, e.object);
       if (e.prev !== prev || e.hash !== expect) {
-        return { ok: false, at: i + 1, entries: lines.length, reason: `entry ${i + 1} does not match the chain` };
+        return { ok: false, at: line, entries: entries.length, reason: `entry ${line} does not match the chain` };
       }
       prev = e.hash;
     }
     // Internally consistent — now check it against what was last anchored.
     if (head) {
-      if (head.n !== lines.length || head.hash !== prev) {
+      if (head.n !== entries.length || head.hash !== prev) {
         return {
-          ok: false, entries: lines.length, reason:
-            `chain ends at ${lines.length} entries but ${head.n} were recorded — entries were removed`,
+          ok: false, entries: entries.length, reason:
+            `chain ends at ${entries.length} entries but ${head.n} were recorded — entries were removed`,
         };
       }
     }
-    return { ok: true, entries: lines.length };
+    return { ok: true, entries: entries.length };
   }
   tail(n = 50) {
-    if (!fs.existsSync(this.file)) return [];
-    const lines = fs.readFileSync(this.file, 'utf8').trim().split('\n').filter(Boolean);
-    return lines.slice(-n).map((l) => JSON.parse(l)).reverse();
+    // Skips what will not parse rather than throwing: the audit VIEW must keep
+    // working when the log is damaged, because that is exactly when someone
+    // needs to look at it. verify() is what says the damage is there.
+    return this._read().entries.slice(-n).map((x) => x.e).reverse();
   }
 }
 

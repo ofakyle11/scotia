@@ -154,11 +154,13 @@ function register(app) {
 // A stale computed deadline is a limitation/prescription bar when its source
 // rule carries category 'limitation'; fall back to the recorded flag or the
 // citation/description text for records minted before the flag existed.
+// Delegates to the shared classifier in kernel/rules.js. The copy that used to
+// live here fell back to a CASE-SENSITIVE /limitation|prescription/, which
+// matched none of 01-intake's records ('Limitation period expires',
+// 'Limitations Act, 2002, s. 4') — so the bar whose miss is a claim was recorded
+// as procedural by the very routine that flags it.
 function isLimitationDeadline(k, d) {
-  if (d.staleLimitation != null) return !!d.staleLimitation;
-  const r = d.ruleId ? k.rules.rule(d.ruleId) : null;
-  if (r) return k.rules.isLimitation(r);
-  return /limitation|prescription/.test(String(d.rule || '') + ' ' + String(d.desc || ''));
+  return k.rules.isLimitationDeadline(d);
 }
 
 // The recompute list: every open deadline computed under the matter's prior

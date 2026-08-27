@@ -74,6 +74,8 @@ const KNOWN = {
   'reauth.test.js':    { tier: TIER_FAST, order: 140, timeout: MINUTE, why: 'removing 2FA costs the password too, and a credential change rotates the session' },
   'egress.test.js':    { tier: TIER_FAST, order: 150, timeout: MINUTE, why: 'every outbound connector call is audited to its matter, without its query text' },
   'amounts.test.js':   { tier: TIER_FAST, order: 160, timeout: MINUTE, why: 'no amount field accepts a non-finite figure, and valid ones still post' },
+  'auditboot.test.js': { tier: TIER_FAST, order: 170, timeout: 2 * MINUTE, why: 'a torn line in audit.log costs that line, not the ability to start the server' },
+  'keyloss.test.js':   { tier: TIER_FAST, order: 180, timeout: MINUTE, why: 'a missing root key fails closed and names the escrow, instead of booting as a new firm' },
 
   'harness.js':        { tier: TIER_ROOMS, order: 10, timeout: 3 * MINUTE, why: 'all 36 rooms render + no POST 500s (EMPTY state)' },
   'seeded.test.js':    { tier: TIER_ROOMS, order: 20, timeout: 3 * MINUTE, why: 'all 36 rooms render WITH real records of every type' },

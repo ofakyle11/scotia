@@ -294,7 +294,26 @@ function register(app) {
     if (ctx.matter) {
       const s = k.scope(ctx.matter.id);
       const d = s.get('deadline', String(ctx.body.id || ''));
-      if (d) { s.put('deadline', { ...d, status: 'done' }); ctx.setFlash(`Closed: ${d.desc} (${d.due || 'no date'}).`); }
+      // A limitation bar leaves the diary only through the dual-diary control.
+      // 27-desk refuses the second tick on a superseded date, but this route
+      // closed ANY deadline on one person's click — and the firm diary lists
+      // only open ones, so closing a limitation bar removed it from the control
+      // entirely. Guarding the tick while leaving the exit open is not a
+      // control; the bar whose miss is a claim could be cleared single-handed,
+      // with a generic audit line that does not even say what it was.
+      if (d && k.rules.isLimitationDeadline(d) && !d.verifiedBy) {
+        ctx.setFlash(`"${d.desc}" is a limitation or prescription bar. It can only be closed after a second lawyer — not the one who calendared it — has verified the date on the firm diary (27). Ask your colleague for the tick first.`, 'err');
+        redirect(res, '/r/calendar'); return;
+      }
+      if (d) {
+        s.put('deadline', { ...d, status: 'done' });
+        // A limitation closure is not an ordinary one: name it, and name who
+        // certified the date, so the chain shows the control was satisfied.
+        if (k.rules.isLimitationDeadline(d)) {
+          k.audit('deadline.limitation.closed', `${ctx.matter.id}:${d.id}:verifiedBy=${d.verifiedById || d.verifiedBy || 'unknown'}`);
+        }
+        ctx.setFlash(`Closed: ${d.desc} (${d.due || 'no date'}).`);
+      }
     }
     redirect(res, '/r/calendar');
   });

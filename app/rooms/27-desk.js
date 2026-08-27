@@ -36,9 +36,11 @@ function classify(k, d, rx, category) {
   return rx.test(String(r.desc || '') + ' ' + String(r.cite || ''));
 }
 
-const LIMITATION_RX = /limitation|prescription/i;
 const APPEAL_RX = /appeal/i;
-const isLimitation = (k, d) => classify(k, d, LIMITATION_RX, 'limitation');
+// One definition, shared: kernel/rules.js now owns it, so this room, the
+// calendar's close route and 09-jurisdiction all decide "is this a limitation
+// bar" the same way. This room's version was the correct one and is what moved.
+const isLimitation = (k, d) => k.rules.isLimitationDeadline(d);
 // The appeal clock counts as calendared however it was written — by 21-calendar
 // with a ruleId, or by hand with only 'Notice of appeal due' on it.
 const isAppealClock = (k, d) => classify(k, d, APPEAL_RX, null);

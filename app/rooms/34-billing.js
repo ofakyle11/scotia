@@ -69,6 +69,13 @@ function feeModelFor(k, matterId) {
 }
 
 // Fees per the model; disbursements and totals from the invoice's own lines.
+//
+// PURE: returns a new invoice rather than writing the totals back into the one
+// it was handed. It used to mutate its argument, and two of its three callers
+// passed an invoice straight out of the store — so the committed record was
+// edited in place and only saved afterwards if the caller happened to remember.
+// kernel/store.js now freezes committed records, which turned that from a silent
+// divergence into a loud TypeError; this is the fix rather than the workaround.
 function recompute(inv) {
   const gross = (inv.lineItems || []).reduce((s, l) => s + num(l.amount), 0);
   const wd = (inv.lineItems || []).reduce((s, l) => s + num(l.writeDown), 0);
@@ -77,8 +84,7 @@ function recompute(inv) {
   else if (inv.feeModel === 'contingency') fees = 0; // taken from recovery in room 24, not billed hourly
   else fees = Math.max(0, gross - wd); // hourly: each line's own hours x its own rate
   const disb = (inv.disbLines || []).reduce((s, d) => s + num(d.amount), 0);
-  inv.fees = r2(fees); inv.disbursements = r2(disb); inv.writeDowns = r2(wd); inv.total = r2(fees + disb);
-  return inv;
+  return { ...inv, fees: r2(fees), disbursements: r2(disb), writeDowns: r2(wd), total: r2(fees + disb) };
 }
 
 // Firm-wide monotonic invoice counter. Holds a bare number, no matter identity,
@@ -378,9 +384,12 @@ function register(app) {
     const inv = ctx.body.inv ? sc.get('invoice', ctx.body.inv) : null;
     if (!inv) { ctx.setFlash('Select an invoice to adjust.', 'err'); redirect(res, '/r/billing'); return; }
     if (inv.status !== 'draft') { ctx.setFlash('Only a draft invoice can be adjusted.', 'err'); redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id)); return; }
-    for (const l of inv.lineItems || []) {
+    // New line objects, not edits to the stored ones. The store freezes a
+    // committed record, but that freeze is shallow — so writing l.writeDown on
+    // the invoice's own array still changed live state with no event behind it.
+    const lineItems = (inv.lineItems || []).map((l) => {
       const raw = ctx.body['wd:' + l.timeEntryId];
-      if (raw === undefined) continue;
+      if (raw === undefined) return l;
       let wd = Number(raw);
       if (!Number.isFinite(wd) || wd < 0) wd = 0;
       // Clamp against a COERCED line value. Comparing against a raw l.amount let
@@ -388,13 +397,13 @@ function register(app) {
       // comparison with NaN is false), so an unbounded write-down could be stored.
       const cap = r2(l.amount);
       if (wd > cap) wd = cap; // cannot write down more than the line is worth
-      l.writeDown = r2(wd);
-    }
-    recompute(inv);
-    sc.put('invoice', inv);
-    ctx.kernel.audit('billing.writedown', ctx.matter.id + ':' + inv.number + ':' + inv.writeDowns);
-    ctx.setFlash(`Write-downs applied — net fees ${money(inv.fees).replace(/<[^>]+>/g, '')}.`);
-    redirect(res, '/r/billing?inv=' + encodeURIComponent(inv.id));
+      return { ...l, writeDown: r2(wd) };
+    });
+    const next = recompute({ ...inv, lineItems });
+    sc.put('invoice', next);
+    ctx.kernel.audit('billing.writedown', ctx.matter.id + ':' + next.number + ':' + next.writeDowns);
+    ctx.setFlash(`Write-downs applied — net fees ${money(next.fees).replace(/<[^>]+>/g, '')}.`);
+    redirect(res, '/r/billing?inv=' + encodeURIComponent(next.id));
   });
 
   app.route('POST', `/r/${ROOM.id}/issue`, (req, res, ctx) => {
@@ -421,13 +430,16 @@ function register(app) {
       ctx.setFlash(`Cannot issue ${inv.number} — ${conflicts.length} line${conflicts.length === 1 ? '' : 's'} cannot be proved unbilled: ${conflicts.slice(0, 3).join('; ')}. Discard this draft and generate a fresh one.`, 'err');
       redirect(res, back); return;
     }
-    recompute(inv);
-    if (!(num(inv.total) > 0)) { ctx.setFlash('Nothing billable to issue — total is zero.', 'err'); redirect(res, back); return; }
+    // recompute() returns a fresh invoice; the stored one is frozen and is not
+    // edited here. Everything below reads the recomputed totals, so the draft on
+    // disk is untouched until the single put in the transition.
+    const totals = recompute(inv);
+    if (!(num(totals.total) > 0)) { ctx.setFlash('Nothing billable to issue — total is zero.', 'err'); redirect(res, back); return; }
     // Record the receivable: client owes the total; fees to income, disbursements
     // recovered against the expense that funded them.
-    const lines = [{ account: 'ar:client', dr: inv.total }];
-    if (inv.fees > 0) lines.push({ account: 'operating:income:fees', cr: inv.fees });
-    if (inv.disbursements > 0) lines.push({ account: 'operating:expense:disbursements', cr: inv.disbursements });
+    const lines = [{ account: 'ar:client', dr: totals.total }];
+    if (totals.fees > 0) lines.push({ account: 'operating:income:fees', cr: totals.fees });
+    if (totals.disbursements > 0) lines.push({ account: 'operating:expense:disbursements', cr: totals.disbursements });
     // kernel/api.js ledger.post throws on <2 lines, on an unbalanced entry and on
     // a zero-value one. Prove all three here, in the same integer cents it uses,
     // so a rounding slip flashes a refusal instead of throwing a 500 (and, worse,
@@ -448,8 +460,7 @@ function register(app) {
     // marked — never a posted receivable on an invoice still open to re-issue.
     for (const te of time) sc.put('timeEntry', { ...te, state: 'billed', invoiceId: inv.id, invoiceNumber: inv.number });
     for (const d of disb) sc.put('disbursement', { ...d, state: 'billed', invoiceId: inv.id, invoiceNumber: inv.number });
-    inv.status = 'sent'; inv.issuedDate = today();
-    sc.put('invoice', inv);
+    sc.put('invoice', { ...totals, status: 'sent', issuedDate: today() });
     try {
       k.ledger.post(ctx.matter.id, { date: today(), memo: 'Invoice ' + inv.number, kind: 'invoice', lines });
     } catch (e) {
@@ -459,7 +470,7 @@ function register(app) {
       ctx.setFlash(`Invoice ${inv.number} issued and its time marked billed, but the ledger refused the receivable (${e.message}) — check Trust & Books before sending it.`, 'err');
       redirect(res, back); return;
     }
-    k.audit('billing.issue', ctx.matter.id + ':' + inv.number + ':' + inv.total);
+    k.audit('billing.issue', ctx.matter.id + ':' + inv.number + ':' + totals.total);
     ctx.setFlash(`Invoice ${inv.number} issued — receivable recorded, ${time.length} time entr${time.length === 1 ? 'y' : 'ies'} and ${disb.length} disbursement${disb.length === 1 ? '' : 's'} marked billed.`);
     redirect(res, back);
   });

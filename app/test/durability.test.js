@@ -87,5 +87,34 @@ store.firm.put('user', { email: 'c@f', name: 'C', role: 'lawyer', active: true }
 if (mode(path.join(dir, 'firm.log')) !== 0o600) fails.push('an existing log left at 0644 was not repaired on the next append — an upgraded deployment keeps the old mode forever');
 
 fs.fsyncSync = realFsync;
+// 8. A committed record must not be editable in place. get() handed out the
+//    projection object itself and list() copied the array but not its elements,
+//    so a room could change stored state with no event, no updatedAt/updatedBy
+//    and no audit line — after which a rebuild from the log would legitimately
+//    disagree with what the app had been showing. In an append-only audited
+//    store that is the log quietly ceasing to be the record.
+{
+  const s2 = store.matterScope(m.id);
+  const rec = s2.list('deadline')[0];
+  if (!Object.isFrozen(rec)) fails.push('a record from list() is not frozen — it can be edited in place with no event and no audit line');
+  let threw = false;
+  try { rec.due = '1999-01-01'; } catch (_) { threw = true; }
+  if (!threw || rec.due === '1999-01-01') fails.push('a committed record was mutated in place: due is now ' + rec.due);
+  if (!Object.isFrozen(s2.get('deadline', rec.id))) fails.push('a record from get() is not frozen');
+
+  // ...while the copy-then-put idiom every room already uses still works and
+  // still writes an event. A freeze that broke normal writes would be worse
+  // than the defect.
+  const before = rec.updatedAt;
+  const updated = s2.put('deadline', { ...rec, status: 'done' }, 't');
+  if (updated.status !== 'done') fails.push('copy-then-put no longer updates the record');
+  if (!updated.updatedAt || updated.updatedAt < before) fails.push('the update did not stamp a new updatedAt');
+  if (s2.get('deadline', rec.id).status !== 'done') fails.push('the update did not reach the projection');
+  // And it survives a cold re-read, so the event really was appended.
+  if (new Store(dir, new Keyring(dir)).matterScope(m.id).get('deadline', rec.id).status !== 'done') {
+    fails.push('the update was not written to the log — it lived only in memory');
+  }
+}
+
 if (fails.length) { console.log('DURABILITY FAIL:\n - ' + fails.join('\n - ')); process.exit(1); }
-console.log('DURABILITY: ALL PASS (every append flushed, new logs flush their directory entry, records replay intact, logs and blobs 0600 and repaired in place)');
+console.log('DURABILITY: ALL PASS (every append flushed, new logs flush their directory entry, records replay intact, logs and blobs 0600 and repaired in place; committed records frozen)');

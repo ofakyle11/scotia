@@ -128,8 +128,50 @@ const deadlines = () => store.matterScope(m.id).list('deadline');
     fails.push('the dual-diary same-person refusal regressed: Ann verified her own date');
   }
 
+  // ---- 3. A limitation bar cannot leave the diary single-handed -----------
+  // 27-desk refuses the second tick on a superseded date — but the calendar's
+  // own "Done" button closed ANY deadline on one person's click, and the firm
+  // diary lists only OPEN ones. So the bar whose miss is a claim could be
+  // removed from the dual-diary control entirely by the lawyer who calendared
+  // it. Guarding the tick while leaving the exit open is not a control.
+  const m3 = store.createMatter({ title: 'Third', client: 'C3', jurisdiction: 'on', status: 'open' }, ann.id);
+  const post3 = (p, form, sess) => fetch(base + p, {
+    method: 'POST', redirect: 'manual',
+    headers: { cookie: `s=${sess}; m=${m3.id}`, 'content-type': 'application/x-www-form-urlencoded', origin: base },
+    body: new URLSearchParams(form).toString(),
+  }).then(async (r) => { await r.text(); return r; });
+  const d3 = () => store.matterScope(m3.id).list('deadline');
+
+  await post3('/r/calendar/compute', { rule: 'on-limitation', trigger: '2026-01-04' }, annS);
+  const bar = d3()[0];
+  assert(bar, 'setup: the limitation bar was not calendared');
+  assert.strictEqual(bar.verifiedBy, undefined, 'setup: it should start unverified');
+
+  await post3('/r/calendar/done', { id: bar.id }, annS);
+  if (d3().find((d) => d.id === bar.id).status !== 'open') {
+    fails.push('an UNVERIFIED limitation bar was closed on one lawyer\'s click — it leaves the firm diary, which lists only open deadlines, so the dual-diary control is simply bypassed');
+  }
+
+  // A procedural deadline must still close in one click: a gate that taxes
+  // everything is not this gate.
+  await post3('/r/calendar/compute', { rule: 'on-soc-defence', trigger: '2026-01-04' }, annS);
+  const proc = d3().find((d) => d.ruleId === 'on-soc-defence');
+  assert(proc, 'setup: the procedural deadline was not calendared');
+  await post3('/r/calendar/done', { id: proc.id }, annS);
+  if (d3().find((d) => d.id === proc.id).status !== 'done') {
+    fails.push('a procedural deadline could no longer be closed in one click — the limitation gate is taxing everything');
+  }
+
+  // Once the second lawyer has verified the date, it closes normally.
+  await post3('/r/desk/verify', { matterId: m3.id, id: bar.id }, benS);
+  assert.strictEqual(d3().find((d) => d.id === bar.id).verifiedBy, ben.name, 'setup: the second tick did not land');
+  await post3('/r/calendar/done', { id: bar.id }, annS);
+  if (d3().find((d) => d.id === bar.id).status !== 'done') {
+    fails.push('a VERIFIED limitation bar still could not be closed — the gate never opens');
+  }
+
   server.close();
   if (fails.length) { console.log('STALE/WEEKEND FAIL:\n - ' + fails.join('\n - ')); process.exit(1); }
-  console.log('STALE+WEEKEND: ALL PASS (flag stored and shown on both diaries; stale date refused the tick; cleared date still tickable; same-person rule intact)');
+  console.log('STALE+WEEKEND: ALL PASS (flags shown on both diaries; stale date refused the tick; an unverified limitation bar cannot be closed single-handed; procedural dates unaffected)');
   process.exit(0);
 })().catch((e) => { console.error('staleverify crash:', e); try { server.close(); } catch (_) {} process.exit(1); });
