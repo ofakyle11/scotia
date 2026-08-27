@@ -14,10 +14,33 @@ class Scope {
     this.types = new Map(); // type -> Map(id -> obj)
     fs.mkdirSync(path.dirname(file), { recursive: true });
     if (fs.existsSync(file)) {
+      // A damaged line must cost you that line, not the whole matter.
+      //
+      // This loop used to parse every record with no guard, so ONE unreadable
+      // line — a torn append from a crash or a full disk, a flipped bit on the
+      // volume — threw out of the constructor and the matter could never be
+      // opened again. Every other record in the file was intact and sealed
+      // correctly; the reader simply refused to reach them. For a system whose
+      // whole promise is that a client's file is still there, that is the worst
+      // possible failure mode, and it is reachable without an attacker.
+      //
+      // Skip what cannot be read, keep what can, and COUNT the damage: a scope
+      // that silently drops records is worse than one that throws, because
+      // nobody learns anything is missing. `damagedLines` is surfaced so a room
+      // or an operator can say so out loud.
+      this.damagedLines = 0;
       const lines = fs.readFileSync(file, 'utf8').split('\n');
       for (const line of lines) {
         if (!line.trim()) continue;
-        const ev = JSON.parse(open(this.key, Buffer.from(line, 'base64'), this.label).toString('utf8'));
+        let ev;
+        try {
+          ev = JSON.parse(open(this.key, Buffer.from(line, 'base64'), this.label).toString('utf8'));
+        } catch (_) {
+          // Unreadable: truncated, corrupted, or sealed under a key this scope
+          // does not hold. Not decryptable now and not decryptable later.
+          this.damagedLines++;
+          continue;
+        }
         this._apply(ev);
       }
     }

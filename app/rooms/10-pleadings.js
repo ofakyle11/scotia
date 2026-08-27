@@ -387,8 +387,13 @@ function register(app) {
     if (s.list('affdefence').some((d) => d.name.toLowerCase() === name.toLowerCase())) {
       ctx.setFlash(`"${name}" is already on the defence register.`, 'err'); redirect(res, '/r/pleadings'); return;
     }
-    s.put('affdefence', { name, cite, basis: String(ctx.body.basis || '').trim(), pleaded: false });
-    ctx.kernel.audit('pleadings.defence.register', ctx.matter.id + ':' + name);
+    const rec = s.put('affdefence', { name, cite, basis: String(ctx.body.basis || '').trim(), pleaded: false });
+    // The audit log is plaintext by design — it has to be readable to be
+    // evidence — and it SURVIVES crypto-shredding and rides in every backup.
+    // Record ids belong there. A lawyer's own words about a client's defence do
+    // not: writing them here put privileged free text in the one file that
+    // outlives the destruction of the matter it describes.
+    ctx.kernel.audit('pleadings.defence.register', ctx.matter.id + ':' + rec.id);
     ctx.setFlash(`Affirmative defence registered: ${name}. Mark it pleaded once it is in the served defence — until then it is at risk of waiver.`);
     redirect(res, '/r/pleadings');
   });

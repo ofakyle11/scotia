@@ -372,6 +372,22 @@ function register(app) {
     if (!Number.isFinite(stmt) || !sdate) { ctx.setFlash('Statement balance and date are required.', 'err'); redirect(res, '/r/books'); return; }
     // By-Law 9 s.18 monthly trust comparison — one implementation, shared with
     // the card above and (where wired) with kernel/trust.js.
+    // A three-way comparison is a FIRM record under By-Law 9 s.18, but
+    // threeWay() computes over visibleBalances() — the walled view. A lawyer
+    // screened from a matter holding trust would therefore record a comparison
+    // that silently omits it: a regulatory record that is wrong, signed by
+    // someone with no way to know it was wrong.
+    //
+    // The wall is not weakened to fix this. The comparison is simply refused
+    // from an account that cannot see the whole firm, naming no matter and no
+    // amount — the other administrator records it instead. Telling a lawyer
+    // "you are screened from something" is information they are entitled to
+    // before being asked to certify a firm-wide figure.
+    const screenedFrom = k.firm.list('wall', (w) => (w.screened || []).includes(ctx.user.id)).length;
+    if (screenedFrom) {
+      ctx.setFlash(`Refused: you are screened from ${screenedFrom} matter${screenedFrom === 1 ? '' : 's'}, so a firm-wide three-way comparison recorded from your account would be incomplete — and By-Law 9 s.18 requires it to be complete. Ask the administrator who is not screened to record it.`, 'err');
+      redirect(res, '/r/books'); return;
+    }
     const { ledger, liabilities, statement, ok } = threeWay(ctx, k, stmt);
     k.firm.put('reconciliation', {
       statementDate: sdate, statementBalance: statement === null ? stmt : statement,

@@ -231,14 +231,21 @@ function register(app) {
     const due = k.rules.compute(rule, trigger);
     // rule.cite is the citation string every room writes; rule.id is what
     // 27-desk's limitation flag and the appeal watchdog read. Both, always.
+    // Whether a LIMITATION date lands on a non-business day is a property of
+    // the date, not of the moment it was calendared. It used to be announced in
+    // a flash and then lost — so the one date most worth flagging every time
+    // anyone looks at it was flagged exactly once, to whoever happened to be at
+    // the keyboard. Persist it on the record.
+    const nonBusinessDay = k.rules.isLimitation(rule) && k.rules.landsOnNonBusinessDay(rule, due);
     putDeadline(k.scope(ctx.matter.id), rule.id, {
       desc: rule.desc, due, rule: rule.cite, trigger: rule.trigger + ' ' + trigger, status: 'open',
+      nonBusinessDay,
     });
     // A limitation date comes back exactly as it falls — kernel/rules.js
     // deliberately does not roll one off a weekend or holiday, because a
     // statutory expiry must never be pushed to a later, false-safe day. Say so
     // where it lands on one; never move it.
-    const warn = k.rules.isLimitation(rule) && k.rules.landsOnNonBusinessDay(rule, due);
+    const warn = nonBusinessDay;
     ctx.setFlash(`Calendared: ${rule.desc} — ${due} (${rule.cite}).`
       + (warn ? ' LIMITATION date falling on a weekend or holiday — it is not rolled forward. Confirm any statutory extension and work to the business day before.' : ''), warn ? 'err' : undefined);
     redirect(res, '/r/calendar');
