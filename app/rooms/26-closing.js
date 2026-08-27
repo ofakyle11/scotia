@@ -92,7 +92,9 @@ function register(app) {
         <h2 class="sec" style="margin-top:0">Closing checklist — ${esc(m.title)}</h2>
         ${kv([
           ['Closing steps', `${CHECK.length - outstanding.length}/${CHECK.length} recorded ${outstanding.length ? tag(outstanding.length + ' outstanding', 'gate') : tag('complete', 'ok')}`],
-          ['Trust balance', trust > 0.005 ? money(trust) + ' ' + tag('MUST BE ZERO TO CLOSE', 'gate') + ' <a href="/r/books">disburse it →</a>' : tag('zeroed', 'ok')],
+          ['Trust balance', trust < -0.005
+            ? money(trust) + ' ' + tag('OVERDRAWN — By-Law 9 s.7', 'gate') + ' <a href="/r/books">correct it →</a>'
+            : trust > 0.005 ? money(trust) + ' ' + tag('MUST BE ZERO TO CLOSE', 'gate') + ' <a href="/r/books">disburse it →</a>' : tag('zeroed', 'ok')],
           ['Appeal window', appealRule ? esc(`${appealRule.days} days from ${appealRule.trigger.toLowerCase()} (${appealRule.cite})`) + ' <a href="/r/calendar">calendar it →</a>' : '—'],
           ['Status', closed ? tag('closed ' + (m.closedAt || '').slice(0, 10), 'ok') : tag(m.status || 'open')],
         ])}
@@ -165,6 +167,16 @@ function register(app) {
     const missing = CHECK.filter(([n]) => !done.has(n));
     if (missing.length) { ctx.setFlash(`Refused: ${missing.length} of ${CHECK.length} closing steps are not recorded. Tick them on the closing checklist first.`, 'err'); redirect(res, '/r/closing'); return; }
     const trust = k.ledger.balances(m.id)['trust:bank'] || 0;
+    // Both directions. `trust > 0.005` caught money still HELD but not money
+    // OVERDRAWN: a negative position is not > 0.005, so a matter carrying a
+    // trust shortfall closed cleanly and could then be destroyed — taking the
+    // evidence of the shortfall with it. An overdraft is the more serious of the
+    // two under By-Law 9 s.7, so it gets its own message rather than being
+    // folded into "disburse it".
+    if (trust < -0.005) {
+      ctx.setFlash(`Refused: this matter's trust position is OVERDRAWN by ${Math.abs(trust).toFixed(2)}. A trust shortfall is a By-Law 9 s.7 breach — correct it in Trust & Books and report it as required before closing. A closed matter can be destroyed, and destruction would take the record of the shortfall with it.`, 'err');
+      redirect(res, '/r/closing'); return;
+    }
     if (trust > 0.005) { ctx.setFlash(`Refused: ${trust.toFixed(2)} still held in trust for this matter. Disburse it in Trust & Books first.`, 'err'); redirect(res, '/r/closing'); return; }
     k.firm.put('matter', { ...m, status: 'closed', closedAt: new Date().toISOString() });
     k.audit('matter.closed', ctx.matter.id);

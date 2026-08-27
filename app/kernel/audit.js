@@ -80,7 +80,15 @@ class Audit {
       this._syncPrev();
       const entry = { ts: new Date().toISOString(), actor, action, object, prev: this.prev };
       entry.hash = this._link(this.prev, entry.ts, actor, action, object);
-      fs.appendFileSync(this.file, JSON.stringify(entry) + '\n');
+      // 0600 on create, and tightened if it already exists. This is the ONE
+      // plaintext file in the data directory — it names every actor, every
+      // action and every object id — and it was being created at the process
+      // umask (0644), readable by any local account and by any backup that
+      // preserves modes. The keyring and audit.key are already 0600; this file
+      // is no less sensitive for being metadata.
+      const existed = fs.existsSync(this.file);
+      fs.appendFileSync(this.file, JSON.stringify(entry) + '\n', { mode: 0o600 });
+      if (existed) { try { const m = fs.statSync(this.file).mode & 0o777; if (m !== 0o600) fs.chmodSync(this.file, 0o600); } catch (_) { /* best effort */ } }
       this.prev = entry.hash;
       // Anchor the tail under the same lock, so a later truncation disagrees
       // with the head the firm last recorded.

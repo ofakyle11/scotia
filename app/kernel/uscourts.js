@@ -29,6 +29,13 @@ async function clGet(path, token) {
 async function search(q, type, token) {
   const out = await clGet(`/api/rest/v4/search/?q=${encodeURIComponent(q)}&type=${type === 'r' ? 'r' : 'o'}&order_by=score%20desc`, token);
   if (!out.ok) return out;
+  // Same bodyless-200 path as CanLII: out.data was dereferenced unconditionally,
+  // so a successful HTTP call with an unreadable body threw a TypeError and the
+  // room returned HTTP 500 — the worst possible answer, since it looks like OUR
+  // bug rather than the upstream's.
+  if (!out.data || typeof out.data !== 'object') {
+    return { ok: false, status: out.status || 200, message: 'CourtListener answered 200 but the response could not be read as JSON — treat as no result.' };
+  }
   const results = (out.data.results || []).slice(0, 20).map((r) => ({
     caseName: r.caseName || r.caseNameFull || '', court: r.court || r.court_citation_string || r.court_id || '',
     dateFiled: r.dateFiled || '', docketNumber: r.docketNumber || '',

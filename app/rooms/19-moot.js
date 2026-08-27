@@ -181,6 +181,11 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/ai-policy`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/moot'); return; }
     const k = ctx.kernel;
+    // This flag is what keeps privileged content off the gateway on a matter the
+    // client has said no on. Lifting it is a privilege change, and every other
+    // privilege change in the app is admin-only; this one was open to any seat,
+    // including a clerk.
+    if (!k.isAdmin()) { ctx.setFlash('Only an administrator can change a matter\'s model-use policy.', 'err'); redirect(res, '/r/moot'); return; }
     const m2 = k.firm.get('matter', ctx.matter.id);
     if (!m2) { ctx.setFlash('Matter unavailable.', 'err'); redirect(res, '/r/moot'); return; }
     const policy = ctx.body.policy === 'forbidden' ? 'forbidden' : 'allowed';

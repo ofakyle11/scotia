@@ -61,6 +61,14 @@ async function apiGet(path, key) {
         : `CanLII API error ${r.status}.`;
       return { ok: false, status: r.status, message: (body && body.message) || msg };
     }
+    // A 200 is not an answer. `body` comes from `.json().catch(() => null)`, so
+    // a 200 carrying HTML (a captive portal, a proxy error page) or a truncated
+    // response arrived here as {ok:true, data:null} — a SUCCESSFUL fetch with
+    // nothing in it. cite-resolve guards this downstream now, but a connector
+    // that lies to one caller lies to all of them, and room 29 reads it directly.
+    if (body === null || body === undefined) {
+      return { ok: false, status: r.status, message: 'CanLII answered 200 but the response could not be read as JSON — treat as no result.' };
+    }
     return { ok: true, data: body };
   } catch (e) {
     return { ok: false, status: 0, message: e.name === 'AbortError' ? 'CanLII API timed out.' : 'Network error reaching CanLII: ' + e.message };

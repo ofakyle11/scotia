@@ -130,7 +130,10 @@ function register(app) {
     const parties = k.firm.list('party', (p) => !p.matterId || visibleMatters.has(p.matterId))
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     const inquiries = k.firm.list('inquiry');
-    const mattersAll = k.firm.list('matter');
+    // k.matters() is the walled-aware accessor; k.firm.list('matter') is not.
+    // A count is small, but it is still information about a matter a screened
+    // lawyer must not know exists — and the wall is the product's core control.
+    const mattersAll = k.matters();
     const letters = k.firm.list('letter', (l) => l.kind === 'conflict-waiver')
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     // Firm-level, never matter-scoped: conflicts data lives outside privilege scope.
