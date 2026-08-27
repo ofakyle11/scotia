@@ -136,7 +136,7 @@ function register(app) {
     const debtor = trim(ctx.body.debtor);
     if (!debtor) { ctx.setFlash('Name the judgment debtor — enforcement runs against a named person or corporation.', 'err'); redirect(res, '/r/judgment'); return; }
     if (!court) { ctx.setFlash('Name the court that entered the judgment — domestication and enforcement both turn on it.', 'err'); redirect(res, '/r/judgment'); return; }
-    if (!(amount > 0)) { ctx.setFlash('Enter the judgment amount as a positive figure, e.g. 1500.50.', 'err'); redirect(res, '/r/judgment'); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { ctx.setFlash('Enter the judgment amount as a positive figure, e.g. 1500.50.', 'err'); redirect(res, '/r/judgment'); return; }
     if (!isoOk(dateEntered)) { ctx.setFlash('Entry date must be a real calendar date (YYYY-MM-DD) — interest and the appeal clock both run from it.', 'err'); redirect(res, '/r/judgment'); return; }
     if (rate === null) { ctx.setFlash('Enter the post-judgment interest rate as a number, e.g. 5 or 5.25. Enter 0 if no interest runs.', 'err'); redirect(res, '/r/judgment'); return; }
     ctx.kernel.scope(ctx.matter.id).put('judgment', { amount, rate, dateEntered, court, debtor, recovered: 0, satisfied: false });
@@ -168,7 +168,7 @@ function register(app) {
     const j = s.get('judgment', trim(ctx.body.id));
     const amt = parseMoney(ctx.body.paid);
     if (!j) { ctx.setFlash('Pick the judgment the money came in on.', 'err'); redirect(res, '/r/judgment'); return; }
-    if (!(amt > 0)) { ctx.setFlash('Enter the amount received as a positive figure, e.g. 250.00.', 'err'); redirect(res, '/r/judgment'); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { ctx.setFlash('Enter the amount received as a positive figure, e.g. 250.00.', 'err'); redirect(res, '/r/judgment'); return; }
     // The ledger entry is posted BEFORE the judgment is updated: if the books
     // refuse the transaction, the recovery is not recorded on the judgment.
     k.ledger.post(ctx.matter.id, {

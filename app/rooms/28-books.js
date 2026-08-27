@@ -328,7 +328,7 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/retainer`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/books'); return; }
     const amt = Number(ctx.body.amount);
-    if (!(amt > 0)) { ctx.setFlash('Enter a positive amount.', 'err'); redirect(res, '/r/books'); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { ctx.setFlash('Enter a positive amount.', 'err'); redirect(res, '/r/books'); return; }
     ctx.kernel.ledger.post(ctx.matter.id, {
       memo: ctx.body.memo || 'Retainer received', kind: 'trust-receipt',
       lines: [{ account: 'trust:bank', dr: amt }, { account: 'trust:client', cr: amt }],
@@ -341,7 +341,7 @@ function register(app) {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/books'); return; }
     const k = ctx.kernel;
     const amt = Number(ctx.body.feeAmount);
-    if (!(amt > 0)) { ctx.setFlash('Enter a positive amount of invoiced, earned fees.', 'err'); redirect(res, '/r/books'); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { ctx.setFlash('Enter a positive amount of invoiced, earned fees.', 'err'); redirect(res, '/r/books'); return; }
     // A withdrawal from trust must name the bill it satisfies — the form has
     // always required it; so does the handler now, so the ledger can never hold
     // an unattributed trust-transfer.
@@ -404,7 +404,7 @@ function register(app) {
     // R-G — hours and rate are money. Coerce, then refuse the garbage rather
     // than storing a NaN every downstream reader has to defend against.
     const hours = num(ctx.body.hours), rate = num(ctx.body.rate);
-    if (!(hours > 0)) { ctx.setFlash('Enter the hours worked (greater than zero).', 'err'); redirect(res, '/r/books'); return; }
+    if (!Number.isFinite(hours) || hours <= 0) { ctx.setFlash('Enter the hours worked (greater than zero).', 'err'); redirect(res, '/r/books'); return; }
     if (rate < 0) { ctx.setFlash('A negative rate is not a rate — enter 0 for no-charge time.', 'err'); redirect(res, '/r/books'); return; }
     const lint = narrativeLint(narrative);
     ctx.kernel.scope(ctx.matter.id).put('timeEntry', {

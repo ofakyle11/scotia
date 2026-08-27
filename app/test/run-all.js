@@ -73,6 +73,7 @@ const KNOWN = {
   'durability.test.js': { tier: TIER_FAST, order: 130, timeout: MINUTE, why: 'a saved record is on the disk, not just in the page cache, and no wider than the keys beside it' },
   'reauth.test.js':    { tier: TIER_FAST, order: 140, timeout: MINUTE, why: 'removing 2FA costs the password too, and a credential change rotates the session' },
   'egress.test.js':    { tier: TIER_FAST, order: 150, timeout: MINUTE, why: 'every outbound connector call is audited to its matter, without its query text' },
+  'amounts.test.js':   { tier: TIER_FAST, order: 160, timeout: MINUTE, why: 'no amount field accepts a non-finite figure, and valid ones still post' },
 
   'harness.js':        { tier: TIER_ROOMS, order: 10, timeout: 3 * MINUTE, why: 'all 36 rooms render + no POST 500s (EMPTY state)' },
   'seeded.test.js':    { tier: TIER_ROOMS, order: 20, timeout: 3 * MINUTE, why: 'all 36 rooms render WITH real records of every type' },

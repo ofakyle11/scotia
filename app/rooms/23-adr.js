@@ -136,7 +136,7 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/offer`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/adr'); return; }
     const amount = Number(ctx.body.amount), when = trim(ctx.body.date), expiry = trim(ctx.body.expiry);
-    if (!(amount > 0) || !when) { ctx.setFlash('A positive amount and a date are required.', 'err'); redirect(res, '/r/adr'); return; }
+    if (!Number.isFinite(amount) || amount <= 0 || !when) { ctx.setFlash('A positive amount and a date are required.', 'err'); redirect(res, '/r/adr'); return; }
     if (!isoOk(when)) { ctx.setFlash('Offer date must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/adr'); return; }
     if (expiry && !isoOk(expiry)) { ctx.setFlash('Expiry must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/adr'); return; }
     ctx.kernel.scope(ctx.matter.id).put('offer', { direction: ctx.body.direction === 'made' ? 'made' : 'received', amount, date: when, expiry, terms: trim(ctx.body.terms) });
@@ -149,7 +149,7 @@ function register(app) {
     const s = ctx.kernel.scope(ctx.matter.id);
     const offer = s.get('offer', trim(ctx.body.offerId));
     const judgment = Number(ctx.body.judgment);
-    if (!offer || !(judgment > 0)) { ctx.setFlash('Pick a logged offer and enter a hypothetical judgment above zero.', 'err'); redirect(res, '/r/adr'); return; }
+    if (!offer || !Number.isFinite(judgment) || judgment <= 0) { ctx.setFlash('Pick a logged offer and enter a hypothetical judgment above zero.', 'err'); redirect(res, '/r/adr'); return; }
     const hdRaw = trim(ctx.body.hearingDate);
     if (hdRaw && !isoOk(hdRaw)) { ctx.setFlash('Hearing date must be a real calendar date (YYYY-MM-DD).', 'err'); redirect(res, '/r/adr'); return; }
     const hearingDate = hdRaw || null;

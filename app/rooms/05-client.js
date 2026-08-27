@@ -200,7 +200,7 @@ function register(app) {
     const bad = (msg) => { ctx.setFlash(msg, 'err'); redirect(res, '/r/client'); };
     if (!ctx.matter) { bad('Open a matter first — the budget figure lives on the matter.'); return; }
     const raw = Number(ctx.body.budget);
-    if (!Number.isFinite(raw) || !(raw > 0)) { bad('Enter a positive budget figure.'); return; }
+    if (!Number.isFinite(raw) || raw <= 0) { bad('Enter a positive budget figure.'); return; }
     const amt = Math.round(raw * 100) / 100;
     const k = ctx.kernel;
     const m = k.firm.get('matter', ctx.matter.id);

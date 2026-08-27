@@ -68,7 +68,7 @@ function register(app) {
   app.route('POST', `/r/${ROOM.id}/new`, (req, res, ctx) => {
     if (!ctx.matter) { ctx.setFlash('Open a matter first.', 'err'); redirect(res, '/r/waterfall'); return; }
     const gross = Number(ctx.body.gross), feePct = Number(ctx.body.feePct), costs = Number(ctx.body.costs) || 0;
-    if (!(gross > 0) || !(feePct >= 0 && feePct <= 100)) { ctx.setFlash('Need a positive gross and a fee between 0 and 100%.', 'err'); redirect(res, '/r/waterfall'); return; }
+    if (!Number.isFinite(gross) || gross <= 0 || !(feePct >= 0 && feePct <= 100)) { ctx.setFlash('Need a positive gross and a fee between 0 and 100%.', 'err'); redirect(res, '/r/waterfall'); return; }
     if (!(costs >= 0)) { ctx.setFlash('Costs advanced cannot be negative.', 'err'); redirect(res, '/r/waterfall'); return; }
     const liens = String(ctx.body.liens || '').split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
       const i = x.lastIndexOf(':');

@@ -332,7 +332,7 @@ function register(app) {
     const amt = num(ctx.body.amount); // garbage, empty and NaN all land on 0 and are refused below
     const incurred = String(ctx.body.incurred || '').trim() || today();
     if (!desc) { ctx.setFlash('Describe the disbursement.', 'err'); redirect(res, '/r/billing'); return; }
-    if (!(amt > 0)) { ctx.setFlash('Enter a positive disbursement amount.', 'err'); redirect(res, '/r/billing'); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { ctx.setFlash('Enter a positive disbursement amount.', 'err'); redirect(res, '/r/billing'); return; }
     if (!(r2(amt) > 0)) { ctx.setFlash('That amount rounds to zero — enter at least one cent.', 'err'); redirect(res, '/r/billing'); return; }
     ctx.kernel.ledger.post(ctx.matter.id, {
       date: incurred, memo: 'Disbursement — ' + desc, kind: 'disbursement',
