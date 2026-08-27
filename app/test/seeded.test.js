@@ -69,6 +69,8 @@ S('scenario', { damagesLow: 100000, damagesLikely: 200000, damagesHigh: 350000, 
 S('secFiling', { company: 'Fixture Corp', form: '10-K', date: '2025-03-01', description: 'Annual report', url: 'https://www.sec.gov/', adsh: '0001' });
 S('lookup', { source: 'RoyaltySource', query: 'tire royalty rates', result: 'Range 3-5%' });
 S('docketRef', { caseName: 'Fixture v. Another', court: 'SDNY', dateFiled: '2025-02-02', docketNumber: '1:25-cv-1', url: 'https://www.courtlistener.com/', source: 'recap' });
+S('assignment', { title: 'Demand letter — first draft', kind: 'draft', instructions: 'Unpaid invoices, demand in 14 days.', status: 'returned', output: 'DRAFT\n\nPer Dunsmuir v. New Brunswick, 2008 SCC 9...', model: 'seed-model', startedAt: Date.now(), finishedAt: today });
+S('assignment', { title: 'Research — limitation start', kind: 'research', instructions: 'When did time start running?', status: 'accepted', output: 'The basic period runs from discovery.', model: 'seed-model', reviewedBy: 'Seed Admin', reviewedAt: today, draftId: draft.id });
 S('closingChecklist', { id: 'closing', done: [0] });
 S('trialChecklist', { id: 'checklist', done: [0, 1] });
 
@@ -102,6 +104,8 @@ const base = 'http://localhost:' + process.env.PORT;
       'seeded responsive documents did not reach Schedule A'],
     ['affidavit', 'Nothing coded privileged yet',
       'the seeded solicitor-client document did not reach Schedule B'],
+    ['associate', 'Open a matter',
+      'the associate office rendered its no-matter state with a matter open'],
   ];
   for (const [room, emptyCopy, why] of EXPECT) {
     const r = await fetch(base + '/r/' + room, { headers: { cookie: `s=${session}; m=${m.id}` } });

@@ -38,4 +38,5 @@ module.exports = [
   { num: 35, id: 'affidavit',   title: 'Affidavit of Documents', phase: 'Discover' },
   { num: 36, id: 'portal',      title: 'Client Portal',          phase: 'Always on' },
   { num: 37, id: 'counsel',     title: 'Counsel Panel',          phase: 'Always on' },
+  { num: 38, id: 'associate',   title: "Associate's Office",     phase: 'Always on' },
 ];

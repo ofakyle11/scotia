@@ -1,6 +1,8 @@
 'use strict';
-// Chambers — the 36-room firm, reference implementation (kernel/registry.js
-// is the authority on the room list; this file mounts whatever it lists).
+// Chambers — the firm, reference implementation. kernel/registry.js is the
+// authority on the room list and this file mounts whatever it lists, so the
+// count is never restated here — it drifted to "36" twice while the registry
+// grew past it.
 // Zero dependencies. `node server.js` and sign in. There is no public
 // surface and no signup: accounts exist only by provisioning.
 const path = require('path');

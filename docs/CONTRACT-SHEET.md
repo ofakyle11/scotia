@@ -1051,7 +1051,7 @@ verification commit above.**
 - `closingChecklist` was a dead read and `engagementSigned` was write-only — **closed**: both
   are now written and read, and `closingChecklist` gates `POST /close`.
 - CONTRACT.md drift (`k.rules` under-documented, "the 28 rooms") — **closed**: `app/CONTRACT.md`
-  now states 36 rooms, the full `kernel/rules.js` export list, and `k.citeResolve` / `k.trust`.
+  now defers to `kernel/registry.js` for the room list, the full `kernel/rules.js` export list, and `k.citeResolve` / `k.trust`.
 
 **Look-alike types that are deliberately NOT the same — do not unify:**
 `witness` (14) vs `trialWitness` (20) · `deadline` (rule-computed) vs `bf` (hand-set tickler) ·
@@ -1152,7 +1152,7 @@ is the only door, and a room must **check for presence and degrade** rather than
    clearly-marked integration note instead of faking output. A firm default must never be
    presented as statutory (see the trial cascade).
 9. **Definition of done:** `node test/harness.js <id>` prints ALL PASS **and**
-   `node test/seeded.test.js` renders all 36 rooms against real records of every major type
+   `node test/seeded.test.js` renders every room in the registry against real records of every major type
    above. The harness alone only ever proves the EMPTY state — a room can be hard-broken for
    any matter that actually holds data and still report green. The page must render with
    working forms, and the empty state must be handled.
