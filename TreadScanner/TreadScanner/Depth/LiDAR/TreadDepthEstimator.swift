@@ -39,8 +39,10 @@ struct TreadDepthEstimator {
     func estimateFrame(points: [SIMD3<Double>]) -> FrameEstimate? {
         guard points.count >= minSurfacePoints, let plane = fitPlane(points) else { return nil }
 
-        // Signed distance in mm. Positive = farther from camera than the tread surface = in a groove.
-        let dist = points.map { plane.signedDistance($0) * 1000.0 }
+        // Depth below the tread surface in mm. The normal points toward the camera, so points
+        // farther away (groove floors) have a negative signed distance; flip the sign so that
+        // positive = deeper into the tire.
+        let dist = points.map { -plane.signedDistance($0) * 1000.0 }
 
         // Surface noise from the residuals near the plane (robust MAD estimate), so the groove
         // threshold adapts: nothing within 3 sigma of the surface counts as a groove.
