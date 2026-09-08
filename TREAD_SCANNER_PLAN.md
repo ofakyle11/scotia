@@ -26,12 +26,15 @@ that proves or disproves it in the first weeks.
 
 | Piece | State | Where |
 |---|---|---|
-| Web app (add to home screen) | **Live.** Gauge entry, photos, CSV export, optional Sheets | https://scotia-tread-scanner.netlify.app · `web/` |
-| iPhone app | Built, compiles, 27 unit tests green in cloud CI. Not yet on a phone | `TreadScanner/` |
+| Web app (add to home screen) | **Live.** Gauge entry, photos, customer report, unit history, CSV export | https://scotia-tread-scanner.netlify.app · `web/` |
+| iPhone app | Built. Compiles and passes 39 unit tests in cloud CI. Not yet on a phone | `TreadScanner/` |
 | LiDAR scanner | Implemented with curvature-corrected fit and confidence band. Tuned on synthetic tires only | `TreadScanner/TreadScanner/Depth/LiDAR/` |
-| Raw capture + analysis tool | Built. Records real tires for offline tuning | `tools/treadlab/` |
+| Customer report | Both apps. Prints from Safari; exports as a Letter PDF on iPhone | `Views/Review/` · `web/app.js` |
+| Unit history | Both apps. Depth per position over time, wear rate per 10,000 km, projected km to minimum | `Views/Review/UnitHistoryView.swift` |
+| Raw capture + analysis tool | Built, 53 tests. Records real tires for offline tuning | `tools/treadlab/` |
+| Spreadsheet workbook | Built. Inspections tab plus a Fleet Summary that reads the latest inspection per unit | `spreadsheet/` |
 | Cloud build to TestFlight | Written. Waiting on Apple Developer enrolment and secrets | `.github/workflows/ios-testflight.yml` |
-| Spreadsheet | CSV per inspection, 25 columns, import into Google Sheets. Direct Sheets sync optional | `Export/`, `web/app.js` |
+| Web auto-deploy | Written. Waiting on a `NETLIFY_AUTH_TOKEN` secret | `.github/workflows/web-deploy.yml` |
 
 ## 3. How the pieces fit
 
@@ -72,6 +75,20 @@ pressure_psi, status, method, photo_url, notes, scan_confidence_32nds
 **Getting rows in (CSV, decided):** finish an inspection, share the CSV, then in
 Google Sheets: File → Import → Upload → Append to current sheet. Same columns
 every time, so filters and pivots on unit number keep working.
+
+**The workbook** in `spreadsheet/` is ready to upload to Google Drive. Four tabs:
+Inspections (matching the CSV exactly), Fleet Summary (type unit numbers into the
+yellow column and it reports that unit's latest inspection: tires replaced,
+watched and OK, lowest tread and where it is, and a plain-English action),
+Thresholds, and a README. `sample_inspection.csv` is a real 10-row tractor
+inspection for testing the import before real data exists.
+
+Its formulas are written for Google Sheets, so `MAXIFS` and `MINIFS` are avoided
+and `SUMPRODUCT` used instead. They have not been executed, because LibreOffice
+cannot load xlsx files in the build container. `spreadsheet/verify_template.py`
+checks the column references, function compatibility and summary logic instead,
+and `spreadsheet/README.md` gives the exact figures to expect from the sample so
+one glance confirms the tab works.
 
 **Later, if wanted:** direct Sheets sync is already coded in both apps. It needs a
 Google Cloud project with the Sheets API and an OAuth client (about 10 minutes,
@@ -137,7 +154,7 @@ be worse; that is what the program below is for.
 
 | When | What | Who |
 |---|---|---|
-| Now | Use the web app in the shop. Add to home screen, gauge readings, CSV into a Google Sheet | Shop |
+| Now | Use the web app in the shop. Add to home screen, gauge readings, customer report, CSV into the workbook | Shop |
 | Day 0–2 | Enrol in Apple Developer Program ($130 CAD/yr). Approval 1–2 days | You |
 | Day 2 | Create App Store Connect API key, private certs repo, add 7 GitHub secrets (README §2, 30 min) | You |
 | Day 2 | Run the TestFlight workflow. Install on an iPhone 12 Pro or newer. I fix anything the first signed build trips on | You + me |
