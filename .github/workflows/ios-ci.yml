@@ -74,7 +74,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: xcresult-and-log
-          path: |
-            TreadScanner/TestResults.xcresult
-            TreadScanner/build.log
+          name: build-log
+          path: TreadScanner/build.log
