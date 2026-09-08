@@ -211,6 +211,10 @@ What is built:
 - Verify mode that logs scan vs gauge pairs to a `Verify` tab (the accuracy
   study from section 3, now built into the app).
 
+**Interim web version:** https://scotia-tread-scanner.netlify.app (add to
+home screen). Gauge entry, photos, CSV, optional Google Sheets. No LiDAR;
+Safari cannot reach the sensor. Source in `web/`.
+
 Next steps:
 
 1. No Mac needed. GitHub Actions builds and tests on every push, and the
