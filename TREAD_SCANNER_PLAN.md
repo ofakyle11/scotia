@@ -194,12 +194,31 @@ The scanner question is answered with data by the end of phase 3.
 
 ---
 
-## 7. Immediate next steps
+## 7. Status and next steps
 
-1. Confirm the axle presets, threshold defaults, and spreadsheet columns
-   above match how Scotia Tire records inspections today.
-2. Order a Bluetooth tread depth gauge and request a vendor SDK trial.
-3. Create the Xcode project in this repo under `TreadScanner/` and build
-   the phase 1 inspection flow with manual entry and CSV export.
-4. In parallel, build the LiDAR capture prototype and start the accuracy
-   study on tires in the shop.
+**Scope decision (Sept 2026):** LiDAR scanning and Google Sheets sync were
+pulled into v1 instead of waiting for the accuracy study. The app is built in
+`TreadScanner/` (Swift/SwiftUI, XcodeGen project). See `TreadScanner/README.md`
+for Mac setup, Google Cloud setup, and the verification checklist.
+
+What is built:
+
+- Inspection flow, all axle presets plus custom, manual entry, thresholds,
+  photos, local SwiftData store, CSV share.
+- LiDAR depth provider: plane-fit relative measurement, 5x5 depth smoothing,
+  multi-frame averaging, ± band on every scan, distance/tilt/motion gating.
+- Google Sheets append with OAuth PKCE, offline queue, header auto-creation.
+- Verify mode that logs scan vs gauge pairs to a `Verify` tab (the accuracy
+  study from section 3, now built into the app).
+
+Next steps:
+
+1. On a Mac: `brew install xcodegen`, generate the project, build to an
+   iPhone 12 Pro or newer, run the unit tests.
+2. Google Cloud console: enable Sheets API, create the iOS OAuth client, fill
+   in `Config.plist` and the reversed client ID in `project.yml`.
+3. Run Verify mode on 20+ grooves in the shop during week one. Tune the
+   estimator knobs in `TreadDepthEstimator.swift` against that data.
+4. Decide on the scan engine with the Verify numbers: keep LiDAR, add a
+   vendor SDK behind the same `DepthProvider` interface, or lean on the
+   gauge path. The rest of the app does not change either way.

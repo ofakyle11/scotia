@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- iOS OAuth client ID from Google Cloud Console (no secret needed) -->
+	<key>GoogleClientID</key>
+	<string>1234567890-abcdefg.apps.googleusercontent.com</string>
+	<!-- The long ID in the Google Sheet URL: docs.google.com/spreadsheets/d/<ID>/edit -->
+	<key>SpreadsheetID</key>
+	<string></string>
+	<!-- Tab names inside the spreadsheet -->
+	<key>InspectionsSheetName</key>
+	<string>Inspections</string>
+	<key>VerifySheetName</key>
+	<string>Verify</string>
+</dict>
+</plist>

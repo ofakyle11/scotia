@@ -1,0 +1,52 @@
+name: TreadScanner
+options:
+  bundleIdPrefix: ca.scotiatire
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  xcodeVersion: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"
+    DEVELOPMENT_TEAM: ""
+targets:
+  TreadScanner:
+    type: application
+    platform: iOS
+    sources:
+      - path: TreadScanner
+        excludes:
+          - "**/Config.example.plist"
+          - "Info.plist"
+    info:
+      path: TreadScanner/Info.plist
+      properties:
+        CFBundleDisplayName: Tread Scanner
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: Tread Scanner uses the camera and LiDAR scanner to measure tire tread depth and photograph tires.
+        NSPhotoLibraryAddUsageDescription: Tread Scanner can save tire photos to your library.
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: ca.scotiatire.treadscanner.oauth
+            CFBundleURLSchemes:
+              - $(GOOGLE_REVERSED_CLIENT_ID)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ca.scotiatire.treadscanner
+        # Set on the Mac: reversed iOS OAuth client ID, e.g. com.googleusercontent.apps.1234-abcd
+        GOOGLE_REVERSED_CLIENT_ID: com.googleusercontent.apps.REPLACE_ME
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+  TreadScannerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [TreadScannerTests]
+    dependencies:
+      - target: TreadScanner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ca.scotiatire.treadscanner.tests
