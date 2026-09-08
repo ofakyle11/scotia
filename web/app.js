@@ -296,6 +296,7 @@ function report() {
       h("div", { class: "rep-stat WATCH" }, h("b", {}, String(counts.WATCH.length)), h("span", {}, "Replace soon"), h("small", {}, counts.WATCH.join(" ") || "—")),
       h("div", { class: "rep-stat OK" }, h("b", {}, String(counts.OK.length)), h("span", {}, "OK"), h("small", {}, counts.OK.join(" ") || "—"))),
     diagram(ins, null),
+    h("div", { class: "rep-hint noprint" }, "Swipe the table sideways for status and notes."),
     h("div", { class: "rep-tablewrap" }, h("table", { class: "rep-table" },
       h("thead", {}, h("tr", {}, ...["Position", "Inner", "Centre", "Outer", "Min", "PSI", "Status", "Notes"].map(t => h("th", {}, t)))),
       h("tbody", {}, ...ins.positions.map(p => { const r = ins.readings[p.code] || {}, m = minOf(r), st = status(m, p.role);
