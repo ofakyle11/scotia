@@ -25,6 +25,17 @@ That stays with the native app in `../TreadScanner`.
 
 ## Deploying changes
 
-Plain static files, no build step. `NETLIFY_AUTH_TOKEN=... ./deploy.sh`
-zips this folder and pushes it to the Netlify site. The token is never
-stored in the repo.
+Plain static files, no build step.
+
+Deploys are **automatic**: every push to any branch that touches `web/**`
+runs `.github/workflows/web-deploy.yml`, which zips this folder and posts it
+to the Netlify site. You can also start one by hand from the Actions tab
+(Web Deploy → Run workflow). The run log and job summary print the resulting
+deploy state and URL.
+
+One secret is required: **`NETLIFY_AUTH_TOKEN`** (a Netlify personal access
+token), set at the repository's Settings > Secrets and variables > Actions.
+Without it the workflow fails immediately with a message saying so.
+
+The manual path still works for a one-off deploy from your machine:
+`NETLIFY_AUTH_TOKEN=... ./deploy.sh`. The token is never stored in the repo.

@@ -1,0 +1,58 @@
+name: Web Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["web/**"]
+
+concurrency:
+  group: web-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy web app to Netlify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: 18974bbe-dd38-4d1c-9ce3-0bcb83deef38
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "::error::Missing repository secret: NETLIFY_AUTH_TOKEN. Add it at Settings > Secrets and variables > Actions > New repository secret (value: a Netlify personal access token). See web/README.md section 'Deploying changes'."
+            exit 1
+          fi
+
+      - name: Zip site
+        run: |
+          rm -f "$RUNNER_TEMP/tread-site.zip"
+          zip -qr "$RUNNER_TEMP/tread-site.zip" . -x deploy.sh
+          unzip -l "$RUNNER_TEMP/tread-site.zip"
+
+      - name: Deploy to Netlify
+        run: |
+          set -euo pipefail
+          curl -sS --fail-with-body -X POST \
+            -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            -H "Content-Type: application/zip" \
+            --data-binary "@$RUNNER_TEMP/tread-site.zip" \
+            "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys" \
+            > "$RUNNER_TEMP/deploy.json"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, sys
+          d = json.load(open(os.environ["RUNNER_TEMP"] + "/deploy.json"))
+          state = d.get("state", "unknown")
+          url = d.get("ssl_url") or d.get("deploy_ssl_url") or ""
+          print(f"### Netlify deploy\n\n- state: `{state}`\n- url: {url}\n- deploy id: `{d.get('id','')}`")
+          print(f"deploy {state} {url}", file=sys.stderr)
+          if state in ("error", "failed", "rejected"):
+              print(f"::error::Netlify deploy finished in state '{state}'", file=sys.stderr)
+              sys.exit(1)
+          PY

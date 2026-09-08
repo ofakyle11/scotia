@@ -123,15 +123,18 @@ const findIns = id => state.inspections.find(i => i.id === id);
 function render() {
   view.innerHTML = "";
   backBtn.hidden = route.name === "home";
-  menuBtn.hidden = route.name !== "home" && route.name !== "inspection";
-  ({ home, newIns, inspection, tire, settings })[route.name]();
+  menuBtn.hidden = !["home", "inspection", "report"].includes(route.name);
+  ({ home, newIns, inspection, tire, settings, report, history: unitHistory })[route.name]();
   window.scrollTo(0, 0);
 }
 
 // ---------- screens ----------
 function home() {
   titleEl.textContent = "Tread Scanner";
-  menuBtn.onclick = () => go({ name: "settings" });
+  menuBtn.onclick = () => actionSheet([
+    ["Settings", () => go({ name: "settings" })],
+    state.inspections.length ? ["Export all inspections (CSV)", exportAllCSV] : null,
+  ]);
   if (!window.matchMedia("(display-mode: standalone)").matches && !navigator.standalone) {
     view.append(h("div", { class: "card install" }, h("b", {}, "Add to Home Screen"), h("div", { class: "muted" }, "In Safari tap Share, then \"Add to Home Screen\". The app then opens full screen and works offline.")));
   }
@@ -205,6 +208,8 @@ function inspection() {
   titleEl.textContent = `Unit ${ins.unit}`;
   const next = ins.positions.find(p => minOf(ins.readings[p.code]) == null);
   menuBtn.onclick = () => actionSheet([
+    ["Customer report (print / PDF)", () => go({ name: "report", id: ins.id })],
+    ["Unit history", () => go({ name: "history", unit: ins.unit, customer: ins.customer })],
     ["Share / download CSV", () => exportCSV(ins)],
     ins.complete ? ["Re-send to Google Sheets", () => enqueue(ins)] : null,
     ins.complete ? ["Reopen inspection", () => { ins.complete = false; saveAll(); render(); }] : null,
@@ -272,6 +277,70 @@ async function exportCSV(ins) {
 function actionSheet(items) {
   const sheet = h("div", { class: "sheet", on: { click: e => { if (e.target === sheet) sheet.remove(); } } }, h("div", { class: "card" }, ...items.filter(Boolean).map(([l, f, cls]) => h("button", { class: cls || "", on: { click: () => { sheet.remove(); f(); } } }, l)), h("button", { on: { click: () => sheet.remove() } }, "Cancel")));
   document.body.append(sheet);
+}
+
+// ---------- customer report (print to PDF from Safari's share sheet) ----------
+function report() {
+  const ins = findIns(route.id); if (!ins) return go({ name: "home" }, false);
+  titleEl.textContent = "Report";
+  menuBtn.onclick = () => actionSheet([["Print / Save as PDF", () => window.print()], ["Share CSV", () => exportCSV(ins)]]);
+  const counts = { REPLACE: [], WATCH: [], OK: [] };
+  ins.positions.forEach(p => { const st = status(minOf(ins.readings[p.code]), p.role); if (counts[st]) counts[st].push(p.code); });
+  const rep = h("div", { class: "report" },
+    h("div", { class: "rep-head" },
+      h("div", {}, h("div", { class: "rep-brand" }, "Scotia Tire & Alignment"), h("div", { class: "rep-title" }, "Tire tread inspection")),
+      h("div", { class: "rep-meta" }, h("div", {}, h("b", {}, "Unit "), ins.unit), h("div", {}, h("b", {}, "Customer "), ins.customer || "—"), h("div", {}, h("b", {}, "Date "), new Date(ins.date).toLocaleString()),
+        h("div", {}, h("b", {}, "Plate "), ins.plate || "—"), h("div", {}, h("b", {}, "VIN "), ins.vin || "—"), h("div", {}, h("b", {}, "Odometer "), ins.odometer != null ? `${ins.odometer.toLocaleString()} km` : "—"), h("div", {}, h("b", {}, "Technician "), ins.technician || "—"), h("div", {}, h("b", {}, "Ref "), shortId(ins)))),
+    h("div", { class: "rep-summary" },
+      h("div", { class: "rep-stat REPLACE" }, h("b", {}, String(counts.REPLACE.length)), h("span", {}, "Replace now"), h("small", {}, counts.REPLACE.join(" ") || "—")),
+      h("div", { class: "rep-stat WATCH" }, h("b", {}, String(counts.WATCH.length)), h("span", {}, "Replace soon"), h("small", {}, counts.WATCH.join(" ") || "—")),
+      h("div", { class: "rep-stat OK" }, h("b", {}, String(counts.OK.length)), h("span", {}, "OK"), h("small", {}, counts.OK.join(" ") || "—"))),
+    diagram(ins, null),
+    h("div", { class: "rep-tablewrap" }, h("table", { class: "rep-table" },
+      h("thead", {}, h("tr", {}, ...["Position", "Inner", "Centre", "Outer", "Min", "PSI", "Status", "Notes"].map(t => h("th", {}, t)))),
+      h("tbody", {}, ...ins.positions.map(p => { const r = ins.readings[p.code] || {}, m = minOf(r), st = status(m, p.role);
+        return h("tr", {}, h("td", {}, h("b", {}, p.code), h("div", { class: "muted", style: "font-size:11px" }, describe(p))), h("td", {}, fmt32(r.inner)), h("td", {}, fmt32(r.centre)), h("td", {}, fmt32(r.outer)),
+          h("td", {}, h("b", {}, fmtDepth(m))), h("td", {}, r.pressure ?? "—"), h("td", {}, h("span", { class: `badge ${st}` }, st === "none" ? "—" : st)), h("td", { class: "muted" }, [r.notes, (r.brand || r.size) ? `${r.brand} ${r.size}`.trim() : "", (grooves(r).length > 1 && Math.max(...grooves(r)) - Math.min(...grooves(r)) >= 3) ? "uneven wear" : ""].filter(Boolean).join(" · "))); })))),
+    ins.notes ? h("p", { class: "rep-notes" }, h("b", {}, "Notes: "), ins.notes) : null,
+    h("div", { class: "rep-photos" }, ...ins.positions.filter(p => ins.readings[p.code]?.photo).map(p => h("figure", {}, h("img", { src: ins.readings[p.code].photo }), h("figcaption", {}, `${p.code} · ${fmtDepth(minOf(ins.readings[p.code]))}`)))),
+    h("p", { class: "rep-foot" }, `Minimums: ${state.settings.steer}/32 steer, ${state.settings.other}/32 drive & trailer (Canada NSC / US FMCSA). WATCH = within ${state.settings.watch}/32 of the minimum. Depths in 32nds of an inch, lowest of three grooves.`)
+  );
+  view.append(h("button", { class: "primary noprint", style: "margin-bottom:12px", on: { click: () => window.print() } }, "Print / Save as PDF"), rep);
+}
+
+// ---------- unit history ----------
+function unitHistory() {
+  const unit = route.unit;
+  const list = state.inspections.filter(i => i.unit === unit && (!route.customer || i.customer === route.customer)).sort((a, b) => a.date - b.date);
+  titleEl.textContent = `Unit ${unit} history`;
+  if (!list.length) { view.append(h("div", { class: "card muted" }, "No inspections for this unit.")); return; }
+  const codes = [...new Set(list.flatMap(i => i.positions.map(p => p.code)))];
+  const roleOf = c => list.flatMap(i => i.positions).find(p => p.code === c)?.role || "drive";
+  // Wear rate: 32nds per 10,000 km between first and last inspection with odometer, per position.
+  const withOdo = list.filter(i => i.odometer != null);
+  const rate = c => {
+    const pts = withOdo.map(i => [i.odometer, minOf(i.readings[c])]).filter(([, d]) => d != null);
+    if (pts.length < 2) return null;
+    const [o0, d0] = pts[0], [o1, d1] = pts[pts.length - 1];
+    return o1 > o0 ? (d0 - d1) / (o1 - o0) * 10000 : null;
+  };
+  view.append(h("div", { class: "card" }, h("h2", {}, `${list.length} inspections`), h("div", { class: "muted" }, `${new Date(list[0].date).toLocaleDateString()} → ${new Date(list[list.length - 1].date).toLocaleDateString()}${withOdo.length > 1 ? ` · ${(withOdo[withOdo.length - 1].odometer - withOdo[0].odometer).toLocaleString()} km` : ""}`)));
+  const wrap = h("div", { class: "card", style: "overflow-x:auto;padding:0" });
+  const tbl = h("table", { class: "hist" });
+  tbl.append(h("thead", {}, h("tr", {}, h("th", {}, "Pos"), ...list.map(i => h("th", {}, new Date(i.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }), h("div", { class: "muted", style: "font-weight:400" }, i.odometer != null ? `${Math.round(i.odometer / 1000)}k` : ""))), h("th", {}, "Wear /10k km"))));
+  tbl.append(h("tbody", {}, ...codes.map(c => h("tr", {}, h("td", {}, h("b", {}, c)), ...list.map(i => { const m = minOf(i.readings[c]); const st = status(m, roleOf(c)); return h("td", {}, h("span", { class: `badge ${st}` }, fmt32(m))); }),
+    h("td", {}, rate(c) != null ? h("span", { class: "muted" }, `${rate(c).toFixed(1)}/32`) : h("span", { class: "muted" }, "—"))))));
+  wrap.append(tbl); view.append(wrap);
+  view.append(h("div", { class: "muted", style: "margin-top:8px" }, "Wear rate needs odometer readings on at least two inspections. Projected life = (current depth − minimum) ÷ rate."));
+  const proj = codes.map(c => { const r = rate(c), last = list[list.length - 1], m = minOf(last.readings[c]); if (!r || r <= 0 || m == null) return null; const lim = roleOf(c) === "steer" ? state.settings.steer : state.settings.other; return [c, Math.max(0, (m - lim) / r * 10000)]; }).filter(Boolean).sort((a, b) => a[1] - b[1]);
+  if (proj.length) view.append(h("div", { class: "card" }, h("h2", {}, "Projected km to minimum"), ...proj.slice(0, 6).map(([c, km]) => h("div", { class: "row", style: "padding:4px 0" }, h("b", { style: "flex:0 0 50px" }, c), h("span", {}, `${Math.round(km / 1000).toLocaleString()}k km`)))));
+}
+
+function exportAllCSV() {
+  const all = [HEADER, ...state.inspections.flatMap(rows)].map(r => r.map(csvEsc).join(",")).join("\r\n") + "\r\n";
+  const blob = new Blob([all], { type: "text/csv" }), name = `tread_all_${new Date().toISOString().slice(0, 10)}.csv`, f = new File([blob], name, { type: "text/csv" });
+  if (navigator.canShare?.({ files: [f] })) { navigator.share({ files: [f], title: name }).catch(() => {}); return; }
+  const a = h("a", { href: URL.createObjectURL(blob), download: name }); document.body.append(a); a.click(); a.remove();
 }
 
 function settings() {
