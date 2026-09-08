@@ -194,6 +194,40 @@ The scanner question is answered with data by the end of phase 3.
 
 ---
 
+## 6b. LiDAR accuracy program
+
+The scanner only earns trust with real-tire data, and the fastest way to get
+there is to stop guessing inside the app. Borrowed from open-source LiDAR work:
+
+| Idea | Source | What we did with it |
+|---|---|---|
+| Keep 32-bit depth + confidence, never a lossy picture of it | ioridev/LiDAR-Depth-Map-Capture-for-iOS | **Record raw LiDAR capture** mode writes `.treadcap` files (depth, confidence, intrinsics, pose, small JPEG) with the gauge reading typed in |
+| Unproject depth pixels with intrinsics scaled to the 256×192 depth map | Apple WWDC20 scene-depth sample; Waley-Z and isakdiaz point-cloud repos | `LiDARSession.extract`; mirrored in `tools/treadlab` |
+| Fit geometry to the cloud, not just a plane | CurvSurf FindSurface demos | A truck tire sags ~0.9 mm across a 6 cm patch (radius 0.5 m). Tread surface is now a least-squares quadratic; grooves are measured against it |
+| Analyse on a computer, iterate fast | kentaroy47/apple-lidar-stream, KalTire tread notebook | `tools/treadlab/treadlab.py` runs the identical estimator on captures, reports scan-vs-gauge, and sweeps ROI / smoothing / surface model |
+| Use Apple's temporally filtered depth | Common to the streaming repos | `smoothedSceneDepth` frame semantic when available |
+
+**Protocol (week one with the TestFlight build)**
+
+1. Pick 20+ grooves across steer, drive and trailer tires, new to worn, some
+   dirty. For each: menu → Record raw LiDAR capture, type the dial-gauge
+   reading, record 60 frames at 15–25 cm.
+2. Share the `.treadcap` files to a computer. Run
+   `python3 tools/treadlab/treadlab.py sweep *.treadcap`.
+3. Copy the winning ROI, smoothing radius and surface model into
+   `TreadDepthEstimator.swift` / `LiDARSession.swift`. CI rebuilds; TestFlight
+   ships it.
+4. Repeat with Verify mode in the app on another 20 grooves. Pass: 90% within
+   ±1/32 and no pass/fail disagreements at 4/32 and 2/32.
+5. If it fails after two rounds, the fallback is unchanged: gauge entry in the
+   same app, or a vendor scan SDK behind the same `DepthProvider` interface.
+
+**Known limits found on synthetic data:** heavy box smoothing (5×5) blurs
+groove edges at this resolution (about 1 mm per depth pixel at 20 cm), so the
+smoothing radius is one of the parameters the sweep decides. The estimator's
+noise estimate uses only points above the tread plane, which can never be
+groove, so shallow 2/32 grooves are not swallowed by the threshold.
+
 ## 7. Status and next steps
 
 **Scope decision (Sept 2026):** LiDAR scanning and Google Sheets sync were

@@ -155,6 +155,22 @@ disagreements at 4/32 and 2/32. If it fails, the app is still a fast
 gauge-plus-spreadsheet tool while the scan engine is tuned (see
 `Depth/LiDAR/TreadDepthEstimator.swift`; the knobs are at the top).
 
+## 5b. Tune the scanner on real tires (raw captures)
+
+Menu → **Record raw LiDAR capture**. Type the gauge reading, record 60 frames
+of the groove, then share the `.treadcap` file to a computer (AirDrop, Files,
+email). On the computer:
+
+```bash
+pip install numpy
+python3 tools/treadlab/treadlab.py report *.treadcap    # scan vs gauge
+python3 tools/treadlab/treadlab.py sweep  *.treadcap    # best ROI / smoothing / surface model
+```
+
+The tool runs the exact estimator the phone runs, so a parameter that wins
+there wins in the app. See `tools/treadlab/README.md` and the plan document
+section 6b.
+
 ## 6. Checklist after a build installs
 
 - [ ] iOS CI workflow is green for the commit you shipped.

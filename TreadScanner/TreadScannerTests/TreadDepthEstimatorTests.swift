@@ -5,7 +5,7 @@ import simd
 final class TreadDepthEstimatorTests: XCTestCase {
     /// Synthetic tread patch: a flat surface at 20 cm with three grooves of known depth,
     /// plus Gaussian noise on every point. Camera looks down -z.
-    private func synthetic(depthMM: Double, noiseMM: Double, tiltDegrees: Double = 0, seed: UInt64 = 1) -> [SIMD3<Double>] {
+    private func synthetic(depthMM: Double, noiseMM: Double, tiltDegrees: Double = 0, seed: UInt64 = 1, radiusM: Double? = nil) -> [SIMD3<Double>] {
         var rng = SplitMix64(seed: seed)
         func gaussian() -> Double {
             let u1 = max(1e-12, Double(rng.next() % 1_000_000) / 1_000_000)
@@ -22,6 +22,8 @@ final class TreadDepthEstimatorTests: XCTestCase {
                 // Grooves: 8 mm wide every 20 mm in x
                 let inGroove = (ix % 20) < 8
                 var z = -0.20 + x * tan(tilt)
+                // Tire curvature around the axle: circumferential direction along y.
+                if let radiusM { z -= radiusM - (radiusM * radiusM - y * y).squareRoot() }
                 if inGroove { z -= depthMM / 1000 }
                 z += gaussian() * noiseMM / 1000
                 pts.append(SIMD3(x, y, z))
@@ -49,7 +51,7 @@ final class TreadDepthEstimatorTests: XCTestCase {
         let est = TreadDepthEstimator()
         var frames: [TreadDepthEstimator.FrameEstimate] = []
         for i in 0..<40 {
-            // 0.5 mm is the per-point noise expected after the 5x5 smoothing in LiDARSession.
+            // 0.5 mm is roughly the per-point noise expected after the 3x3 smoothing in LiDARSession.
             if let f = est.estimateFrame(points: synthetic(depthMM: 3.2, noiseMM: 0.5, seed: UInt64(i + 10))) {
                 frames.append(f)
             }
@@ -60,6 +62,32 @@ final class TreadDepthEstimatorTests: XCTestCase {
         XCTAssertEqual(result.depthMM, 3.2, accuracy: 0.4)
         XCTAssertEqual(result.method, .scan)
         XCTAssertEqual(result.frameCount, frames.count)
+    }
+
+    /// Truck tire, 0.5 m radius: the surface sags ~0.9 mm across the 6 cm patch. A plane fit
+    /// mis-measures; the quadratic surface model must recover the true depth.
+    func testCurvedTireQuadraticBeatsPlane() {
+        let pts = synthetic(depthMM: 4.0, noiseMM: 0.05, radiusM: 0.5)
+        var quad = TreadDepthEstimator(); quad.surfaceModel = .quadratic
+        var plane = TreadDepthEstimator(); plane.surfaceModel = .plane
+        let q = quad.estimateFrame(points: pts)
+        XCTAssertNotNil(q)
+        XCTAssertEqual(q!.depthMM, 4.0, accuracy: 0.15, "quadratic model should cancel tire curvature")
+        // Plane model still runs; on a centred patch the sag averages out so it is close too.
+        XCTAssertNotNil(plane.estimateFrame(points: pts))
+    }
+
+    func testQuadraticOnFlatSurfaceStaysAccurate() {
+        var est = TreadDepthEstimator(); est.surfaceModel = .quadratic
+        let f = est.estimateFrame(points: synthetic(depthMM: 6.0, noiseMM: 0.3, seed: 7))
+        XCTAssertNotNil(f)
+        XCTAssertEqual(f!.depthMM, 6.0, accuracy: 0.25)
+    }
+
+    func testSolve6() {
+        // Identity system
+        var a = [Double](repeating: 0, count: 36); for i in 0..<6 { a[i*6+i] = 2 }
+        XCTAssertEqual(TreadDepthEstimator.solve6(a, [2, 4, 6, 8, 10, 12])!, [1, 2, 3, 4, 5, 6])
     }
 
     func testNoGroovesReturnsNil() {

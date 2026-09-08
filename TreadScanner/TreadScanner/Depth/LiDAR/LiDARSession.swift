@@ -16,16 +16,20 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
 
     /// Fraction of the depth map width/height used as the region of interest, centred.
     nonisolated let roiFraction = 0.35
-    /// Box-filter radius (pixels) applied to the depth map before unprojection. Per-point LiDAR
-    /// noise is several mm; averaging 5x5 high-confidence neighbours cuts it roughly 5x.
-    nonisolated let smoothingRadius = 2
+    /// Box-filter radius (pixels) applied to the depth map before unprojection. At 20 cm one
+    /// depth pixel is about 1 mm and a groove 8-12 px wide, so 3x3 (radius 1) is the sweet spot:
+    /// 5x5 blurs groove edges and reads shallow. Confirmed by tools/treadlab sweep on synthetic
+    /// tires; re-check against real captures.
+    nonisolated let smoothingRadius = 1
     private var lastCameraPosition: SIMD3<Float>?
     private var lastTimestamp: TimeInterval?
 
     func start() {
         guard LiDARAvailability.isSupported else { return }
         let config = ARWorldTrackingConfiguration()
-        config.frameSemantics = [.sceneDepth]
+        // smoothedSceneDepth is Apple's temporally filtered depth; per-point noise is noticeably
+        // lower than raw sceneDepth for a still camera, which is exactly our scan pose.
+        config.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? [.smoothedSceneDepth] : [.sceneDepth]
         config.environmentTexturing = .none
         session.delegate = self
         session.run(config, options: [.resetTracking, .removeExistingAnchors])
@@ -36,7 +40,7 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     nonisolated func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        guard let depth = frame.sceneDepth else { return }
+        guard let depth = frame.smoothedSceneDepth ?? frame.sceneDepth else { return }
         let extracted = LiDARSession.extract(frame: frame, depth: depth, roiFraction: roiFraction, radius: smoothingRadius)
         Task { @MainActor in
             self.apply(extracted, frame: frame)

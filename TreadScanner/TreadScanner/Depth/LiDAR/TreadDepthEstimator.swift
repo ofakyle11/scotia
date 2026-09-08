@@ -26,6 +26,11 @@ struct TreadDepthEstimator {
         var surfacePointCount: Int
     }
 
+    /// Surface model for the tread blocks. A truck tire (radius ~0.5 m) sags ~0.9 mm over a
+    /// 6 cm patch, more than 1/32", so the default fits a quadratic surface to the RANSAC
+    /// plane inliers. `.plane` is kept for comparison in the accuracy study.
+    enum SurfaceModel { case plane, quadratic }
+    var surfaceModel: SurfaceModel = .quadratic
     var grooveThresholdMM: Double = 1.0
     var maxTreadDepthMM: Double = 30.0        // anything deeper is background, not a groove
     var ransacIterations: Int = 120
@@ -42,13 +47,19 @@ struct TreadDepthEstimator {
         // Depth below the tread surface in mm. The normal points toward the camera, so points
         // farther away (groove floors) have a negative signed distance; flip the sign so that
         // positive = deeper into the tire.
-        let dist = points.map { -plane.signedDistance($0) * 1000.0 }
+        var dist = points.map { -plane.signedDistance($0) * 1000.0 }
 
-        // Surface noise from the residuals near the plane (robust MAD estimate), so the groove
-        // threshold adapts: nothing within 3 sigma of the surface counts as a groove.
-        let near = dist.filter { abs($0) <= 2 * ransacInlierMM }.map { abs($0) }.sorted()
-        guard near.count >= minSurfacePoints else { return nil }
-        let sigma = 1.4826 * median(near)
+        if surfaceModel == .quadratic, let quad = fitQuadratic(points: points, plane: plane, residuals: dist) {
+            // Re-measure every point against the curved surface instead of the plane.
+            dist = zip(points, dist).map { p, d in d + quad.height(at: p) }
+        }
+
+        // Surface noise from the points ABOVE the plane (negative depth). Those can never be
+        // groove, so the estimate is not polluted by shallow grooves the way a two-sided band is.
+        // Robust MAD estimate; the groove threshold then adapts to the device's noise.
+        let above = dist.filter { $0 < 0 && $0 > -3 * ransacInlierMM }.map { -$0 }.sorted()
+        guard above.count >= minSurfacePoints / 2 else { return nil }
+        let sigma = 1.4826 * median(above)
         let threshold = max(grooveThresholdMM, 3 * sigma)
 
         var surface = 0
@@ -126,6 +137,92 @@ struct TreadDepthEstimator {
         // Refine with a least-squares fit over the inliers (centroid + smallest covariance axis).
         let inliers = points.filter { abs(rough.signedDistance($0)) <= inlierM }
         return refine(inliers) ?? rough
+    }
+
+    // MARK: Quadratic surface (curvature correction)
+
+    /// Height of the tread surface above the RANSAC plane, as a quadratic in plane-local (u, v):
+    /// h = a·u² + b·v² + c·u·v + d·u + e·v + f, in mm. Positive h = surface is closer to the
+    /// camera than the plane (bulging toward it, as the middle of a convex tire does).
+    struct QuadraticSurface {
+        var coeffs: [Double]        // a, b, c, d, e, f
+        var origin: SIMD3<Double>
+        var u: SIMD3<Double>
+        var v: SIMD3<Double>
+
+        func height(at p: SIMD3<Double>) -> Double {
+            let r = p - origin
+            let x = simd_dot(r, u), y = simd_dot(r, v)
+            let c = coeffs
+            return c[0]*x*x + c[1]*y*y + c[2]*x*y + c[3]*x + c[4]*y + c[5]
+        }
+    }
+
+    /// Least-squares quadratic through the tread-surface points. The band is asymmetric:
+    /// up to 2 × inlier above the plane (a curved surface's edges), but only 1 × inlier below,
+    /// so groove walls and blurred groove edges do not drag the surface down.
+    /// Residual sign follows `dist`: positive = deeper, so the fitted height is the negative of that.
+    func fitQuadratic(points: [SIMD3<Double>], plane: Plane, residuals dist: [Double]) -> QuadraticSurface? {
+        var idx: [Int] = []
+        idx.reserveCapacity(points.count)
+        for i in 0..<points.count where dist[i] >= -2 * ransacInlierMM && dist[i] <= ransacInlierMM { idx.append(i) }
+        guard idx.count >= 30 else { return nil }
+
+        // Plane-local axes: u = any direction in the plane, v = n × u.
+        let n = plane.normal
+        let seed: SIMD3<Double> = abs(n.x) < 0.9 ? SIMD3(1, 0, 0) : SIMD3(0, 1, 0)
+        let u = simd_normalize(simd_cross(n, seed))
+        let v = simd_cross(n, u)
+        var origin = SIMD3<Double>(0, 0, 0)
+        for i in idx { origin += points[i] }
+        origin /= Double(idx.count)
+
+        // Normal equations for 6 coefficients. Coordinates in mm so the matrix is well scaled.
+        var ata = [Double](repeating: 0, count: 36)
+        var atb = [Double](repeating: 0, count: 6)
+        for i in idx {
+            let r = points[i] - origin
+            let x = simd_dot(r, u) * 1000, y = simd_dot(r, v) * 1000
+            let row = [x*x, y*y, x*y, x, y, 1]
+            let h = -dist[i]                    // height above plane, mm
+            for a in 0..<6 {
+                atb[a] += row[a] * h
+                for b in 0..<6 { ata[a*6 + b] += row[a] * row[b] }
+            }
+        }
+        guard let sol = TreadDepthEstimator.solve6(ata, atb) else { return nil }
+        // Coefficients were fit in mm units of (x, y); convert so height(at:) takes metres.
+        let k = 1000.0
+        let coeffs = [sol[0]*k*k, sol[1]*k*k, sol[2]*k*k, sol[3]*k, sol[4]*k, sol[5]]
+        return QuadraticSurface(coeffs: coeffs, origin: origin, u: u, v: v)
+    }
+
+    /// Gaussian elimination with partial pivoting for a 6×6 system.
+    static func solve6(_ a: [Double], _ b: [Double]) -> [Double]? {
+        var m = a, r = b
+        let n = 6
+        for col in 0..<n {
+            var piv = col
+            for row in (col + 1)..<n where abs(m[row*n + col]) > abs(m[piv*n + col]) { piv = row }
+            guard abs(m[piv*n + col]) > 1e-12 else { return nil }
+            if piv != col {
+                for k in 0..<n { m.swapAt(col*n + k, piv*n + k) }
+                r.swapAt(col, piv)
+            }
+            for row in (col + 1)..<n {
+                let f = m[row*n + col] / m[col*n + col]
+                if f == 0 { continue }
+                for k in col..<n { m[row*n + k] -= f * m[col*n + k] }
+                r[row] -= f * r[col]
+            }
+        }
+        var x = [Double](repeating: 0, count: n)
+        for row in stride(from: n - 1, through: 0, by: -1) {
+            var s = r[row]
+            for k in (row + 1)..<n { s -= m[row*n + k] * x[k] }
+            x[row] = s / m[row*n + row]
+        }
+        return x
     }
 
     private func refine(_ pts: [SIMD3<Double>]) -> Plane? {

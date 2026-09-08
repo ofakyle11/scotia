@@ -8,6 +8,7 @@ struct InspectionListView: View {
     @State private var showNew = false
     @State private var showSettings = false
     @State private var showVerify = false
+    @State private var showCapture = false
 
     var body: some View {
         NavigationStack {
@@ -47,6 +48,7 @@ struct InspectionListView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Button { showVerify = true } label: { Label("Verify scanner vs gauge", systemImage: "checkmark.seal") }
+                        Button { showCapture = true } label: { Label("Record raw LiDAR capture", systemImage: "waveform.path.ecg.rectangle") }
                         Button { showSettings = true } label: { Label("Settings", systemImage: "gear") }
                     } label: { Image(systemName: "ellipsis.circle") }
                 }
@@ -57,6 +59,7 @@ struct InspectionListView: View {
             .sheet(isPresented: $showNew) { NewInspectionView() }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showVerify) { VerifyModeView() }
+            .sheet(isPresented: $showCapture) { RawCaptureView() }
         }
     }
 }
