@@ -1,264 +1,185 @@
-# Truck Tread Depth Scanner – Build Plan
+# Scotia Tread Scanner – Master Plan
 
-Goal: a technician walks around a commercial truck or trailer with an iPhone,
-points it at each tire, and the app records tread depth in 32nds of an inch
-per tire position, then pushes the whole inspection into a spreadsheet.
+_Last updated 8 September 2026. Source of truth for the project. Everything
+referenced here lives in this repo on branch `claude/truck-tire-depth-scanner-3fsnpo`._
 
----
+## 1. Goal
 
-## 1. The hard truth about iPhone LiDAR first
+A technician walks around a commercial truck or trailer with an iPhone, points
+it at each tire, and the app records tread depth in 32nds of an inch for every
+wheel position, flags anything at or near the legal minimum, and delivers the
+whole inspection as a spreadsheet.
 
-The "telemeter" on iPhone Pro models is the LiDAR scanner, exposed through
-ARKit's scene depth API. It matters for the plan because it sets what is
-realistically achievable:
-
-| Measurement | Size |
+| Fact that shapes the design | Value |
 |---|---|
-| 1/32" (our unit of precision) | 0.79 mm |
-| Steer tire legal minimum (Canada NSC / DOT) | 4/32" = 3.2 mm |
-| Drive/trailer legal minimum | 2/32" = 1.6 mm |
-| ARKit LiDAR depth map resolution | 256 x 192 points |
-| ARKit LiDAR depth noise at 0.3-1 m | roughly 5-10 mm per point |
+| Unit of precision | 1/32" = 0.79 mm |
+| Steer legal minimum (Canada NSC / US FMCSA) | 4/32" = 3.2 mm |
+| Drive and trailer legal minimum | 2/32" = 1.6 mm |
+| iPhone LiDAR depth map | 256 × 192 points, about 1 mm per point at 20 cm |
+| Raw LiDAR noise per point | several mm; must be averaged and measured relative to the tread surface |
 
-Raw LiDAR depth is 5 to 10 times too coarse to read a groove to 1/32".
-Pointing the Measure app at a tire will not give a usable tread reading.
+The scanner is unproven at 1/32" and is treated as such: every scan carries a
+confidence band, every number can be typed over, and the app collects the data
+that proves or disproves it in the first weeks.
 
-What does work on a phone camera:
+## 2. Where things stand today
 
-1. **Photogrammetry / computer vision from the RGB camera.** Several vendors
-   (Anyline Tire Tread SDK, for example) sell an SDK that reads tread depth
-   from a short video sweep of the tire and claim about ±1/32" accuracy.
-   This is the proven "scan with a phone" route, but it is a paid license.
-2. **LiDAR plus heavy averaging at very close range.** Averaging hundreds of
-   depth frames across a groove can get to 1-2 mm precision in good
-   conditions. Good enough for pass/fail flags, marginal for exact 32nds.
-   Needs a validation study before we trust it.
-3. **Bluetooth digital tread depth gauge.** A BLE gauge in the groove is
-   accurate to 0.1 mm and costs under $200. The phone handles vehicle,
-   position, photos, thresholds and the spreadsheet. Slower than a scan,
-   but correct on day one.
+| Piece | State | Where |
+|---|---|---|
+| Web app (add to home screen) | **Live.** Gauge entry, photos, CSV export, optional Sheets | https://scotia-tread-scanner.netlify.app · `web/` |
+| iPhone app | Built, compiles, 27 unit tests green in cloud CI. Not yet on a phone | `TreadScanner/` |
+| LiDAR scanner | Implemented with curvature-corrected fit and confidence band. Tuned on synthetic tires only | `TreadScanner/TreadScanner/Depth/LiDAR/` |
+| Raw capture + analysis tool | Built. Records real tires for offline tuning | `tools/treadlab/` |
+| Cloud build to TestFlight | Written. Waiting on Apple Developer enrolment and secrets | `.github/workflows/ios-testflight.yml` |
+| Spreadsheet | CSV per inspection, 25 columns, import into Google Sheets. Direct Sheets sync optional | `Export/`, `web/app.js` |
 
-Recommendation: build the app so the reading source is pluggable. Ship with
-manual and BLE gauge entry first, run a short accuracy study on LiDAR and a
-vendor SDK trial in parallel, then pick the scan engine with real data
-instead of guessing.
+## 3. How the pieces fit
 
----
+```
+  iPhone (Safari, today)            iPhone Pro (TestFlight, after Apple enrolment)
+  ┌──────────────────────┐          ┌──────────────────────────────────────────┐
+  │ Web app              │          │ Native app                               │
+  │ gauge entry, photos  │          │ LiDAR scan ─► TreadDepthEstimator        │
+  │ same presets/columns │          │ gauge / manual entry                     │
+  └──────────┬───────────┘          │ Raw capture ─► .treadcap files ──────────┼──► tools/treadlab (computer)
+             │ CSV                  └──────────┬───────────────────────────────┘        tune, copy params back
+             ▼                                 │ CSV  (Sheets sync optional)
+     Google Sheets  ◄──────────────────────────┘
+     one row per tire, 25 columns, Inspections tab
+```
 
-## 2. What the app does (scope)
+Both apps share the same axle presets, TMC position codes, thresholds and
+spreadsheet columns, so rows from either can sit in the same sheet.
 
-**Inspection flow**
+## 4. The spreadsheet
 
-1. Start inspection: pick or create a customer/fleet, enter unit number,
-   plate, VIN (barcode/OCR scan of the door sticker), odometer, technician.
-2. Pick axle configuration (presets below). App draws the truck top-down
-   and lights up the next tire position.
-3. For each tire: capture depth (scan, gauge, or manual), take a photo,
-   optional pressure, DOT code, brand/model/size, notes.
-4. App flags any tire under threshold (configurable: 4/32 steer, 2/32
-   others by default, plus a "recommend replacement soon" band).
-5. Finish: review sheet, sign-off, export.
-
-**Axle presets** (each position is a row in the spreadsheet)
-
-| Preset | Positions |
-|---|---|
-| Straight truck 2-axle | LF, RF, LRO, LRI, RRO, RRI (6) |
-| Tractor 3-axle | LF, RF, LFO, LFI, RFO, RFI, LRO, LRI, RRO, RRI (10) |
-| Tandem trailer | LFO, LFI, RFO, RFI, LRO, LRI, RRO, RRI (8) |
-| Tri-axle trailer | 12 |
-| Custom | technician adds axles, single or dual |
-
-Position codes follow TMC (Technology & Maintenance Council) convention:
-side (L/R), axle (F/R or numbered), and O/I for outer/inner duals.
-
-**Per tire, record three groove readings** (inner, centre, outer) and store
-the minimum as the reported depth. Uneven wear across grooves is itself a
-finding (alignment or inflation problem), which ties back to the alignment
-side of the business.
-
-**Export targets**
-
-- CSV and XLSX via the iOS share sheet (email, AirDrop, Files) – phase 1.
-- Google Sheets append via Sheets API, or Excel Online via Microsoft Graph,
-  one row per tire plus an inspection summary row – phase 2.
-- PDF customer report with photos and flagged tires – phase 2.
-
-**Spreadsheet columns**
+One row per tire position. Columns, in order:
 
 ```
 inspection_id, date, technician, customer, unit_number, plate, vin, odometer,
 axle_config, position, brand, model, size, dot_code,
-depth_inner_32nds, depth_centre_32nds, depth_outer_32nds, depth_min_32nds,
-depth_min_mm, pressure_psi, status (OK / WATCH / REPLACE), method
-(scan / gauge / manual), photo_url, notes
+depth_inner_32nds, depth_centre_32nds, depth_outer_32nds, depth_min_32nds, depth_min_mm,
+pressure_psi, status, method, photo_url, notes, scan_confidence_32nds
 ```
 
----
+- `status` is OK, WATCH or REPLACE against 4/32 steer and 2/32 others, with a
+  configurable watch band (default 2/32 above the minimum).
+- `method` is scan, gauge or manual. Auditable.
+- Three grooves per tire; `depth_min_32nds` is what the status uses. A spread of
+  3/32 or more across grooves is flagged in the app as an alignment or inflation
+  lead, which feeds the alignment side of the business.
 
-## 3. Technical approach
+**Getting rows in (CSV, decided):** finish an inspection, share the CSV, then in
+Google Sheets: File → Import → Upload → Append to current sheet. Same columns
+every time, so filters and pivots on unit number keep working.
 
-**Platform:** native iOS, Swift + SwiftUI. LiDAR depth, ARKit, and the
-Vision framework are only fully available natively. React Native or
-Flutter would need a native module for every interesting part, so they buy
-nothing here. Android can follow later if fleet customers demand it, but
-Android phones mostly lack a depth sensor, which pushes Android toward the
-camera-only or BLE gauge path anyway.
+**Later, if wanted:** direct Sheets sync is already coded in both apps. It needs a
+Google Cloud project with the Sheets API and an OAuth client (about 10 minutes,
+steps in `TreadScanner/README.md` §3). Then rows append themselves when the
+phone has signal, and offline inspections queue.
 
-**Minimum device:** iPhone 12 Pro or newer (LiDAR). Non-Pro iPhones still
-run the app with gauge/manual entry.
+## 5. Axle presets and positions
 
-**Architecture**
+| Preset | Positions |
+|---|---|
+| Straight truck, 2 axle | LF RF · LRO LRI RRO RRI (6) |
+| Tractor, 3 axle | LF RF · L2O L2I R2O R2I · LRO LRI RRO RRI (10) |
+| Tandem trailer | LFO LFI RFO RFI · LRO LRI RRO RRI (8) |
+| Tri-axle trailer | 12 |
+| Custom | any axle count, single or dual per axle |
 
-```
-SwiftUI views
-  └─ Inspection view model
-       ├─ DepthProvider (protocol)
-       │    ├─ ManualDepthProvider
-       │    ├─ BLEGaugeDepthProvider   (CoreBluetooth)
-       │    ├─ LiDARDepthProvider      (ARKit sceneDepth + averaging)
-       │    └─ VendorSDKDepthProvider  (Anyline or similar, if licensed)
-       ├─ Local store (SwiftData / SQLite), offline first
-       └─ Exporters: CSV, XLSX, Google Sheets, Graph, PDF
-```
+Codes follow TMC convention: side, axle (F, number, R), O/I for duals. Inner
+duals default to gauge entry; a phone cannot see them.
 
-Offline first matters: shops and yards have poor signal. Everything saves
-locally and syncs when connected.
+## 6. The LiDAR scanner, and how it gets trusted
 
-**LiDAR measurement approach (for the accuracy study)**
+**Measurement method.** Depth is measured relative to the tread surface, not
+absolutely, which cancels most of the LiDAR's error. Per frame: high-confidence
+depth points in the centre region → 3×3 smoothing → RANSAC plane through the
+tread blocks (±0.6 mm band, so a 2/32 groove cannot swallow the plane) → a
+least-squares quadratic surface, because a 0.5 m truck tire sags 0.9 mm across
+the patch → groove floors found as the densest cluster below that surface.
+About 45 frames are averaged while the overlay gates on distance (12–30 cm),
+tilt (<10°) and stillness. Result: depth plus a ± band; over ±1.5/32 is shown
+amber and asks for a rescan or a gauge.
 
-1. Technician holds phone 15-25 cm from the tread, roughly perpendicular,
-   with a live overlay showing target distance and tilt.
-2. Capture 2-3 seconds of ARKit depth frames plus confidence maps.
-3. Use the RGB frame and Vision to segment tread blocks vs grooves.
-4. Fit a plane (or cylinder, using the known tire radius) to the tread
-   block surface. Depth = distance from groove-floor points to that
-   surface, averaged over many frames and points, keep only high-confidence
-   pixels.
-5. Convert mm to 32nds, report the value with a confidence band.
+**Synthetic results so far** (curved tire, per-point noise 0.5–1.2 mm): 2/32
+reads 1.87, 3/32 reads 2.84, 5/32 reads 5.01, 8/32 reads 8.03. Real tires will
+be worse; that is what the program below is for.
 
-Fitting a surface to the tread blocks and measuring relative to it cancels
-most of the absolute LiDAR error, which is the reason this might reach
-~1 mm even though single points are noisier.
+**Borrowed from open source**
 
-**Accuracy study protocol**
-
-- 20+ tires across steer, drive, and trailer, new to worn.
-- Ground truth: calibrated dial gauge, three grooves each.
-- Compare LiDAR method, vendor SDK trial, and phone-camera-only approach.
-- Pass criteria: 90% of readings within ±1/32" of gauge, and zero
-  pass/fail misclassifications at the 4/32 and 2/32 thresholds.
-
----
-
-## 4. Phases and rough effort
-
-| Phase | Deliverable | Effort |
+| Idea | Source | Used for |
 |---|---|---|
-| 0. Decide | Confirm scope above, pick Apple developer account, order a BLE gauge and request vendor SDK trial | 1 week |
-| 1. Core app | Inspection flow, axle presets, manual entry, thresholds, photos, local storage, CSV/XLSX share | 4-5 weeks |
-| 2. BLE gauge | Pair a Bluetooth tread gauge, readings drop straight into the active position | 1-2 weeks |
-| 3. LiDAR study | Prototype the depth provider, run the accuracy protocol, write up results | 3-4 weeks (parallel with 1-2) |
-| 4. Scan engine | Ship LiDAR provider if it passed, or integrate vendor SDK, or stay gauge-based | 2-6 weeks depending on outcome |
-| 5. Cloud sync | Google Sheets / Excel Online append, PDF report, multi-tech accounts | 3-4 weeks |
-| 6. Field pilot | Two or three fleet customers, fix what breaks, App Store or TestFlight release | 4 weeks |
+| Keep 32-bit depth + confidence, never a lossy picture | ioridev/LiDAR-Depth-Map-Capture-for-iOS | Raw capture mode, `.treadcap` files |
+| Unproject depth pixels with intrinsics scaled to the depth map | Apple WWDC20 sample; Waley-Z, isakdiaz point-cloud repos | `LiDARSession.extract`, mirrored in treadlab |
+| Fit geometry to the cloud, not just a plane | CurvSurf FindSurface demos | Quadratic tread surface |
+| Analyse on a computer, iterate fast | kentaroy47/apple-lidar-stream; KalTire tread notebook | `tools/treadlab` measure / report / sweep |
+| Apple's temporally filtered depth | Common to the LiDAR streaming repos | `smoothedSceneDepth` |
 
-A usable app that records to a spreadsheet exists at the end of phase 1.
-The scanner question is answered with data by the end of phase 3.
+**Accuracy program (first two weeks with the TestFlight build)**
 
----
+1. 20+ grooves across steer, drive and trailer tires, new to worn, some dirty.
+   For each: menu → Record raw LiDAR capture, type the dial-gauge reading,
+   record 60 frames at 15–25 cm.
+2. Share the files to a computer. `python3 tools/treadlab/treadlab.py sweep *.treadcap`
+   tries every combination of region size, smoothing, inlier band and surface
+   model and prints the best.
+3. Copy the winners into `TreadDepthEstimator.swift` / `LiDARSession.swift`.
+   CI rebuilds, TestFlight ships it.
+4. Verify mode in the app on another 20 grooves. **Pass:** 90% within ±1/32
+   and zero pass/fail disagreements at 4/32 and 2/32.
+5. Fails after two rounds → the app is still a fast gauge-and-spreadsheet tool,
+   and a vendor scan SDK (Anyline or similar, paid) slots in behind the same
+   `DepthProvider` interface. Nothing else changes.
 
-## 5. Costs and dependencies
+## 7. Timeline
 
-- Apple Developer Program: about $130 CAD/year.
-- iPhone 12 Pro or newer for development and testing.
-- BLE digital tread depth gauge: $100-200.
-- Vendor scan SDK (if chosen): typically per-scan or per-device licensing,
-  quote required. Budget this as the main variable cost.
-- Google Cloud or Microsoft 365 credentials for the sheet sync.
-
----
-
-## 6. Risks
-
-- **Scan accuracy.** Covered by the pluggable provider and the study. Worst
-  case the product is a very good gauge-plus-spreadsheet app.
-- **Lighting and dirt.** Camera-based methods struggle with mud, water,
-  and direct sun. The overlay must guide the technician and refuse bad
-  captures rather than guess.
-- **Dual inner tires.** Hard to reach with a phone. Gauge or manual entry
-  stays as the fallback for inner duals.
-- **Regulatory use.** If readings feed CVSA/NSC inspection records, the
-  method needs to be defensible. Keep the raw photo and the method column
-  on every reading.
-
----
-
-## 6b. LiDAR accuracy program
-
-The scanner only earns trust with real-tire data, and the fastest way to get
-there is to stop guessing inside the app. Borrowed from open-source LiDAR work:
-
-| Idea | Source | What we did with it |
+| When | What | Who |
 |---|---|---|
-| Keep 32-bit depth + confidence, never a lossy picture of it | ioridev/LiDAR-Depth-Map-Capture-for-iOS | **Record raw LiDAR capture** mode writes `.treadcap` files (depth, confidence, intrinsics, pose, small JPEG) with the gauge reading typed in |
-| Unproject depth pixels with intrinsics scaled to the 256×192 depth map | Apple WWDC20 scene-depth sample; Waley-Z and isakdiaz point-cloud repos | `LiDARSession.extract`; mirrored in `tools/treadlab` |
-| Fit geometry to the cloud, not just a plane | CurvSurf FindSurface demos | A truck tire sags ~0.9 mm across a 6 cm patch (radius 0.5 m). Tread surface is now a least-squares quadratic; grooves are measured against it |
-| Analyse on a computer, iterate fast | kentaroy47/apple-lidar-stream, KalTire tread notebook | `tools/treadlab/treadlab.py` runs the identical estimator on captures, reports scan-vs-gauge, and sweeps ROI / smoothing / surface model |
-| Use Apple's temporally filtered depth | Common to the streaming repos | `smoothedSceneDepth` frame semantic when available |
+| Now | Use the web app in the shop. Add to home screen, gauge readings, CSV into a Google Sheet | Shop |
+| Day 0–2 | Enrol in Apple Developer Program ($130 CAD/yr). Approval 1–2 days | You |
+| Day 2 | Create App Store Connect API key, private certs repo, add 7 GitHub secrets (README §2, 30 min) | You |
+| Day 2 | Run the TestFlight workflow. Install on an iPhone 12 Pro or newer. I fix anything the first signed build trips on | You + me |
+| Week 1–2 | Accuracy program above: 20 raw captures, sweep, ship tuned parameters, 20 verify pairs | Shop + me |
+| Week 2 | Decision: LiDAR passes, or gauge path, or vendor SDK trial | You |
+| Week 3–4 | Field pilot with 2–3 fleet customers. Fix what breaks. Optional: Sheets direct sync, PDF customer report, per-truck history tab | Shop + me |
+| Later | Android (gauge path only, no depth sensor), multi-technician accounts, CVSA/NSC-ready records | as needed |
 
-**Protocol (week one with the TestFlight build)**
+## 8. Your to-do list
 
-1. Pick 20+ grooves across steer, drive and trailer tires, new to worn, some
-   dirty. For each: menu → Record raw LiDAR capture, type the dial-gauge
-   reading, record 60 frames at 15–25 cm.
-2. Share the `.treadcap` files to a computer. Run
-   `python3 tools/treadlab/treadlab.py sweep *.treadcap`.
-3. Copy the winning ROI, smoothing radius and surface model into
-   `TreadDepthEstimator.swift` / `LiDARSession.swift`. CI rebuilds; TestFlight
-   ships it.
-4. Repeat with Verify mode in the app on another 20 grooves. Pass: 90% within
-   ±1/32 and no pass/fail disagreements at 4/32 and 2/32.
-5. If it fails after two rounds, the fallback is unchanged: gauge entry in the
-   same app, or a vendor scan SDK behind the same `DepthProvider` interface.
+The items only you can do, in order:
 
-**Known limits found on synthetic data:** heavy box smoothing (5×5) blurs
-groove edges at this resolution (about 1 mm per depth pixel at 20 cm), so the
-smoothing radius is one of the parameters the sweep decides. The estimator's
-noise estimate uses only points above the tread plane, which can never be
-groove, so shallow 2/32 grooves are not swallowed by the threshold.
+1. Open https://scotia-tread-scanner.netlify.app on the iPhone, Share → Add to
+   Home Screen. Run one real inspection and import the CSV into a Google Sheet.
+2. Revoke the Netlify token pasted in chat and make a new one if needed.
+3. Enrol at developer.apple.com/programs/enroll.
+4. Once approved: App Store Connect API key (Admin role), Team ID, private
+   GitHub repo `scotia-ios-certs`, fine-grained token, then the secrets table in
+   `TreadScanner/README.md` §2d.
+5. Actions → iOS TestFlight → Run workflow. Add yourself as an internal tester.
+   Install TestFlight on the phone.
+6. Tell me when the build is on the phone. Then start recording raw captures.
 
-## 7. Status and next steps
+## 9. Costs
 
-**Scope decision (Sept 2026):** LiDAR scanning and Google Sheets sync were
-pulled into v1 instead of waiting for the accuracy study. The app is built in
-`TreadScanner/` (Swift/SwiftUI, XcodeGen project). See `TreadScanner/README.md`
-for Mac setup, Google Cloud setup, and the verification checklist.
+| Item | Cost |
+|---|---|
+| Apple Developer Program | ~$130 CAD / year |
+| GitHub Actions macOS builds | free (public repo) |
+| Netlify hosting for the web app | free tier |
+| Google Sheets / Cloud project | free |
+| Dial tread depth gauge (calibration reference) | $20–60 |
+| Vendor scan SDK, only if LiDAR fails | quote required; the one real variable |
 
-What is built:
+## 10. Risks
 
-- Inspection flow, all axle presets plus custom, manual entry, thresholds,
-  photos, local SwiftData store, CSV share.
-- LiDAR depth provider: plane-fit relative measurement, 5x5 depth smoothing,
-  multi-frame averaging, ± band on every scan, distance/tilt/motion gating.
-- Google Sheets append with OAuth PKCE, offline queue, header auto-creation.
-- Verify mode that logs scan vs gauge pairs to a `Verify` tab (the accuracy
-  study from section 3, now built into the app).
-
-**Interim web version:** https://scotia-tread-scanner.netlify.app (add to
-home screen). Gauge entry, photos, CSV, optional Google Sheets. No LiDAR;
-Safari cannot reach the sensor. Source in `web/`.
-
-Next steps:
-
-1. No Mac needed. GitHub Actions builds and tests on every push, and the
-   "iOS TestFlight" workflow signs and uploads the app so it installs on the
-   iPhone through TestFlight. Setup (Apple Developer enrolment, API key,
-   repo secrets) is in `TreadScanner/README.md` section 2.
-2. Google Cloud console: enable Sheets API, create the iOS OAuth client, add
-   the client ID and spreadsheet ID as repo secrets.
-3. Run Verify mode on 20+ grooves in the shop during week one. Tune the
-   estimator knobs in `TreadDepthEstimator.swift` against that data.
-4. Decide on the scan engine with the Verify numbers: keep LiDAR, add a
-   vendor SDK behind the same `DepthProvider` interface, or lean on the
-   gauge path. The rest of the app does not change either way.
+- **Scan accuracy.** Handled by the confidence band, gauge override, and the
+  accuracy program. Worst case is a very good gauge-plus-spreadsheet app.
+- **Dirt, water, sun.** Camera methods struggle. The overlay refuses bad
+  captures rather than guessing; the quality gate is in the scan screen.
+- **Inner duals.** Unreachable by phone. Gauge entry stays the path.
+- **Regulatory use.** If readings feed CVSA/NSC records, keep the photo and
+  `method` on every row. Already done.
+- **Public repo.** Fine for the code. Certificates go in a private repo;
+  secrets never in git. The Netlify token from chat must be revoked.
