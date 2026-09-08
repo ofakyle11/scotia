@@ -34,7 +34,10 @@ struct TreadDepthEstimator {
     var grooveThresholdMM: Double = 1.0
     var maxTreadDepthMM: Double = 30.0        // anything deeper is background, not a groove
     var ransacIterations: Int = 120
-    var ransacInlierMM: Double = 1.2
+    /// RANSAC inlier band. Must be well under half the shallowest groove we care about (2/32 =
+    /// 1.6 mm), otherwise a plane halfway between tread and groove floor collects every point
+    /// and the groove disappears. 0.6 mm chosen by tools/treadlab sweep on synthetic tires.
+    var ransacInlierMM: Double = 0.6
     var minSurfacePoints: Int = 60
     var minGroovePoints: Int = 12
     var seed: UInt64 = 0x5EED

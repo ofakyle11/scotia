@@ -3,7 +3,7 @@
 
 Usage:
   python3 treadlab.py info    capture.treadcap
-  python3 treadlab.py measure capture.treadcap [--model plane|quadratic] [--roi 0.35] [--smooth 1]
+  python3 treadlab.py measure capture.treadcap [--model plane|quadratic] [--roi 0.35] [--smooth 1] [--inlier 0.6]
   python3 treadlab.py report  *.treadcap [--csv out.csv]     # scan vs gauge for many captures
   python3 treadlab.py sweep   *.treadcap                     # try parameter combos, print the best
 
@@ -67,7 +67,7 @@ def extract_points(fr, roi=0.35, smooth=1):
 
 # ---------------- estimator (mirrors TreadDepthEstimator.swift) ----------------
 class Estimator:
-    def __init__(self, model="quadratic", groove_threshold=1.0, max_depth=30.0, iters=120, inlier=1.2, min_surface=60, min_groove=12, seed=0x5EED):
+    def __init__(self, model="quadratic", groove_threshold=1.0, max_depth=30.0, iters=120, inlier=0.6, min_surface=60, min_groove=12, seed=0x5EED):
         self.model, self.thr0, self.max_depth, self.iters, self.inlier = model, groove_threshold, max_depth, iters, inlier
         self.min_surface, self.min_groove, self.seed = min_surface, min_groove, seed
 
@@ -128,9 +128,9 @@ class Estimator:
         return {"depth_mm": float(d.mean()), "sd_mm": float(d.std(ddof=1)) if len(d) > 1 else 1.5, "frames": len(frames)}
 
 MM = 25.4 / 32
-def measure(path, model="quadratic", roi=0.35, smooth=1, **kw):
+def measure(path, model="quadratic", roi=0.35, smooth=1, inlier=0.6, **kw):
     header, frames = read_treadcap(path)
-    est = Estimator(model=model, **kw)
+    est = Estimator(model=model, inlier=inlier, **kw)
     per = [est.frame(extract_points(f, roi, smooth)[0]) for f in frames]
     res = est.combine([p for p in per if p])
     return header, res, per
@@ -143,7 +143,7 @@ def cmd_info(a):
 
 def cmd_measure(a):
     for p in a.files:
-        h, res, per = measure(p, a.model, a.roi, a.smooth)
+        h, res, per = measure(p, a.model, a.roi, a.smooth, a.inlier)
         ok = sum(1 for x in per if x)
         if not res: print(f"{p}: no usable frames ({ok}/{len(per)})"); continue
         g = h.get("gauge32")
@@ -151,11 +151,11 @@ def cmd_measure(a):
         if g is not None: line += f"  gauge {g}/32  error {res['depth_mm']/MM - g:+.2f}/32"
         print(line)
 
-def cmd_report(a, model=None, roi=None, smooth=None, quiet=False):
-    model, roi, smooth = model or a.model, roi or a.roi, smooth or a.smooth
+def cmd_report(a, model=None, roi=None, smooth=None, inlier=None, quiet=False):
+    model, roi, smooth, inlier = model or a.model, roi or a.roi, (a.smooth if smooth is None else smooth), inlier or a.inlier
     errs, rows = [], []
     for p in a.files:
-        h, res, per = measure(p, model, roi, smooth)
+        h, res, per = measure(p, model, roi, smooth, inlier)
         g = h.get("gauge32")
         if res and g is not None:
             e = res["depth_mm"] / MM - g; errs.append(e)
@@ -167,7 +167,7 @@ def cmd_report(a, model=None, roi=None, smooth=None, quiet=False):
     # pass/fail agreement at the legal thresholds (4/32 steer, 2/32 others; check both)
     dis = sum(1 for r in rows for lim in (4, 2) if (r[2] <= lim) != (r[3] <= lim))
     if not quiet:
-        print(f"model={model} roi={roi} smooth={smooth}  n={len(e)}  bias {e.mean():+.2f}/32  RMSE {np.sqrt((e**2).mean()):.2f}/32  within ±1/32: {within:.0f}%  threshold disagreements: {dis}")
+        print(f"model={model} roi={roi} smooth={smooth} inlier={inlier}  n={len(e)}  bias {e.mean():+.2f}/32  RMSE {np.sqrt((e**2).mean()):.2f}/32  within ±1/32: {within:.0f}%  threshold disagreements: {dis}")
         for r in rows: print("  ", *r)
         if getattr(a, "csv", None):
             import csv
@@ -180,13 +180,14 @@ def cmd_sweep(a):
     results = []
     for model in ("plane", "quadratic"):
         for roi in (0.25, 0.35, 0.45):
-            for smooth in (0, 1, 2, 3):
-                r = cmd_report(a, model, roi, smooth, quiet=True)
-                if r: results.append((r["rmse"], model, roi, smooth, r))
-    results.sort(key=lambda t: t[0])
-    print("best first (rmse /32, model, roi, smooth, bias, within±1, disagreements):")
-    for rmse, model, roi, smooth, r in results[:10]:
-        print(f"  {rmse:.2f}  {model:9s} roi={roi} smooth={smooth}  bias {r['bias']:+.2f}  within {r['within']:.0f}%  dis {r['dis']}")
+            for smooth in (0, 1, 2):
+                for inlier in (0.5, 0.6, 0.8, 1.2):
+                    r = cmd_report(a, model, roi, smooth, inlier, quiet=True)
+                    if r: results.append((r["rmse"], model, roi, smooth, inlier, r))
+    results.sort(key=lambda t: (t[0], -t[5]["n"]))
+    print("best first (rmse /32, model, roi, smooth, inlier mm, n, bias, within±1, disagreements):")
+    for rmse, model, roi, smooth, inlier, r in results[:12]:
+        print(f"  {rmse:.2f}  {model:9s} roi={roi} smooth={smooth} inlier={inlier}  n={r['n']}  bias {r['bias']:+.2f}  within {r['within']:.0f}%  dis {r['dis']}")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -195,6 +196,7 @@ if __name__ == "__main__":
     ap.add_argument("--model", default="quadratic", choices=["plane", "quadratic"])
     ap.add_argument("--roi", type=float, default=0.35)
     ap.add_argument("--smooth", type=int, default=1)
+    ap.add_argument("--inlier", type=float, default=0.6, help="RANSAC inlier band, mm")
     ap.add_argument("--csv")
     a = ap.parse_args()
     {"info": cmd_info, "measure": cmd_measure, "report": cmd_report, "sweep": cmd_sweep}[a.cmd](a)
