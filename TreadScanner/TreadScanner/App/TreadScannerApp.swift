@@ -12,12 +12,14 @@ struct TreadScannerApp: App {
             TireReading.self, SyncQueueItem.self, VerifySample.self
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let built: ModelContainer
         do {
-            container = try ModelContainer(for: schema, configurations: [config])
+            built = try ModelContainer(for: schema, configurations: [config])
         } catch {
             fatalError("Could not create SwiftData container: \(error)")
         }
-        _sync = StateObject(wrappedValue: SheetsSyncService(container: container))
+        container = built
+        _sync = StateObject(wrappedValue: SheetsSyncService(container: built))
     }
 
     var body: some Scene {
