@@ -2,10 +2,13 @@
 """treadlab: offline analysis of .treadcap LiDAR captures from the Tread Scanner app.
 
 Usage:
-  python3 treadlab.py info    capture.treadcap
-  python3 treadlab.py measure capture.treadcap [--model plane|quadratic] [--roi 0.35] [--smooth 1] [--inlier 0.6]
-  python3 treadlab.py report  *.treadcap [--csv out.csv]     # scan vs gauge for many captures
-  python3 treadlab.py sweep   *.treadcap                     # try parameter combos, print the best
+  python3 treadlab.py info    capture.treadcap [--json]
+  python3 treadlab.py measure capture.treadcap [--model plane|quadratic] [--roi 0.35] [--smooth 1] [--inlier 0.6] [--json]
+  python3 treadlab.py report  *.treadcap [--csv out.csv] [--json]   # scan vs gauge for many captures
+  python3 treadlab.py sweep   *.treadcap [--json]                   # try parameter combos, print the best
+
+Unreadable captures are reported on stderr and skipped; the rest are still summarised.
+Tests: python3 -m pytest tools/treadlab -q  (synthetic captures, no phone needed).
 
 The estimator here is a line-for-line port of TreadDepthEstimator.swift so numbers match the
 phone. Tune here, then copy the winning parameters into the Swift file.
