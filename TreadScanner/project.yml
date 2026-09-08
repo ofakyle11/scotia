@@ -9,7 +9,9 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.0"
 targets:
   TreadScanner:
     type: application
@@ -23,8 +25,8 @@ targets:
       path: TreadScanner/Info.plist
       properties:
         CFBundleDisplayName: Tread Scanner
-        CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSCameraUsageDescription: Tread Scanner uses the camera and LiDAR scanner to measure tire tread depth and photograph tires.
@@ -37,8 +39,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ca.scotiatire.treadscanner
-        # Set on the Mac: reversed iOS OAuth client ID, e.g. com.googleusercontent.apps.1234-abcd
-        GOOGLE_REVERSED_CLIENT_ID: com.googleusercontent.apps.REPLACE_ME
+        # Reversed iOS OAuth client ID, e.g. com.googleusercontent.apps.1234-abcd. Used as the
+        # OAuth redirect URL scheme. CI derives it from the GOOGLE_CLIENT_ID secret; locally,
+        # export GOOGLE_REVERSED_CLIENT_ID (and DEVELOPMENT_TEAM) before `xcodegen generate`.
+        GOOGLE_REVERSED_CLIENT_ID: ${GOOGLE_REVERSED_CLIENT_ID}
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
   TreadScannerTests:

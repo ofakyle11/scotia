@@ -7,3 +7,6 @@ DerivedData/
 # Real secrets/config; copy Config.example.plist -> Config.plist
 TreadScanner/App/Config.plist
 .DS_Store
+build/
+fastlane/report.xml
+fastlane/README.md

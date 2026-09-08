@@ -1,0 +1,94 @@
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Sign and upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: TreadScanner
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          missing=""
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 MATCH_GIT_URL MATCH_GIT_BASIC_AUTHORIZATION MATCH_PASSWORD; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. See TreadScanner/README.md section 2."
+            exit 1
+          fi
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Write Config.plist from secrets
+        run: |
+          python3 - <<'PY'
+          import os, plistlib
+          cfg = {
+            "GoogleClientID": os.environ.get("GOOGLE_CLIENT_ID", ""),
+            "SpreadsheetID": os.environ.get("SPREADSHEET_ID", ""),
+            "InspectionsSheetName": "Inspections",
+            "VerifySheetName": "Verify",
+          }
+          with open("TreadScanner/App/Config.plist", "wb") as f:
+              plistlib.dump(cfg, f)
+          PY
+          # Reversed client id is the OAuth redirect URL scheme.
+          REV="com.googleusercontent.apps.REPLACE_ME"
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            REV=$(echo "$GOOGLE_CLIENT_ID" | awk -F. '{for(i=NF;i>0;i--) printf "%s%s", $i, (i>1?".":"")}')
+          fi
+          echo "GOOGLE_REVERSED_CLIENT_ID=$REV" >> "$GITHUB_ENV"
+
+      - name: Generate project
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: xcodegen generate
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: TreadScanner
+
+      - name: Build, sign, upload
+        run: bundle exec fastlane beta
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TreadScanner-ipa
+          path: TreadScanner/build/*.ipa
+          if-no-files-found: ignore

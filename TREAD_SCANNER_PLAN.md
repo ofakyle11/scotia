@@ -213,10 +213,12 @@ What is built:
 
 Next steps:
 
-1. On a Mac: `brew install xcodegen`, generate the project, build to an
-   iPhone 12 Pro or newer, run the unit tests.
-2. Google Cloud console: enable Sheets API, create the iOS OAuth client, fill
-   in `Config.plist` and the reversed client ID in `project.yml`.
+1. No Mac needed. GitHub Actions builds and tests on every push, and the
+   "iOS TestFlight" workflow signs and uploads the app so it installs on the
+   iPhone through TestFlight. Setup (Apple Developer enrolment, API key,
+   repo secrets) is in `TreadScanner/README.md` section 2.
+2. Google Cloud console: enable Sheets API, create the iOS OAuth client, add
+   the client ID and spreadsheet ID as repo secrets.
 3. Run Verify mode on 20+ grooves in the shop during week one. Tune the
    estimator knobs in `TreadDepthEstimator.swift` against that data.
 4. Decide on the scan engine with the Verify numbers: keep LiDAR, add a

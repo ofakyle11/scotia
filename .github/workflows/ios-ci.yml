@@ -1,0 +1,80 @@
+name: iOS CI
+
+on:
+  push:
+    paths:
+      - "TreadScanner/**"
+      - ".github/workflows/ios-ci.yml"
+  pull_request:
+    paths:
+      - "TreadScanner/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test (simulator)
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: TreadScanner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        env:
+          DEVELOPMENT_TEAM: ""
+          GOOGLE_REVERSED_CLIENT_ID: com.googleusercontent.apps.REPLACE_ME
+        run: |
+          cp TreadScanner/App/Config.example.plist TreadScanner/App/Config.plist
+          xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          for rt in sorted(d, reverse=True):
+              if "iOS" not in rt: continue
+              for dev in d[rt]:
+                  if dev["name"].startswith("iPhone") and dev["isAvailable"]:
+                      print(dev["udid"]); sys.exit(0)
+          sys.exit(1)')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices available | grep "$UDID"
+
+      - name: Build and test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project TreadScanner.xcodeproj \
+            -scheme TreadScanner \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log | grep -E "error:|warning: unre|Test Case|Executed|BUILD|TEST" || true
+          # tee swallowed the status; re-check from the log
+          if grep -q "\*\* TEST FAILED \*\*\|\*\* BUILD FAILED \*\*" build.log; then exit 1; fi
+          grep -q "\*\* TEST SUCCEEDED \*\*" build.log
+
+      - name: Upload results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-and-log
+          path: |
+            TreadScanner/TestResults.xcresult
+            TreadScanner/build.log

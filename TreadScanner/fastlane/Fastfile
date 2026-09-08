@@ -1,0 +1,69 @@
+default_platform(:ios)
+
+APP_ID = "ca.scotiatire.treadscanner"
+PROJECT = "TreadScanner.xcodeproj"
+SCHEME = "TreadScanner"
+
+platform :ios do
+  desc "Run unit tests on a simulator (no signing)"
+  lane :test do
+    run_tests(project: PROJECT, scheme: SCHEME, device: "iPhone 16", code_coverage: false)
+  end
+
+  desc "Sign with match and upload to TestFlight. Needs the secrets listed in README section 2."
+  lane :beta do
+    setup_ci
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_P8"),
+      is_key_content_base64: false,
+      in_house: false
+    )
+
+    # Registers the bundle ID and the App Store Connect app record. Idempotent.
+    create_app_online(
+      api_key: api_key,
+      app_identifier: APP_ID,
+      app_name: "Scotia Tread Scanner",
+      app_version: "0.1.0",
+      language: "English",
+      sku: "scotia-treadscanner",
+      company_name: "Scotia Tire & Alignment"
+    )
+
+    # First run creates the Apple Distribution certificate and App Store profile
+    # and stores them encrypted in the private certs repo. Later runs reuse them.
+    match(type: "appstore", api_key: api_key, readonly: false, app_identifier: [APP_ID])
+
+    profile_name = ENV.fetch("sigh_#{APP_ID}_appstore_profile-name")
+    update_code_signing_settings(
+      path: PROJECT,
+      targets: [SCHEME],
+      use_automatic_signing: false,
+      team_id: ENV.fetch("APPLE_TEAM_ID"),
+      code_sign_identity: "Apple Distribution",
+      profile_name: profile_name,
+      bundle_identifier: APP_ID
+    )
+
+    increment_build_number(xcodeproj: PROJECT, build_number: ENV.fetch("BUILD_NUMBER", "1"))
+
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build",
+      output_name: "TreadScanner.ipa",
+      export_options: { provisioningProfiles: { APP_ID => profile_name } }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      changelog: "Build #{ENV.fetch('BUILD_NUMBER', '1')} from GitHub Actions"
+    )
+  end
+end
