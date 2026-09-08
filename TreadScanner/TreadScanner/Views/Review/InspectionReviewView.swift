@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+/// Screens the review view can push from its toolbar menu.
+enum ReviewRoute: String, Identifiable, Hashable {
+    case report, history
+    var id: String { rawValue }
+}
+
 /// The main working screen for an inspection: diagram, position list, finish/export.
 struct InspectionReviewView: View {
     @Environment(\.modelContext) private var context
@@ -9,6 +15,7 @@ struct InspectionReviewView: View {
     var startInWalkMode = false
 
     @State private var selected: TirePosition?
+    @State private var route: ReviewRoute?
     @State private var shareURL: URL?
     @State private var showFinishConfirm = false
 
@@ -73,6 +80,8 @@ struct InspectionReviewView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button { route = .report } label: { Label("Customer report", systemImage: "doc.richtext") }
+                    Button { route = .history } label: { Label("Unit history", systemImage: "chart.line.downtrend.xyaxis") }
                     Button { export() } label: { Label("Share CSV", systemImage: "square.and.arrow.up") }
                     if inspection.isComplete {
                         Button { sync.enqueue(inspection, context: context) } label: { Label("Re-send to spreadsheet", systemImage: "arrow.triangle.2.circlepath") }
@@ -84,6 +93,15 @@ struct InspectionReviewView: View {
         .navigationDestination(item: $selected) { pos in
             TireDetailView(inspection: inspection, position: pos) {
                 selected = nextOpen(after: pos)
+            }
+        }
+        .navigationDestination(item: $route) { route in
+            switch route {
+            case .report:
+                InspectionReportView(inspection: inspection)
+            case .history:
+                UnitHistoryView(unitNumber: inspection.vehicle?.unitNumber ?? "",
+                                vehicleID: inspection.vehicle?.id)
             }
         }
         .sheet(item: $shareURL) { url in ShareSheet(items: [url]) }
