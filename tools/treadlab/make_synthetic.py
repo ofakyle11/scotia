@@ -13,7 +13,7 @@ IMAGE_W, IMAGE_H = 1920, 1440
 INTRINSICS = [1600.0, 1600.0, 960.0, 720.0]
 
 
-def build_capture(depth32=5.0, noise=0.5, frames=30, curved=True, grooves=True,
+def build_capture(depth32=5.0, noise=0.5, frames=30, curved=True, grooves=True, sweep_distance=False,
                   confidence=2, label="synthetic", gauge32=None, seed=1,
                   width=W, height=H, radius=0.5):
     """Return the bytes of a synthetic .treadcap.
@@ -38,7 +38,9 @@ def build_capture(depth32=5.0, noise=0.5, frames=30, curved=True, grooves=True,
     ys, xs = np.mgrid[0:h, 0:w]
     for i in range(frames):
         # back-project rays to a surface at 0.2 m with grooves every 20 mm (8 mm wide) along x
-        z0 = 0.20
+        # sweep_distance walks the camera from 10 cm to 32 cm so every distance bucket gets
+        # frames, including ones outside the on-screen gate.
+        z0 = 0.10 + 0.22 * (i / max(1, frames - 1)) if sweep_distance else 0.20
         X = (xs - cx) / fx * z0
         Y = -(ys - cy) / fy * z0
         z = np.full(Y.shape, z0, float)
@@ -52,7 +54,12 @@ def build_capture(depth32=5.0, noise=0.5, frames=30, curved=True, grooves=True,
                            "imageWidth": IMAGE_W, "imageHeight": IMAGE_H,
                            "intrinsics": INTRINSICS,
                            "transform": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-                           "smoothed": True}).encode()
+                           "smoothed": True,
+                           # Pose the frame was taken at, recorded whether or not it was
+                           # inside the gate, so analysis can find the real working range.
+                           "distanceM": z0, "tiltDegrees": 2.0, "motionMPerS": 0.01,
+                           "highConfidenceFraction": 0.95,
+                           "inGate": bool(0.12 <= z0 <= 0.30)}).encode()
         out += struct.pack("<I", len(meta)) + meta + z.astype("<f4").tobytes() + conf.tobytes() + struct.pack("<I", 0)
     return bytes(out)
 
@@ -71,6 +78,9 @@ if __name__ == "__main__":
     ap.add_argument("--noise", type=float, default=0.5)
     ap.add_argument("--frames", type=int, default=30)
     ap.add_argument("--flat", action="store_true", help="flat tread instead of a curved tire")
+    ap.add_argument("--sweep-distance", action="store_true",
+                    help="walk the camera from 10 cm to 32 cm across the run")
     a = ap.parse_args()
-    data = write_capture(a.out, depth32=a.depth32, noise=a.noise, frames=a.frames, curved=not a.flat)
+    data = write_capture(a.out, depth32=a.depth32, noise=a.noise, frames=a.frames,
+                         curved=not a.flat, sweep_distance=a.sweep_distance)
     print("wrote", a.out, len(data), "bytes")

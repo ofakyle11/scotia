@@ -75,7 +75,20 @@ the PC is on the same network, if you would rather not plug in weekly.
 
 The scanner has never been tested against a real tire. Everything measured so far
 was synthetic. Before it goes near a customer's invoice, use
-**menu → Record raw LiDAR capture**: type the dial-gauge reading, record the
-groove, and share the file off the phone. `tools/treadlab` compares the scan to
-the gauge and tunes the maths. That is what turns the scanner from plausible into
-trustworthy, and it is the first thing to do once the app is installed.
+**menu → Record raw LiDAR capture**: type the dial-gauge reading, then record the
+groove while sweeping the phone slowly from about 10 cm out to 30 cm.
+
+Every frame is saved with the distance and angle it was taken at, whether or not
+the on-screen frame was green. That matters: the green limits are my estimates,
+not measurements. If iPhone LiDAR turns out to need 20 cm rather than the 12 cm
+I assumed, the recording still captures it and the analysis says so.
+
+Share the file to the PC and run:
+
+```bash
+python3 tools/treadlab/treadlab.py pose capture.treadcap
+```
+
+It prints measured depth against the gauge for each 2 cm band of distance, and
+names the band that read closest. That sets the scanner's real working range from
+evidence. Do this before trusting a single reading on a customer's invoice.

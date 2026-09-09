@@ -43,7 +43,7 @@ struct RawCaptureView: View {
                         captures = FrameRecorder.listCaptures()
                     }
                 } header: { Text("Captures on this phone (\(captures.count))") } footer: {
-                    Text("Share to a computer (AirDrop, Files, email) and run: python3 tools/treadlab/treadlab.py report <files>. Each file is roughly 15 MB.")
+                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep slowly from about 10 cm out to 30 cm while it records. Share to a computer and run: python3 tools/treadlab/treadlab.py pose <file>. Each file is roughly 15 MB.")
                 }
             }
             .navigationTitle("Raw LiDAR capture")
@@ -79,7 +79,7 @@ struct RecordingScanView: View {
             #if canImport(ARKit)
             ARPreview(session: lidar.session).ignoresSafeArea()
             #endif
-            ScanOverlay(title: "Recording · \(label)", guidance: lidar.guidance, progress: Double(recorder.frameCount) / Double(recorder.maxFrames),
+            ScanOverlay(title: "Recording \(recorder.frameCount)/\(recorder.maxFrames) · \(label)", guidance: lidar.guidance, progress: Double(recorder.frameCount) / Double(recorder.maxFrames),
                         live: provider.liveEstimate, isComplete: done, error: error,
                         onAccept: { recorder.stop(); dismiss() },
                         onRetry: { restart() },
@@ -90,8 +90,11 @@ struct RecordingScanView: View {
         .onReceive(lidar.$latestPoints) { points in
             provider.ingest(points: points, guidance: lidar.guidance)
             #if canImport(ARKit)
-            if lidar.guidance.isReady, !done, let frame = lidar.session.currentFrame, let depth = frame.smoothedSceneDepth ?? frame.sceneDepth {
-                if !recorder.append(frame: frame, depth: depth) { done = true; recorder.stop() }
+            // Record every frame that carries depth, in the gate or not. The gate's limits are
+            // unproven, and a diagnostic that only runs when they pass could never disprove them.
+            // Each frame stores its own distance, tilt and motion so the analysis sorts it out.
+            if !done, let frame = lidar.session.currentFrame, let depth = frame.smoothedSceneDepth ?? frame.sceneDepth {
+                if !recorder.append(frame: frame, depth: depth, guidance: lidar.guidance) { done = true; recorder.stop() }
             }
             #endif
         }

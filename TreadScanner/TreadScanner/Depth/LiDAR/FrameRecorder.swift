@@ -43,7 +43,7 @@ final class FrameRecorder {
 
     /// Append one frame. Returns false once `maxFrames` is reached.
     @discardableResult
-    func append(frame: ARFrame, depth: ARDepthData) -> Bool {
+    func append(frame: ARFrame, depth: ARDepthData, guidance: ScanGuidance? = nil) -> Bool {
         guard let h = handle, frameCount < maxFrames, let conf = depth.confidenceMap else { return false }
         let dm = depth.depthMap
         CVPixelBufferLockBaseAddress(dm, .readOnly); CVPixelBufferLockBaseAddress(conf, .readOnly)
@@ -70,7 +70,15 @@ final class FrameRecorder {
             "imageWidth": frame.camera.imageResolution.width, "imageHeight": frame.camera.imageResolution.height,
             "intrinsics": [intr[0][0], intr[1][1], intr[2][0], intr[2][1]].map(Double.init),   // fx fy cx cy
             "transform": (0..<4).flatMap { c in (0..<4).map { r in Double(t[c][r]) } },          // column-major
-            "smoothed": frame.smoothedSceneDepth != nil
+            "smoothed": frame.smoothedSceneDepth != nil,
+            // Pose at capture time. Recorded for every frame, in range or not, so the
+            // analysis can work out which distances and angles actually read well
+            // instead of assuming the on-screen limits were right.
+            "distanceM": guidance?.distanceM as Any,
+            "tiltDegrees": guidance?.tiltDegrees as Any,
+            "motionMPerS": guidance?.motionMPerS as Any,
+            "highConfidenceFraction": guidance?.highConfidenceFraction as Any,
+            "inGate": guidance?.isReady as Any
         ]
         let metaData = (try? JSONSerialization.data(withJSONObject: meta)) ?? Data()
 

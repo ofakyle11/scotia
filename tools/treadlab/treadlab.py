@@ -336,9 +336,79 @@ def cmd_sweep(a):
               f"n={r['n']}  bias {r['bias']:+.2f}  within {r['within']:.0f}%  dis {r['dis']}{mark}")
     return 0
 
+def cmd_pose(a):
+    """Which holding distance actually reads well.
+
+    Every frame in a capture stores the distance, tilt and motion it was taken at,
+    whether or not it was inside the on-screen gate. Bucketing the per-frame depth
+    estimates by distance shows the sensor's real working range instead of assuming
+    the gate's limits were right.
+    """
+    MMv = 25.4 / 32
+    out, bad = [], 0
+    for p in a.files:
+        try:
+            header, frames = read_treadcap(p)
+        except CaptureError as e:
+            warn(f"{p}: {e}"); bad += 1; continue
+        est = Estimator(model=a.model, inlier=a.inlier)
+        gauge = header.get("gauge32")
+        buckets = {}
+        for f in frames:
+            m = f["meta"]
+            d = m.get("distanceM")
+            if d is None:
+                continue
+            cm = int(d * 100)
+            lo = cm - (cm % 2)                     # 2 cm buckets
+            r = est.frame(extract_points(f, a.roi, a.smooth)[0])
+            b = buckets.setdefault(lo, {"n": 0, "usable": 0, "depths": [],
+                                        "tilt": [], "conf": [], "gated": 0})
+            b["n"] += 1
+            if m.get("inGate"): b["gated"] += 1
+            if m.get("tiltDegrees") is not None: b["tilt"].append(m["tiltDegrees"])
+            if m.get("highConfidenceFraction") is not None: b["conf"].append(m["highConfidenceFraction"])
+            if r:
+                b["usable"] += 1
+                b["depths"].append(r["depth_mm"])
+        rows = []
+        for lo in sorted(buckets):
+            b = buckets[lo]
+            mean = float(np.mean(b["depths"])) if b["depths"] else None
+            sd = float(np.std(b["depths"])) if len(b["depths"]) > 1 else None
+            rows.append({
+                "distance_cm": f"{lo}-{lo+2}", "frames": b["n"],
+                "usable": b["usable"], "in_gate": b["gated"],
+                "depth_32": round(mean / MMv, 2) if mean is not None else None,
+                "sd_32": round(sd / MMv, 2) if sd is not None else None,
+                "error_32": round(mean / MMv - gauge, 2) if (mean is not None and gauge is not None) else None,
+                "mean_tilt_deg": round(float(np.mean(b["tilt"])), 1) if b["tilt"] else None,
+                "mean_conf": round(float(np.mean(b["conf"])), 2) if b["conf"] else None,
+            })
+        out.append({"file": p, "label": header.get("label"), "gauge32": gauge, "buckets": rows})
+        if not getattr(a, "json", False):
+            print(f"{p}  label={header.get('label')!r}  gauge={gauge}/32")
+            if not rows:
+                print("   no per-frame distance recorded (capture predates pose logging)")
+                continue
+            print(f"   {'dist cm':>8} {'frames':>7} {'usable':>7} {'in gate':>8} {'depth/32':>9} {'sd':>6} {'err':>7} {'tilt':>6} {'conf':>6}")
+            for r in rows:
+                fmt = lambda v, w, d=2: (f"{v:>{w}.{d}f}" if isinstance(v, float) else f"{'-':>{w}}")
+                print(f"   {r['distance_cm']:>8} {r['frames']:>7} {r['usable']:>7} {r['in_gate']:>8}"
+                      f" {fmt(r['depth_32'],9)} {fmt(r['sd_32'],6)} {fmt(r['error_32'],7)}"
+                      f" {fmt(r['mean_tilt_deg'],6,1)} {fmt(r['mean_conf'],6)}")
+            best = [r for r in rows if r["error_32"] is not None]
+            if best:
+                b = min(best, key=lambda r: abs(r["error_32"]))
+                print(f"   closest to the gauge: {b['distance_cm']} cm, off by {b['error_32']:+.2f}/32")
+    if getattr(a, "json", False):
+        print(json.dumps({"captures": out, "unreadable": bad}, indent=2))
+    return 1 if bad and not out else 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["info", "measure", "report", "sweep"])
+    ap.add_argument("cmd", choices=["info", "measure", "report", "sweep", "pose"])
     ap.add_argument("files", nargs="+")
     ap.add_argument("--model", default="quadratic", choices=["plane", "quadratic"])
     ap.add_argument("--roi", type=float, default=0.35)
@@ -347,7 +417,8 @@ def main(argv=None):
     ap.add_argument("--csv")
     ap.add_argument("--json", action="store_true", help="emit machine-readable JSON on stdout")
     a = ap.parse_args(argv)
-    fn = {"info": cmd_info, "measure": cmd_measure, "report": cmd_report, "sweep": cmd_sweep}[a.cmd]
+    fn = {"info": cmd_info, "measure": cmd_measure, "report": cmd_report,
+          "sweep": cmd_sweep, "pose": cmd_pose}[a.cmd]
     try:
         rc = fn(a)
     except CaptureError as e:      # anything that escaped a per-file handler
