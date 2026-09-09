@@ -3,7 +3,7 @@ name: Web Deploy
 on:
   workflow_dispatch:
   push:
-    paths: ["web/**"]
+    paths: ["web/**", ".github/workflows/web-deploy.yml"]
 
 concurrency:
   group: web-deploy-${{ github.ref }}
