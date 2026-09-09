@@ -120,11 +120,13 @@ final class FrameRecorder {
         if let sim = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] { return sim }
         var info = utsname()
         uname(&info)
-        return withUnsafePointer(to: &info.machine) { ptr in
-            ptr.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: info.machine)) {
-                String(validatingUTF8: $0) ?? "unknown"
-            }
-        }
+        // Copy the field out before reading it. Taking a pointer to info.machine while also
+        // measuring it counts as overlapping access and will not compile.
+        let machine = info.machine
+        let chars = Mirror(reflecting: machine).children.compactMap { $0.value as? CChar }
+        let bytes = chars.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
+        let name = String(decoding: bytes, as: UTF8.self)
+        return name.isEmpty ? "unknown" : name
     }
 
     /// Marketing name for the LiDAR-capable handsets, so a capture says which phone took it.
