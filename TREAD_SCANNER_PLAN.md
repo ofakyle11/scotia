@@ -150,6 +150,33 @@ be worse; that is what the program below is for.
    and a vendor scan SDK (Anyline or similar, paid) slots in behind the same
    `DepthProvider` interface. Nothing else changes.
 
+## 6c. Getting LiDAR onto a phone without the $130 account
+
+The Apple Developer Program was the only documented route to a phone, which
+left the scanner unreachable until enrolment. It is not the only route.
+
+**Sideloading with a free Apple ID.** The `ios-unsigned-ipa` workflow archives
+the app without signing and packages it as an `.ipa`. Sideloadly on a Windows PC
+signs it with any free Apple ID and installs it over USB. Verified: the build
+succeeds and produces a 403 KB IPA, minimum iOS 17.0, bundle id
+`ca.scotiatire.treadscanner`. Nothing in the app needs a paid entitlement, so
+camera, ARKit and Keychain all work under free provisioning.
+
+The cost is a 7-day expiry: Apple stops a free-signed app from opening after a
+week, and it must be re-installed. AltStore can automate that refresh over
+Wi-Fi. Full instructions in `TreadScanner/SIDELOAD.md`.
+
+**Which route when.** Sideload to answer the question that actually matters,
+which is whether LiDAR can read tread to 1/32 on real tires. Enrol with Apple
+once the answer is yes and the app is going into daily use by technicians who
+should not be plugging phones into a PC every week.
+
+**Note on running workflows manually.** GitHub only shows the "Run workflow"
+button for workflows on the repository's default branch, which is currently
+`claude/pricing-pdf-single-page-dbbj2d`. Until this branch is merged or made
+default, the TestFlight workflow cannot be started from the UI. The unsigned
+IPA build sidesteps this by running on every push to this branch.
+
 ## 7. Timeline
 
 | When | What | Who |

@@ -15,6 +15,7 @@ on:
     branches: ["claude/truck-tire-depth-scanner-3fsnpo"]
     paths:
       - "TreadScanner/**"
+      - "!TreadScanner/**/*.md"
       - ".github/workflows/ios-unsigned-ipa.yml"
 
 concurrency:
