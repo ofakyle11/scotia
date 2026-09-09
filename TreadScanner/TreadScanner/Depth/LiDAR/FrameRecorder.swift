@@ -29,7 +29,11 @@ final class FrameRecorder {
         FileManager.default.createFile(atPath: url.path, contents: nil)
         let h = try FileHandle(forWritingTo: url)
         let header: [String: Any] = [
-            "version": 1, "label": label, "gauge32": gauge32 as Any, "device": UIDevice.current.model,
+            "version": 1, "label": label, "gauge32": gauge32 as Any,
+            // UIDevice.current.model is just "iPhone" on every handset, which cannot tell a
+            // 15 Pro Max from a 16 Pro Max. The hardware identifier can, and different
+            // sensor generations may well read differently.
+            "device": FrameRecorder.deviceName, "deviceID": FrameRecorder.deviceIdentifier,
             "system": UIDevice.current.systemVersion, "created": ISO8601DateFormatter().string(from: Date())
         ]
         let headerData = try JSONSerialization.data(withJSONObject: header)
@@ -109,5 +113,33 @@ final class FrameRecorder {
     }
 
     private static func le32(_ v: UInt32) -> Data { withUnsafeBytes(of: v.littleEndian) { Data($0) } }
+
+    /// Hardware identifier such as "iPhone17,2". Simulators report their host's value
+    /// through the SIMULATOR_MODEL_IDENTIFIER environment variable.
+    static var deviceIdentifier: String {
+        if let sim = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] { return sim }
+        var info = utsname()
+        uname(&info)
+        return withUnsafePointer(to: &info.machine) { ptr in
+            ptr.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: info.machine)) {
+                String(validatingUTF8: $0) ?? "unknown"
+            }
+        }
+    }
+
+    /// Marketing name for the LiDAR-capable handsets, so a capture says which phone took it.
+    /// Anything unlisted falls back to the raw identifier rather than guessing.
+    static var deviceName: String {
+        let names = [
+            "iPhone13,3": "iPhone 12 Pro",    "iPhone13,4": "iPhone 12 Pro Max",
+            "iPhone14,2": "iPhone 13 Pro",    "iPhone14,3": "iPhone 13 Pro Max",
+            "iPhone15,2": "iPhone 14 Pro",    "iPhone15,3": "iPhone 14 Pro Max",
+            "iPhone16,1": "iPhone 15 Pro",    "iPhone16,2": "iPhone 15 Pro Max",
+            "iPhone17,1": "iPhone 16 Pro",    "iPhone17,2": "iPhone 16 Pro Max",
+            "iPhone18,1": "iPhone 17 Pro",    "iPhone18,2": "iPhone 17 Pro Max",
+        ]
+        let id = deviceIdentifier
+        return names[id] ?? id
+    }
 }
 #endif

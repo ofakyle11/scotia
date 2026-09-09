@@ -211,7 +211,7 @@ def cmd_info(a):
         m = fr[0]["meta"]
         out.append({"file": p, "label": h.get("label"), "gauge32": h.get("gauge32"), "frames": len(fr),
                     "width": m.get("width"), "height": m.get("height"), "smoothed": m.get("smoothed"),
-                    "device": h.get("device"), "system": h.get("system")})
+                    "device": h.get("device"), "deviceID": h.get("deviceID"), "system": h.get("system")})
         if not getattr(a, "json", False):
             print(f"{p}: label={h.get('label')!r} gauge={h.get('gauge32')} frames={len(fr)} depth={m.get('width')}x{m.get('height')} smoothed={m.get('smoothed')} device={h.get('device')} iOS {h.get('system')}")
     if getattr(a, "json", False):
@@ -267,7 +267,7 @@ def cmd_report(a, model=None, roi=None, smooth=None, inlier=None, quiet=False):
             if not quiet: warn(f"{p}: skipped, no gauge32 reading in the header")
             skipped.append({"file": p, "reason": "no gauge reading"}); continue
         e = res["depth_mm"] / MM - g; errs.append(e)
-        rows.append([p, h.get("label", ""), g, round(res["depth_mm"] / MM, 2), round(res["sd_mm"] / MM, 2), round(e, 2), res["frames"]])
+        rows.append([p, h.get("label", ""), g, round(res["depth_mm"] / MM, 2), round(res["sd_mm"] / MM, 2), round(e, 2), res["frames"], h.get("device", "?")])
     if not errs:
         if as_json:
             print(json.dumps({"summary": None, "rows": [], "skipped": skipped}, indent=2))
@@ -283,7 +283,7 @@ def cmd_report(a, model=None, roi=None, smooth=None, inlier=None, quiet=False):
         if getattr(a, "csv", None):
             import csv
             with open(a.csv, "w", newline="") as f:
-                w = csv.writer(f); w.writerow(["file", "label", "gauge_32", "scan_32", "sd_32", "error_32", "frames"]); w.writerows(rows)
+                w = csv.writer(f); w.writerow(["file", "label", "gauge_32", "scan_32", "sd_32", "error_32", "frames", "device"]); w.writerows(rows)
         if as_json:
             keys = ["file", "label", "gauge_32", "scan_32", "sd_32", "error_32", "frames"]
             print(json.dumps({"params": {"model": model, "roi": roi, "smooth": smooth, "inlier_mm": inlier},
@@ -294,6 +294,14 @@ def cmd_report(a, model=None, roi=None, smooth=None, inlier=None, quiet=False):
         else:
             print(f"model={model} roi={roi} smooth={smooth} inlier={inlier}  n={len(e)}  bias {e.mean():+.2f}/32  RMSE {summary['rmse']:.2f}/32  within ±1/32: {within:.0f}%  threshold disagreements: {dis}  skipped: {len(skipped)}")
             for r in rows: print("  ", *r)
+        devices = {}
+        for r in rows:
+            devices.setdefault(r[7] if len(r) > 7 else "?", []).append(r[5])
+        if len(devices) > 1:
+            print("   by phone:")
+            for dev, errs in sorted(devices.items()):
+                arr = np.array(errs)
+                print(f"     {dev}: n={len(arr)} bias {arr.mean():+.2f}/32 RMSE {np.sqrt((arr**2).mean()):.2f}/32")
             if getattr(a, "csv", None): print("wrote", a.csv)
     return summary
 
