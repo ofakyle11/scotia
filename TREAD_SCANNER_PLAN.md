@@ -26,15 +26,20 @@ that proves or disproves it in the first weeks.
 
 | Piece | State | Where |
 |---|---|---|
-| Web app (add to home screen) | **Live.** Gauge entry, photos, customer report, unit history, CSV export | https://scotia-tread-scanner.netlify.app · `web/` |
-| iPhone app | Built. Compiles and passes 39 unit tests in cloud CI. Not yet on a phone | `TreadScanner/` |
-| LiDAR scanner | Implemented with curvature-corrected fit and confidence band. Tuned on synthetic tires only | `TreadScanner/TreadScanner/Depth/LiDAR/` |
-| Customer report | Both apps. Prints from Safari; exports as a Letter PDF on iPhone | `Views/Review/` · `web/app.js` |
-| Unit history | Both apps. Depth per position over time, wear rate per 10,000 km, projected km to minimum | `Views/Review/UnitHistoryView.swift` |
-| Raw capture + analysis tool | Built, 53 tests. Records real tires for offline tuning | `tools/treadlab/` |
-| Spreadsheet workbook | Built. Inspections tab plus a Fleet Summary that reads the latest inspection per unit | `spreadsheet/` |
-| Cloud build to TestFlight | Written. Waiting on Apple Developer enrolment and secrets | `.github/workflows/ios-testflight.yml` |
-| Web auto-deploy | Written. Waiting on a `NETLIFY_AUTH_TOKEN` secret | `.github/workflows/web-deploy.yml` |
+| Web app (add to home screen) | **Live.** Gauge entry, photos, customer report, unit history, CSV | https://scotia-tread-scanner.netlify.app |
+| iPhone app | **Installable now.** Builds unsigned on every push; sideload with a free Apple ID | `TreadScanner/`, `SIDELOAD.md` |
+| LiDAR scanner | Built, compiles, tested on synthetic tires only. **Never seen a real tire** | `Depth/LiDAR/` |
+| Customer report | Both apps. Prints from Safari; Letter PDF on iPhone | `Views/Review/`, `web/app.js` |
+| Unit history | Both apps. Wear per 10,000 km, projected km to minimum | `UnitHistoryView.swift` |
+| Raw capture | Records every frame with its distance, tilt and phone model | `FrameRecorder.swift` |
+| Analysis tool | 53 tests. `pose` finds the best holding distance; report splits by phone | `tools/treadlab/` |
+| Spreadsheet workbook | Inspections tab plus Fleet Summary per unit | `spreadsheet/` |
+| TestFlight | Written, never run. Needs Apple enrolment | `.github/workflows/ios-testflight.yml` |
+| Web auto-deploy | Optional. Skips cleanly until a Netlify token is set | `.github/workflows/web-deploy.yml` |
+
+**The shop's phones:** iPhone 15 Pro Max and 16 Pro Max. Both have LiDAR, so both
+can scan. Captures record which handset took them and the analysis reports the
+two separately, in case the sensor generations differ.
 
 ## 3. How the pieces fit
 

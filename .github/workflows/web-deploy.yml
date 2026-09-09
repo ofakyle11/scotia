@@ -23,20 +23,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check secrets
+      # Automatic deploys are optional. Without the token the job reports that and stops
+      # cleanly, rather than showing a red build for a feature nobody turned on.
+      - name: Is automatic deploy configured?
+        id: cfg
         run: |
           if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
-            echo "::error::Missing repository secret: NETLIFY_AUTH_TOKEN. Add it at Settings > Secrets and variables > Actions > New repository secret (value: a Netlify personal access token). See web/README.md section 'Deploying changes'."
-            exit 1
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Automatic deploys are off. Add a NETLIFY_AUTH_TOKEN secret to switch them on (Settings > Secrets and variables > Actions). Until then, deploy by hand with web/deploy.sh."
+            echo "### Automatic deploys are not configured" >> "$GITHUB_STEP_SUMMARY"
+            echo "Add a \`NETLIFY_AUTH_TOKEN\` repository secret to enable them. See \`web/README.md\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Zip site
+        if: steps.cfg.outputs.configured == 'true'
         run: |
           rm -f "$RUNNER_TEMP/tread-site.zip"
           zip -qr "$RUNNER_TEMP/tread-site.zip" . -x deploy.sh
           unzip -l "$RUNNER_TEMP/tread-site.zip"
 
       - name: Deploy to Netlify
+        if: steps.cfg.outputs.configured == 'true'
         run: |
           set -euo pipefail
           curl -sS --fail-with-body -X POST \
