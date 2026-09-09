@@ -12,6 +12,10 @@ on:
   workflow_dispatch:
   push:
     tags: ["sideload-*"]
+    branches: ["claude/truck-tire-depth-scanner-3fsnpo"]
+    paths:
+      - "TreadScanner/**"
+      - ".github/workflows/ios-unsigned-ipa.yml"
 
 concurrency:
   group: ios-unsigned-ipa
