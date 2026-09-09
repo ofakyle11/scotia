@@ -149,7 +149,7 @@ function home() {
       h("div", { style: "text-align:right" }, h("div", {}, `${done}/${ins.positions.length}`), h("div", { class: "muted" }, ins.sync === "synced" ? "✓ synced" : ins.sync === "pending" ? "⟳ pending" : ins.sync === "failed" ? "! failed" : ins.complete ? "done" : ""))));
   });
   view.append(list);
-  view.append(h("div", { class: "muted", style: "text-align:center" }, "Web version: gauge entry only. LiDAR scanning needs the iPhone app."));
+  view.append(h("div", { class: "muted", style: "text-align:center" }, "Web version: type gauge readings. Scanning needs the installed iPhone app on a Pro model."));
 }
 
 function newIns() {
@@ -248,9 +248,12 @@ function tire() {
     h("div", { class: "card" }, h("div", { class: "row" }, h("div", {}, h("div", { style: "font-size:28px;font-weight:800" }, p.code), h("div", { class: "muted" }, describe(p))), h("div", { style: "flex:0;text-align:right" }, statusEl)),
       p.inner ? h("div", { class: "muted", style: "margin-top:8px" }, "Inner dual: read the gauge and type the value.") : null),
     h("div", { class: "card" }, h("h2", {}, "Tread depth (32nds)"),
+      h("div", { class: "muted", style: "margin:-4px 0 8px" }, "Read each groove with a gauge and type it in. The web app does not measure."),
       ...[["inner", "Inner"], ["centre", "Centre"], ["outer", "Outer"]].map(([k, l]) => h("div", { class: "groove" }, h("span", {}, l), g[k], h("span", { class: "muted" }, "/32"))),
       h("div", { class: "row", style: "margin-top:8px" }, h("span", {}, "Minimum"), h("div", { style: "text-align:right" }, minEl)), warn),
-    h("div", { class: "card" }, h("h2", {}, "Photo"), img, h("button", { style: "width:100%;margin-top:8px", on: { click: () => file.click() } }, r.photo ? "Retake photo" : "📷 Take photo"), file),
+    h("div", { class: "card" }, h("h2", {}, "Photo for the record"),
+      h("div", { class: "muted", style: "margin:-4px 0 8px" }, "Saves a picture with the inspection. It does not read tread depth."),
+      img, h("button", { style: "width:100%;margin-top:8px", on: { click: () => file.click() } }, r.photo ? "Retake photo" : "📷 Take photo"), file),
     h("div", { class: "card" }, h("h2", {}, "Tire details (optional)"), field("Pressure (psi)", extra.pressure), field("DOT code", extra.dot), field("Brand", extra.brand), field("Model", extra.model), field("Size", extra.size), field("Notes", extra.notes)),
     h("button", { class: "primary", on: { click: () => { save(); const i = ins.positions.indexOf(p); const order = [...ins.positions.slice(i + 1), ...ins.positions.slice(0, i)]; const nxt = order.find(x => minOf(ins.readings[x.code]) == null); route = { name: "inspection", id: ins.id }; history.replaceState(route, ""); if (nxt) go({ name: "tire", id: ins.id, code: nxt.code }); else render(); } } }, "Save & next"),
     h("button", { style: "width:100%;margin-top:8px", on: { click: () => { save(); history.back(); } } }, "Save")
