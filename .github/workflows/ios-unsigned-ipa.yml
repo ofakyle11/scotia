@@ -1,0 +1,121 @@
+name: iOS unsigned IPA (sideload)
+
+# Produces an UNSIGNED .ipa you can install on an iPhone with a free Apple ID,
+# using Sideloadly or AltStore on any Windows or Mac computer. No Apple Developer
+# Program membership ($130/yr) required.
+#
+# The app expires 7 days after sideloading and must be re-installed. That is an
+# Apple limit on free accounts, not something this build can change. For a build
+# that lasts, use the ios-testflight workflow instead.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["sideload-*"]
+
+concurrency:
+  group: ios-unsigned-ipa
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: TreadScanner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Write Config.plist
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        run: |
+          python3 - <<'PY'
+          import os, plistlib
+          cfg = {
+            "GoogleClientID": os.environ.get("GOOGLE_CLIENT_ID", ""),
+            "SpreadsheetID": os.environ.get("SPREADSHEET_ID", ""),
+            "InspectionsSheetName": "Inspections",
+            "VerifySheetName": "Verify",
+          }
+          with open("TreadScanner/App/Config.plist", "wb") as f:
+              plistlib.dump(cfg, f)
+          PY
+          REV="com.googleusercontent.apps.REPLACE_ME"
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            REV=$(echo "$GOOGLE_CLIENT_ID" | awk -F. '{for(i=NF;i>0;i--) printf "%s%s", $i, (i>1?".":"")}')
+          fi
+          echo "GOOGLE_REVERSED_CLIENT_ID=$REV" >> "$GITHUB_ENV"
+
+      - name: Generate project
+        env:
+          DEVELOPMENT_TEAM: ""
+        run: xcodegen generate
+
+      - name: Archive without signing
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project TreadScanner.xcodeproj \
+            -scheme TreadScanner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/TreadScanner.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            | tee archive.log | grep -E "error:|ARCHIVE|BUILD" || true
+          if grep -q "\*\* ARCHIVE FAILED \*\*\|\*\* BUILD FAILED \*\*" archive.log; then exit 1; fi
+          grep -q "\*\* ARCHIVE SUCCEEDED \*\*" archive.log
+
+      - name: Package as IPA
+        run: |
+          APP="build/TreadScanner.xcarchive/Products/Applications/TreadScanner.app"
+          test -d "$APP" || { echo "::error::no .app in the archive"; ls -R build/TreadScanner.xcarchive/Products || true; exit 1; }
+          rm -rf build/Payload && mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          # Strip any stale signature so the sideloader signs it cleanly.
+          rm -rf build/Payload/TreadScanner.app/_CodeSignature
+          rm -rf build/Payload/TreadScanner.app/embedded.mobileprovision
+          (cd build && zip -qry TreadScanner-unsigned.ipa Payload)
+          ls -lh build/TreadScanner-unsigned.ipa
+          echo "Minimum iOS: $(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' build/Payload/TreadScanner.app/Info.plist)"
+          echo "Bundle id:   $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Payload/TreadScanner.app/Info.plist)"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TreadScanner-unsigned-ipa
+          path: TreadScanner/build/TreadScanner-unsigned.ipa
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: How to install
+        run: |
+          cat <<'TXT'
+          ============================================================
+          Download the TreadScanner-unsigned-ipa artifact from this
+          run's summary page, then install it with a FREE Apple ID:
+
+            Windows or Mac : Sideloadly  (https://sideloadly.io)
+            Mac or Windows : AltStore    (https://altstore.io)
+
+          Sign in with any Apple ID. The app installs and LiDAR
+          scanning works. It stops opening after 7 days; re-install
+          with the same tool to renew.
+
+          Requires an iPhone 12 Pro or newer for scanning.
+          ============================================================
+          TXT
