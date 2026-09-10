@@ -3,16 +3,17 @@ import XCTest
 
 final class AxlePresetTests: XCTestCase {
     func testStraightTruck() {
-        XCTAssertEqual(AxlePreset.straightTruck2Axle.positions.map(\.code), ["LF", "RF", "LRO", "LRI", "RRO", "RRI"])
+        XCTAssertEqual(AxlePreset.straightTruck2Axle.positions.map(\.code), ["LF", "LRO", "LRI", "RRO", "RRI", "RF"])
     }
 
     func testTractor3Axle() {
+        // Walk order: left side front to back, around the rear, right side back to front.
         XCTAssertEqual(AxlePreset.tractor3Axle.positions.map(\.code),
-                       ["LF", "RF", "L2O", "L2I", "R2O", "R2I", "LRO", "LRI", "RRO", "RRI"])
+                       ["LF", "L2O", "L2I", "LRO", "LRI", "RRO", "RRI", "R2O", "R2I", "RF"])
     }
 
     func testTandemTrailer() {
-        XCTAssertEqual(AxlePreset.tandemTrailer.positions.map(\.code), ["LFO", "LFI", "RFO", "RFI", "LRO", "LRI", "RRO", "RRI"])
+        XCTAssertEqual(AxlePreset.tandemTrailer.positions.map(\.code), ["LFO", "LFI", "LRO", "LRI", "RRO", "RRI", "RFO", "RFI"])
     }
 
     func testTriAxleTrailerHasTwelve() {
@@ -29,7 +30,15 @@ final class AxlePresetTests: XCTestCase {
 
     func testCustomAxles() {
         let axles = [AxleSpec(dual: false, role: .steer), AxleSpec(dual: false, role: .steer), AxleSpec(dual: true, role: .drive)]
-        XCTAssertEqual(AxlePreset.positions(for: axles).map(\.code), ["LF", "RF", "L2", "R2", "LRO", "LRI", "RRO", "RRI"])
+        XCTAssertEqual(AxlePreset.positions(for: axles).map(\.code), ["LF", "L2", "LRO", "LRI", "RRO", "RRI", "R2", "RF"])
+    }
+
+    func testWalkOrderNeverCrossesTheTruckMidway() {
+        // Sides must form exactly two contiguous runs: all left, then all right.
+        let sides = AxlePreset.tractor3Axle.positions.map(\.side)
+        let changes = zip(sides, sides.dropFirst()).filter { $0 != $1 }.count
+        XCTAssertEqual(changes, 1)
+        XCTAssertEqual(sides.first, .left)
     }
 
     func testPositionsRoundTripJSON() throws {

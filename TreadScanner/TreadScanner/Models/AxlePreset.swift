@@ -47,9 +47,15 @@ enum AxlePreset: String, Codable, CaseIterable, Identifiable {
 
     var positions: [TirePosition] { AxlePreset.positions(for: axles) }
 
+    /// Positions in the order a technician walks them: down the left side front to back,
+    /// around the rear, then up the right side back to front. On duals the outer tire is
+    /// reached first, then the inner behind it. This is also the row order in the export.
     static func positions(for axles: [AxleSpec]) -> [TirePosition] {
-        axles.enumerated().flatMap { idx, spec in
+        let perAxle = axles.enumerated().map { idx, spec in
             TirePosition.positions(axleIndex: idx + 1, axleCount: axles.count, dual: spec.dual, role: spec.role)
         }
+        let left = perAxle.flatMap { $0.filter { $0.side == .left } }                  // front → back, O then I
+        let right = perAxle.reversed().flatMap { $0.filter { $0.side == .right } }    // back → front, O then I
+        return left + right
     }
 }

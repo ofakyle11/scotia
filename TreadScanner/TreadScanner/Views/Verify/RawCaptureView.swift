@@ -20,7 +20,7 @@ struct RawCaptureView: View {
                 Section("New capture") {
                     TextField("Label (e.g. Unit 42 LF centre)", text: $label)
                     HStack { Text("Gauge reading"); TextField("32nds", text: $gauge).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
-                    Button("Record 60 frames") { showCamera = true }
+                    Button("Record \(ScanSettings.captureFrames) frames (~\(Int(ScanSettings.captureSeconds.rounded())) s)") { showCamera = true }
                         .disabled(!LiDARAvailability.isSupported || Double(gauge) == nil)
                     if !LiDARAvailability.isSupported {
                         Text("Needs an iPhone with LiDAR.").font(.footnote).foregroundStyle(.secondary)
@@ -43,7 +43,7 @@ struct RawCaptureView: View {
                         captures = FrameRecorder.listCaptures()
                     }
                 } header: { Text("Captures on this phone (\(captures.count))") } footer: {
-                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep slowly from about 10 cm out to 30 cm while it records. Share to a computer and run: python3 tools/treadlab/treadlab.py pose <file>. Each file is roughly 15 MB.")
+                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep from about 10 cm out to 30 cm at roughly \(Int(ScanSettings.captureSweepSpeedCmPerS)) cm per second while it records. Share to a computer and run: python3 tools/treadlab/treadlab.py pose <file>. Each file is roughly 15 MB.")
                 }
             }
             .navigationTitle("Raw LiDAR capture")

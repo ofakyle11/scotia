@@ -8,7 +8,7 @@ final class LiDARDepthProvider: ObservableObject, DepthProvider {
     nonisolated let method: ReadingMethod = .scan
     nonisolated var isAvailable: Bool { LiDARAvailability.isSupported }
 
-    static let targetFrames = 45          // ~2.5 s at 15-20 usable fps
+    static let targetFrames = ScanSettings.scanFrames   // see ScanSettings for timing
 
     @Published private(set) var frames: [TreadDepthEstimator.FrameEstimate] = []
     @Published private(set) var liveEstimate: DepthResult?

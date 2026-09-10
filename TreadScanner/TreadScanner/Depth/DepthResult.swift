@@ -13,6 +13,6 @@ struct DepthResult: Equatable {
     var uncertainty32: Double { Units.thirtySeconds(fromMM: uncertaintyMM) }
 
     /// Above this band the UI asks for a rescan or manual entry.
-    static let acceptableUncertainty32 = 1.5
+    static let acceptableUncertainty32 = ScanSettings.acceptableUncertainty32
     var isConfident: Bool { uncertainty32 <= DepthResult.acceptableUncertainty32 }
 }

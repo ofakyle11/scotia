@@ -3,10 +3,12 @@ import Foundation
 /// Live feedback state for the scan overlay. The scan only accumulates frames while
 /// `isReady` is true so bad captures are refused rather than averaged in.
 struct ScanGuidance: Equatable {
-    static let minDistanceM = 0.12
-    static let maxDistanceM = 0.30
-    static let maxTiltDegrees = 10.0
-    static let maxMotionMPerS = 0.05
+    // Thresholds live in ScanSettings; these aliases keep call sites short.
+    static let minDistanceM = ScanSettings.minDistanceM
+    static let maxDistanceM = ScanSettings.maxDistanceM
+    static let maxTiltDegrees = ScanSettings.maxTiltDegrees
+    static let maxMotionMPerS = ScanSettings.maxMotionMPerS
+    static let minHighConfidenceFraction = ScanSettings.minHighConfidenceFraction
 
     var distanceM: Double?
     var tiltDegrees: Double?
@@ -29,7 +31,7 @@ struct ScanGuidance: Equatable {
         if distanceM > ScanGuidance.maxDistanceM { return .tooFar }
         if tiltDegrees > ScanGuidance.maxTiltDegrees { return .tilted }
         if motionMPerS > ScanGuidance.maxMotionMPerS { return .moving }
-        if highConfidenceFraction < 0.5 { return .lowConfidence }
+        if highConfidenceFraction < ScanGuidance.minHighConfidenceFraction { return .lowConfidence }
         return .ready
     }
 

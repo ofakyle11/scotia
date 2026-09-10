@@ -23,18 +23,20 @@ const PRESETS = {
   TRAILER_3A: { label: "Tri-axle trailer", axles: [{dual:true, role:"trailer"}, {dual:true, role:"trailer"}, {dual:true, role:"trailer"}] },
   CUSTOM:     { label: "Custom", axles: [{dual:false, role:"steer"}, {dual:true, role:"drive"}] },
 };
+// Positions in walk order: down the left side front to back, around the rear, then up the
+// right side back to front. Outer dual first, inner behind it. Same order as the iOS app
+// and the spreadsheet rows.
 function positions(axles) {
-  const out = [];
-  axles.forEach((a, i) => {
-    const n = i + 1, letter = n === 1 ? "F" : n === axles.length ? "R" : String(n);
-    for (const side of ["L", "R"]) {
-      if (a.dual) {
-        out.push({ code: side + letter + "O", axle: n, side, dual: true, inner: false, role: a.role });
-        out.push({ code: side + letter + "I", axle: n, side, dual: true, inner: true, role: a.role });
-      } else out.push({ code: side + letter, axle: n, side, dual: false, inner: false, role: a.role });
-    }
-  });
-  return out;
+  const mk = (a, n, side) => {
+    const letter = n === 1 ? "F" : n === axles.length ? "R" : String(n);
+    return a.dual
+      ? [{ code: side + letter + "O", axle: n, side, dual: true, inner: false, role: a.role },
+         { code: side + letter + "I", axle: n, side, dual: true, inner: true, role: a.role }]
+      : [{ code: side + letter, axle: n, side, dual: false, inner: false, role: a.role }];
+  };
+  const left = axles.flatMap((a, i) => mk(a, i + 1, "L"));
+  const right = axles.map((a, i) => mk(a, i + 1, "R")).reverse().flat();
+  return [...left, ...right];
 }
 const MM = 25.4 / 32;
 const fmt32 = v => v == null ? "—" : (Math.round(v * 2) / 2).toString().replace(/\.5$/, ".5") + "/32";

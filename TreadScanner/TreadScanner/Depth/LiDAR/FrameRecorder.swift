@@ -16,7 +16,7 @@ final class FrameRecorder {
     private(set) var url: URL?
     private(set) var frameCount = 0
     private let ciContext = CIContext()
-    var maxFrames = 60
+    var maxFrames = ScanSettings.captureFrames
 
     var isRecording: Bool { handle != nil }
 

@@ -143,7 +143,7 @@ be worse; that is what the program below is for.
 
 1. 20+ grooves across steer, drive and trailer tires, new to worn, some dirty.
    For each: menu → Record raw LiDAR capture, type the dial-gauge reading,
-   record 60 frames at 15–25 cm.
+   record about 5 seconds while sweeping 10–30 cm.
 2. Share the files to a computer. `python3 tools/treadlab/treadlab.py sweep *.treadcap`
    tries every combination of region size, smoothing, inlier band and surface
    model and prints the best.
