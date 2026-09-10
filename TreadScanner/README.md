@@ -157,7 +157,7 @@ gauge-plus-spreadsheet tool while the scan engine is tuned (see
 
 ## 5b. Tune the scanner on real tires (raw captures)
 
-Menu → **Record raw LiDAR capture**. Type the gauge reading, record 60 frames
+Menu → **Record raw LiDAR capture**. Type the gauge reading, record about 5 seconds
 of the groove, then share the `.treadcap` file to a computer (AirDrop, Files,
 email). On the computer:
 
