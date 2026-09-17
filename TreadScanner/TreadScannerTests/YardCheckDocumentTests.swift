@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import TreadScanner
 
 final class YardCheckDocumentTests: XCTestCase {
