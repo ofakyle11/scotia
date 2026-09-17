@@ -18,6 +18,7 @@ final class Inspection {
     var syncStateRaw: String
     var notes: String
     var vehicle: Vehicle?
+    var survey: Survey?
     @Relationship(deleteRule: .cascade, inverse: \TireReading.inspection) var readings: [TireReading] = []
 
     init(vehicle: Vehicle?, technician: String, odometer: Int?, preset: AxlePreset, positions: [TirePosition]? = nil) {

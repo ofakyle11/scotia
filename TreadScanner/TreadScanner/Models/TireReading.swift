@@ -5,6 +5,16 @@ enum ReadingMethod: String, Codable, CaseIterable {
     case scan, gauge, manual
 }
 
+enum ValveCap: String, Codable, CaseIterable {
+    case ok, missing, replaced, inaccessible
+    var label: String {
+        switch self {
+        case .ok: return "Cap present"; case .missing: return "Missing cap"
+        case .replaced: return "Cap replaced"; case .inaccessible: return "Valve inaccessible"
+        }
+    }
+}
+
 @Model
 final class TireReading {
     @Attribute(.unique) var id: UUID
@@ -22,6 +32,7 @@ final class TireReading {
     var size: String
     var photoFilename: String?
     var notes: String
+    var valveCapRaw: String = "ok"
     var updatedAt: Date
     var inspection: Inspection?
 
@@ -41,6 +52,11 @@ final class TireReading {
     var method: ReadingMethod {
         get { ReadingMethod(rawValue: methodRaw) ?? .manual }
         set { methodRaw = newValue.rawValue }
+    }
+
+    var valveCap: ValveCap {
+        get { ValveCap(rawValue: valveCapRaw) ?? .ok }
+        set { valveCapRaw = newValue.rawValue }
     }
 
     var grooves: [Double] { [depthInner32, depthCentre32, depthOuter32].compactMap { $0 } }

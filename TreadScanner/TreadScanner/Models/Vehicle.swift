@@ -7,6 +7,8 @@ final class Vehicle {
     var unitNumber: String
     var plate: String
     var vin: String
+    /// "Tractor - Class 8", "Trailer - Van (Dry-Van)", "Pick-up"… shown on the yard check.
+    var vehicleType: String = ""
     var customer: Customer?
     @Relationship(deleteRule: .cascade, inverse: \Inspection.vehicle) var inspections: [Inspection] = []
 

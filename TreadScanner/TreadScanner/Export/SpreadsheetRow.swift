@@ -7,7 +7,10 @@ enum SpreadsheetRow {
         "odometer", "axle_config", "position", "brand", "model", "size", "dot_code",
         "depth_inner_32nds", "depth_centre_32nds", "depth_outer_32nds", "depth_min_32nds",
         "depth_min_mm", "pressure_psi", "status", "method", "photo_url", "notes",
-        "scan_confidence_32nds"
+        "scan_confidence_32nds",
+        // yard-check columns, appended so the first 25 keep their spreadsheet letters
+        "survey_id", "location", "reported_by", "vehicle_type", "axle_role", "config_code", "slot", "valve_cap",
+        "pull_point_32nds", "rec_psi", "min_psi", "retreads_allowed"
     ]
 
     static let verifyHeader: [String] = [
@@ -21,10 +24,15 @@ enum SpreadsheetRow {
         return f
     }()
 
-    static func rows(for inspection: Inspection, thresholds: Thresholds = .current) -> [[String]] {
-        inspection.positions.map { position in
+    static func rows(for inspection: Inspection, thresholds: Thresholds = .current, policy: FleetPolicy? = nil) -> [[String]] {
+        let axles = YardCheckDocument.axleList(inspection)
+        let config = YardCheckDocument.configCode(axles)
+        let survey = inspection.survey
+        return inspection.positions.map { position in
             let r = inspection.reading(for: position)
-            let status = thresholds.status(depth32: r?.depthMin32, role: position.role)
+            let pol = policy?.role(position.role)
+            let pull = pol?.pull ?? thresholds.minimum(for: position.role)
+            let status = thresholds.status(depth32: r?.depthMin32, role: position.role, minimum: pull)
             return [
                 inspection.shortID,
                 dateFormatter.string(from: inspection.date),
@@ -50,7 +58,11 @@ enum SpreadsheetRow {
                 r?.hasDepth == true ? (r?.method.rawValue ?? "") : "",
                 r?.photoFilename ?? "",
                 r?.notes ?? "",
-                num(r?.scanConfidence32)
+                num(r?.scanConfidence32),
+                survey?.surveyNumber ?? "", survey?.location ?? "", survey?.reportedBy ?? "",
+                inspection.vehicle?.vehicleType ?? "", position.role.rawValue, config, String(YardCheckDocument.slot(position)),
+                r?.valveCap.rawValue ?? "ok", String(pull), pol?.recPSI.map { String($0) } ?? "", pol?.minPSI.map { String($0) } ?? "",
+                (pol?.retreads ?? (position.role != .steer)) ? "Yes" : "No"
             ]
         }
     }

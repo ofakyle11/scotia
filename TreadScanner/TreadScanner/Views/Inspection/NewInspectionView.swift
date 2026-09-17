@@ -5,6 +5,9 @@ struct NewInspectionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Customer.name) private var customers: [Customer]
+    @Query(sort: \Survey.date, order: .reverse) private var surveys: [Survey]
+    @State private var surveyID: UUID?
+    @State private var vehicleType = ""
 
     @State private var customerName = ""
     @State private var unitNumber = ""
@@ -33,9 +36,17 @@ struct NewInspectionView: View {
                         }
                     }
                     TextField("Unit number", text: $unitNumber)
+                    TextField("Vehicle type (Tractor - Class 8, Trailer - Van…)", text: $vehicleType).textInputAutocapitalization(.words)
                     TextField("Plate", text: $plate).textInputAutocapitalization(.characters)
                     TextField("VIN", text: $vin).textInputAutocapitalization(.characters)
                     TextField("Odometer (km)", text: $odometer).keyboardType(.numberPad)
+                }
+                Section("Yard check") {
+                    Picker("Yard check", selection: $surveyID) {
+                        Text("Not part of a yard check").tag(UUID?.none)
+                        ForEach(surveys) { sv in Text("\(sv.fleet) · \(sv.location) · \(sv.date.formatted(date: .abbreviated, time: .omitted))").tag(UUID?.some(sv.id)) }
+                    }
+                    Text("Groups this truck with the others from the same yard visit for the fleet report. Create one from the menu on the home screen.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Technician") {
                     TextField("Name", text: $technician).textInputAutocapitalization(.words)
@@ -62,6 +73,7 @@ struct NewInspectionView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .onAppear { if surveyID == nil, let sv = surveys.first, Date().timeIntervalSince(sv.createdAt) < 12 * 3600 { surveyID = sv.id } }
             .navigationTitle("New inspection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -89,6 +101,7 @@ struct NewInspectionView: View {
         let vehicle = customer?.vehicles.first { $0.unitNumber.caseInsensitiveCompare(unitNumber) == .orderedSame }
             ?? Vehicle(unitNumber: unitNumber.trimmingCharacters(in: .whitespaces), plate: plate, vin: vin, customer: customer)
         if vehicle.modelContext == nil { context.insert(vehicle) }
+        if !vehicleType.trimmingCharacters(in: .whitespaces).isEmpty { vehicle.vehicleType = vehicleType.trimmingCharacters(in: .whitespaces) }
         if !plate.isEmpty { vehicle.plate = plate }
         if !vin.isEmpty { vehicle.vin = vin }
 
@@ -99,6 +112,7 @@ struct NewInspectionView: View {
             preset: preset,
             positions: preset == .custom ? AxlePreset.positions(for: customAxles) : nil
         )
+        if let surveyID { inspection.survey = surveys.first { $0.id == surveyID } }
         context.insert(inspection)
         try? context.save()
         created = inspection

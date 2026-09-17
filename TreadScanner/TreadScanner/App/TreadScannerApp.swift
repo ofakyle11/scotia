@@ -9,7 +9,8 @@ struct TreadScannerApp: App {
     init() {
         let schema = Schema([
             Customer.self, Vehicle.self, Inspection.self,
-            TireReading.self, SyncQueueItem.self, VerifySample.self
+            TireReading.self, SyncQueueItem.self, VerifySample.self,
+            Survey.self, FleetPolicy.self
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         let built: ModelContainer

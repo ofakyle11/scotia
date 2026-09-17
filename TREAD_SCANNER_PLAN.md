@@ -33,7 +33,8 @@ that proves or disproves it in the first weeks.
 | Unit history | Both apps. Wear per 10,000 km, projected km to minimum | `UnitHistoryView.swift` |
 | Raw capture | Records every frame with its distance, tilt and phone model | `FrameRecorder.swift` |
 | Analysis tool | 53 tests. `pose` finds the best holding distance; report splits by phone | `tools/treadlab/` |
-| Spreadsheet workbook | Inspections tab plus Fleet Summary per unit | `spreadsheet/` |
+| Spreadsheet workbook | Inspections tab plus Fleet Summary per unit; 37 columns | `spreadsheet/` |
+| Yard check report | **Built.** Bridgestone-style fleet report from one renderer: web app screen, iPhone PDF, PC tool from CSV | `web/yardcheck.js`, `tools/yardcheck/`, `Views/YardCheck/` |
 | TestFlight | Written, never run. Needs Apple enrolment | `.github/workflows/ios-testflight.yml` |
 | Web auto-deploy | Optional. Skips cleanly until a Netlify token is set | `.github/workflows/web-deploy.yml` |
 
@@ -99,6 +100,26 @@ one glance confirms the tab works.
 Google Cloud project with the Sheets API and an OAuth client (about 10 minutes,
 steps in `TreadScanner/README.md` §3). Then rows append themselves when the
 phone has signal, and offline inspections queue.
+
+## 4b. Yard check report
+
+The fleet-facing output mirrors the Bridgestone Yard Check page for page:
+cover, surveys, management summary (tiles, conditions, inflation
+distribution, tread-depth histogram 0–26/32 with counts per band, valves,
+dual mismatches), remaining tread depth per axle type, tire conditions,
+mismatching issues, maintenance policies grouped by configuration and size,
+immediate action details, and a vehicle page with the numbered axle diagram
+and one row per tire (`2-3`, `14 / 5`, `-- / 100`, condition, valve cap,
+note). Pull points come from a per-customer fleet policy; tires at or below
+it are immediate action, within 2/32 above are "RTD Near Pull Point"; duals
+differing by more than 4/32 or 10% PSI are mismatches.
+
+One renderer, `web/yardcheck.js`, serves the web app (Yard checks screen,
+print to PDF), the iPhone app (bundled resource in a web view, PDF export)
+and the PC tool `tools/yardcheck/yardcheck.py` (from CSV exports). CI fails
+if the iOS copy drifts from the web one. Data added for it: yard check
+(survey) grouping, fleet policy per customer, vehicle type, valve cap, and
+twelve CSV columns appended after the original 25.
 
 ## 5. Axle presets and positions
 

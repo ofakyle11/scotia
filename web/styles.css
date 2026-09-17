@@ -70,3 +70,9 @@ h2 { font-size:17px; margin:0 0 8px; }
   .report { border-radius:0; padding:0; } .rep-photos { break-inside:avoid; } .rep-table tr { break-inside:avoid; }
   .rep-tablewrap { overflow:visible; } .rep-table { min-width:0; }
 }
+/* yard check report on screen: scale the Letter pages to the phone width; print at true size */
+.yc-wrap { overflow-x:auto; }
+@media print {
+  .yc-wrap { zoom:1 !important; overflow:visible; }
+  main { padding:0; max-width:none; } body { background:#fff; }
+}

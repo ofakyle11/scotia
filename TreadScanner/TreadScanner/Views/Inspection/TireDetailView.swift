@@ -97,6 +97,9 @@ struct TireDetailView: View {
 
             Section("Tire details (optional)") {
                 TextField("Pressure (psi)", text: $pressure).keyboardType(.numberPad)
+                Picker("Valve cap", selection: Binding(get: { reading.valveCap }, set: { reading.valveCap = $0 })) {
+                    ForEach(ValveCap.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
                 TextField("DOT code", text: $reading.dotCode).textInputAutocapitalization(.characters)
                 TextField("Brand", text: $reading.brand)
                 TextField("Model", text: $reading.model)

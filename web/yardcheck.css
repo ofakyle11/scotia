@@ -1,0 +1,77 @@
+/* Yard Check report: Letter pages, print-first. Mirrors the reference layout with Scotia branding. */
+.yc-report { --yc-red:#D9261C; --yc-ink:#111; --yc-muted:#555; --yc-line:#cfcfcf; --yc-bg:#f2f2f2;
+  font: 13px/1.35 Helvetica, Arial, sans-serif; color: var(--yc-ink); background:#777; padding:12px 0; }
+.yc-page { position:relative; width:8.5in; height:11in; margin:0 auto 12px; background:#fff; box-sizing:border-box;
+  padding:0.35in 0.35in 0.55in; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 2px 10px #0006; }
+.yc-body { flex:1; overflow:hidden; background:var(--yc-bg); padding:8px; }
+.yc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.yc-h2 { margin:0; font-size:22px; font-weight:700; display:flex; align-items:center; gap:10px; letter-spacing:.2px; }
+.yc-h2 .yc-red { width:7px; height:26px; background:var(--yc-red); display:inline-block; }
+.yc-logo { height:28px; } .yc-logo-text { font-weight:900; font-style:italic; font-size:20px; letter-spacing:-.5px; }
+.yc-foot { position:absolute; left:0; right:0; bottom:0; height:0.4in; background:#111; color:#fff; display:flex; align-items:center; padding:0 0.35in; font-size:12px; gap:16px; }
+.yc-foot-brand { font-weight:900; font-style:italic; } .yc-foot-fleet { flex:1; text-align:center; font-weight:700; }
+.yc-foot-gen { color:#ddd; } .yc-foot-n { font-weight:700; min-width:44px; text-align:right; }
+/* cover */
+.yc-page.cover { padding:0 0 0.55in; } .yc-page.cover .yc-body { background:#fff; padding:0; }
+.yc-cover-photo { height:3.6in; background:#3a3a3a; overflow:hidden; border-bottom:8px solid var(--yc-red); }
+.yc-cover-photo img { width:100%; height:100%; object-fit:cover; } .yc-cover-ph { width:100%; height:100%; background:linear-gradient(135deg,#2b2b2b,#4a4a4a); }
+.yc-cover-title { display:flex; justify-content:space-between; align-items:center; padding:14px 0.35in; font-size:30px; font-weight:700; border-bottom:1px solid var(--yc-line); }
+.yc-cover-title .yc-logo { height:40px; } .yc-cover-title .yc-logo-text { font-size:30px; }
+.yc-cover-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:22px 20px; padding:18px 0.35in; }
+.yc-cover-grid div small { display:block; color:var(--yc-muted); font-size:13px; } .yc-cover-grid div b { font-size:17px; }
+.yc-cover-grid .span2 { grid-column:span 3; }
+.yc-cover-truck { width:3.2in; height:3.2in; margin:10px auto 0; background:#e9e9e9; }
+/* tiles + cards */
+.yc-tiles { display:flex; gap:8px; margin-bottom:8px; }
+.yc-tile { background:#fff; padding:8px 14px; flex:1; } .yc-tiles-r { display:flex; flex:2; background:#fff; }
+.yc-tiles-r .yc-tile { flex:1; } .yc-tile-l { font-size:13px; } .yc-tile-v { font-size:28px; font-weight:700; line-height:1.05; }
+.yc-tile-v small { font-size:14px; font-weight:400; } .yc-tile.alert { display:flex; align-items:center; gap:12px; flex:1.2; }
+.yc-bang { width:42px; height:54px; background:#B22222; color:#fff; font-size:30px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.yc-cols { display:flex; gap:8px; margin-bottom:8px; } .yc-cols > .yc-card { flex:1; margin:0; }
+.yc-card { background:#fff; padding:8px 12px; margin-bottom:6px; } .yc-card h3 { margin:0 0 8px; font-size:15px; }
+.yc-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; } .yc-card-head h3 { font-size:16px; }
+.yc-kv { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-top:1px solid #eee; }
+.yc-kv:first-of-type { border-top:none; } .yc-kv.col { flex-direction:column; align-items:flex-start; }
+.yc-kv b.big { font-size:21px; line-height:1.05; } .yc-kv b small { font-size:13px; font-weight:400; }
+.red { color:#B22222; } .orange { color:#E8760A; } .green { color:#3BAA6B; }
+.yc-cond-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 18px; margin-top:6px; }
+.yc-cond-grid div { border-top:1px solid #ddd; padding:4px 0; } .yc-cond-grid small { display:block; } .yc-cond-grid b { font-size:18px; }
+.yc-greybar { display:inline-block; background:#8a8a8a; color:#fff; padding:2px 8px; min-width:120px; text-align:right; font-weight:700; }
+/* charts */
+.yc-hist, .yc-bar, .yc-donut { width:100%; height:auto; display:block; } .yc-bar { margin:10px 0 6px; }
+.yc-axis { font-size:12px; fill:#333; } .yc-count { font-size:12px; font-weight:700; } .yc-rule { stroke:#eee; }
+.yc-donut { max-width:200px; }
+.yc-mm-grid { display:flex; gap:12px; align-items:center; } .yc-mm-grid > div:first-child { flex:1; }
+.yc-legend { display:flex; gap:14px; font-size:11.5px; } .yc-legend b { white-space:nowrap; } .yc-legend > div { flex:1; display:flex; gap:6px; align-items:flex-start; }
+.yc-legend i { width:8px; height:36px; display:inline-block; flex:none; } .yc-legend b { font-weight:700; }
+.yc-legend i.red { background:#B22222; } .yc-legend i.orange { background:#E8760A; } .yc-legend i.green { background:#3BAA6B; }
+.yc-legend i.hatch { background:repeating-linear-gradient(45deg,#B22222 0 3px,#E8760A 3px 6px); }
+.yc-legend.four i { width:26px; height:44px; }
+.yc-prose p { margin:0 0 8px; font-size:13px; }
+/* tables */
+.yc-table { width:100%; border-collapse:collapse; background:#fff; font-size:13px; }
+.yc-table th { text-align:left; font-weight:700; padding:8px 8px; border-bottom:2px solid #111; }
+.yc-table th small { font-weight:400; } .yc-table td { padding:8px; border-bottom:1px solid var(--yc-line); vertical-align:top; }
+.yc-table .r { text-align:right; } .yc-table.cond { margin-top:8px; } .yc-table.cond td { padding:9px 8px; }
+.yc-dot { width:9px; height:9px; display:inline-block; margin-right:10px; } .yc-dot.red { background:#B22222; } .yc-dot.orange { background:#E8760A; }
+.yc-pol { background:#fff; margin-bottom:10px; } .yc-pol-title { padding:8px 12px 6px 90px; font-size:13px; }
+.yc-pol-title::first-letter { font-weight:700; }
+.yc-table.pol th, .yc-table.pol td { text-align:center; } .yc-table.pol td:nth-child(2) { text-align:center; }
+.yc-pol-foot { padding:8px 12px 8px 90px; border-top:1px solid var(--yc-line); font-size:13px; }
+/* vehicle details */
+.yc-table.veh th.veh, .yc-table.veh td.veh { width:1.95in; } .yc-table.veh th { font-size:13px; }
+.yc-table.veh td { padding:9px 6px; } .yc-table.veh td.pos { width:0.5in; } .yc-table.veh td.rtd { width:0.75in; }
+.yc-table.veh td.rtd b { font-size:14px; } .yc-table.veh td.cond { width:1.5in; } .yc-table.veh td.note { text-align:right; }
+.yc-veh > tr:first-child > td { border-top:3px double #111; }
+.yc-veh-head td.sizes { background:#f6f6f6; }
+.yc-veh-note td { text-align:center; }
+.yc-table.veh td.veh { vertical-align:top; }
+.yc-axles { margin-top:14px; } .yc-axle { display:flex; align-items:center; gap:4px; margin-bottom:6px; }
+.yc-axle-n { width:14px; font-size:11px; color:#555; } .yc-side { display:inline-flex; gap:3px; } .yc-gap { width:26px; }
+.yc-sq { width:22px; height:30px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:700; border-radius:2px; }
+.yc-sq.green { background:#1e8b3e; } .yc-sq.orange { background:#E8760A; } .yc-sq.red { background:#B22222; } .yc-sq.none { background:#bdbdbd; }
+@media print {
+  .yc-report { background:none; padding:0; } .yc-page { margin:0; box-shadow:none; break-after:page; page-break-after:always; }
+  .yc-page:last-child { break-after:auto; page-break-after:auto; }
+  @page { size:Letter; margin:0; }
+}

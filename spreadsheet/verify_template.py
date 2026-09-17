@@ -46,7 +46,8 @@ check(all("SUMPRODUCT" in f or "COUNTIFS" in f or "INDEX" in f or "IF(" in f for
 
 print("3. Structure")
 check(wb.sheetnames[0] == "Inspections", f"Inspections is the first tab (got {wb.sheetnames[0]})")
-check(len(header) == 25, f"25 columns on Inspections (got {len(header)})")
+check(len(header) == 37, f"37 columns on Inspections (got {len(header)})")
+check(header[25] == "survey_id" and header[-1] == "retreads_allowed", "yard-check columns appended after the original 25")
 check(ins.freeze_panes == "A2", "Inspections header row frozen")
 check(ins["A2"].value == "20260908-1432-AB12", "example row present for format guidance")
 check(fs["A5"].value == "42", "Fleet Summary opens with the example unit filled in")

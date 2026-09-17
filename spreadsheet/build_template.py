@@ -57,6 +57,7 @@ content = [
     ("Tread minimums: Canada NSC Standard 11 and US FMCSA 49 CFR 393.75 — 4/32\" steer, 2/32\" all other positions.", body),
     ("Column layout: TREAD_SCANNER_PLAN.md in the ofakyle11/scotia repository.", body),
     ("Formulas cover Inspections rows 2 to %d. If you exceed that, widen the ranges on Fleet Summary." % LAST, body),
+    ("Columns Z onward feed the yard check report (tools/yardcheck): survey, vehicle type, axle role, config code, slot, valve cap and the fleet policy that applied.", body),
 ]
 for i, (text, font) in enumerate(content, 1):
     c = ws.cell(row=i, column=1, value=text)
@@ -97,14 +98,18 @@ ins = wb.create_sheet("Inspections")
 header = ["inspection_id", "date", "technician", "customer", "unit_number", "plate", "vin", "odometer",
           "axle_config", "position", "brand", "model", "size", "dot_code",
           "depth_inner_32nds", "depth_centre_32nds", "depth_outer_32nds", "depth_min_32nds", "depth_min_mm",
-          "pressure_psi", "status", "method", "photo_url", "notes", "scan_confidence_32nds"]
+          "pressure_psi", "status", "method", "photo_url", "notes", "scan_confidence_32nds",
+          # yard-check columns (Sept 2026), appended so the first 25 keep their letters
+          "survey_id", "location", "reported_by", "vehicle_type", "axle_role", "config_code", "slot", "valve_cap",
+          "pull_point_32nds", "rec_psi", "min_psi", "retreads_allowed"]
 for c, name in enumerate(header, 1):
     cell = ins.cell(row=1, column=c, value=name)
     cell.font = hdr_font; cell.fill = hdr_fill
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 example = ["20260908-1432-AB12", "2026-09-08T14:32:00", "M. Francis", "Acme Freight", "42", "ABC 123",
            "1FUJGLDR5CSBB1234", 512000, "TRACTOR_3A", "LF", "Michelin", "XZE2", "11R22.5", "DOT B9 4K 2325",
-           6, 5, 7, 5, 3.97, 105, "WATCH", "gauge", "", "EXAMPLE ROW — delete once real data is imported", ""]
+           6, 5, 7, 5, 3.97, 105, "WATCH", "gauge", "", "EXAMPLE ROW — delete once real data is imported", "",
+           "165881", "Clarington, Ontario", "M. Francis", "Tractor - Class 8", "steer", "2S-4D-4D", 1, "ok", 5, 100, 80, "No"]
 for c, v in enumerate(example, 1):
     cell = ins.cell(row=2, column=c, value=v)
     cell.font = body; cell.fill = yellow
@@ -112,12 +117,12 @@ ins.cell(row=2, column=1).comment = Comment(
     "Example row showing the expected format. Delete it after your first real import.\n"
     "inspection_id is yyyymmdd-hhmm-XXXX and sorts chronologically, which Fleet Summary relies on.",
     "Tread Scanner")
-widths = [19, 19, 13, 17, 11, 10, 19, 10, 12, 9, 11, 10, 11, 15, 9, 9, 9, 9, 9, 8, 10, 8, 13, 34, 10]
+widths = [19, 19, 13, 17, 11, 10, 19, 10, 12, 9, 11, 10, 11, 15, 9, 9, 9, 9, 9, 8, 10, 8, 13, 34, 10, 10, 18, 13, 18, 9, 11, 6, 9, 9, 8, 8, 9]
 for i, w in enumerate(widths, 1):
     ins.column_dimensions[get_column_letter(i)].width = w
 ins.row_dimensions[1].height = 30
 ins.freeze_panes = "A2"
-ins.auto_filter.ref = "A1:Y%d" % LAST
+ins.auto_filter.ref = "A1:AK%d" % LAST
 for op, colr in (("equal", "FCA5A5"), ("equal", "FDE68A"), ("equal", "BBF7D0")):
     pass
 ins.conditional_formatting.add("U2:U%d" % LAST, CellIsRule(operator="equal", formula=['"REPLACE"'],

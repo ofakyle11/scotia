@@ -5,7 +5,7 @@ import SwiftData
 @MainActor
 final class SpreadsheetRowTests: XCTestCase {
     private func makeInspection() throws -> (ModelContext, Inspection) {
-        let schema = Schema([Customer.self, Vehicle.self, Inspection.self, TireReading.self, SyncQueueItem.self, VerifySample.self])
+        let schema = Schema([Customer.self, Vehicle.self, Inspection.self, TireReading.self, SyncQueueItem.self, VerifySample.self, Survey.self, FleetPolicy.self])
         let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
         let ctx = ModelContext(container)
         let customer = Customer(name: "Acme Freight, Inc.")
@@ -21,10 +21,11 @@ final class SpreadsheetRowTests: XCTestCase {
         return (ctx, inspection)
     }
 
-    func testHeaderHas25Columns() {
-        XCTAssertEqual(SpreadsheetRow.header.count, 25)
+    func testHeaderHas37Columns() {
+        XCTAssertEqual(SpreadsheetRow.header.count, 37)
         XCTAssertEqual(SpreadsheetRow.header.first, "inspection_id")
-        XCTAssertEqual(SpreadsheetRow.header.last, "scan_confidence_32nds")
+        XCTAssertEqual(SpreadsheetRow.header[24], "scan_confidence_32nds")
+        XCTAssertEqual(SpreadsheetRow.header.last, "retreads_allowed")
     }
 
     func testOneRowPerPositionWithValues() throws {

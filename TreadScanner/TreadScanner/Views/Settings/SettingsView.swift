@@ -52,6 +52,10 @@ struct SettingsView: View {
                         Text(e).font(.footnote).foregroundStyle(.orange)
                     }
                 }
+                Section("Fleet policy (per customer)") {
+                    NavigationLink("Pull points and PSI by customer") { FleetPolicyListView() }
+                    Text("The yard check report and the status badges use a customer's pull points when a policy exists; otherwise the thresholds above.").font(.footnote).foregroundStyle(.secondary)
+                }
                 Section("Scanner") {
                     LabeledContent("LiDAR", value: LiDARAvailability.isSupported ? "Available" : "Not on this device")
                     Text("Scans measure groove depth relative to the tread surface and report a ± band. Readings over ±1.5/32 are flagged. Verify against a gauge from the main menu to build up accuracy data.")

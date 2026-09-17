@@ -30,6 +30,14 @@ jobs:
           sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
           xcodebuild -version
 
+      - name: Renderer resources match web/
+        # The yard check report is rendered by web/yardcheck.js in all three products. The iOS
+        # app carries a copy as a bundle resource; a drifted copy would print different numbers.
+        run: |
+          for f in yardcheck.js yardcheck.css; do
+            cmp "TreadScanner/Resources/$f" "../web/$f" || { echo "::error::TreadScanner/Resources/$f differs from web/$f. Run: cp web/yardcheck.* TreadScanner/TreadScanner/Resources/"; exit 1; }
+          done
+
       - name: Install XcodeGen
         run: brew install xcodegen
 

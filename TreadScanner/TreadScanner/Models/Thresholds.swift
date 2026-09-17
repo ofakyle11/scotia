@@ -31,9 +31,9 @@ struct Thresholds: Equatable {
         role == .steer ? steerMinimum32 : otherMinimum32
     }
 
-    func status(depth32: Double?, role: AxleRole) -> TireStatus {
+    func status(depth32: Double?, role: AxleRole, minimum override: Int? = nil) -> TireStatus {
         guard let depth32 else { return .unknown }
-        let min = Double(minimum(for: role))
+        let min = Double(override ?? minimum(for: role))
         if depth32 <= min { return .replace }
         if depth32 <= min + Double(watchBand32) { return .watch }
         return .ok

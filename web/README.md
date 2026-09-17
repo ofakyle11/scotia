@@ -6,7 +6,7 @@ Use it on the iPhone today while the native app waits on the Apple Developer
 enrolment: open the link in Safari, tap Share, then **Add to Home Screen**.
 It then opens full screen, works offline, and keeps its data on the phone.
 
-What it does: same inspection flow, axle presets, TMC position codes,
+What it does: yard checks (the Bridgestone-style fleet report, printed to PDF from the phone), same inspection flow, axle presets, TMC position codes,
 thresholds, photos, and 25-column spreadsheet layout as the iOS app.
 Tread depth is typed from a gauge. Export a CSV from the inspection menu
 (share sheet or download), or connect Google Sheets in Settings.

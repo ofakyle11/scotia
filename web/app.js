@@ -12,8 +12,10 @@ const state = {
   inspections: DB.get("inspections", []),
   settings: Object.assign({ technician: "", steer: 4, other: 2, watch: 2, mm: false, clientId: "", spreadsheetId: "", sheetName: "Inspections" }, DB.get("settings", {})),
   queue: DB.get("queue", []),
+  surveys: DB.get("surveys", []),      // yard checks: { id, fleet, location, account, dates:[], reportedBy, participants:[] }
+  policies: DB.get("policies", {}),    // fleet policy per customer: { steer:{pull,recPsi,minPsi,retreads}, drive, trailer, tag }
 };
-const saveAll = () => { DB.set("inspections", state.inspections); DB.set("settings", state.settings); DB.set("queue", state.queue); };
+const saveAll = () => { DB.set("inspections", state.inspections); DB.set("settings", state.settings); DB.set("queue", state.queue); DB.set("surveys", state.surveys); DB.set("policies", state.policies); };
 
 // ---------- domain ----------
 const PRESETS = {
@@ -41,9 +43,18 @@ function positions(axles) {
 const MM = 25.4 / 32;
 const fmt32 = v => v == null ? "—" : (Math.round(v * 2) / 2).toString().replace(/\.5$/, ".5") + "/32";
 const fmtDepth = v => v == null ? "—" : state.settings.mm ? (v * MM).toFixed(1) + " mm" : fmt32(v);
-function status(min, role) {
+// Pull point for a customer: their fleet policy if one exists, else the shop defaults.
+function policyFor(customer) {
+  const p = customer && state.policies[customer];
+  const shop = r => ({ pull: r === "steer" ? state.settings.steer : state.settings.other, recPsi: null, minPsi: null, retreads: r !== "steer" });
+  const out = {};
+  for (const r of ["steer", "drive", "trailer", "tag"]) out[r] = Object.assign(shop(r), (p && p[r]) || {});
+  return out;
+}
+const pullFor = (role, customer) => policyFor(customer)[role === "steer" ? "steer" : (role === "trailer" ? "trailer" : role === "tag" ? "tag" : "drive")].pull;
+function status(min, role, customer) {
   if (min == null) return "none";
-  const lim = role === "steer" ? state.settings.steer : state.settings.other;
+  const lim = pullFor(role, customer);
   if (min <= lim) return "REPLACE";
   if (min <= lim + state.settings.watch) return "WATCH";
   return "OK";
@@ -52,17 +63,32 @@ const grooves = r => [r?.inner, r?.centre, r?.outer].filter(v => v != null && v 
 const minOf = r => { const g = grooves(r); return g.length ? Math.min(...g) : null; };
 const shortId = ins => { const d = new Date(ins.date); const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}-${ins.id.slice(0,4).toUpperCase()}`; };
 
-const HEADER = ["inspection_id","date","technician","customer","unit_number","plate","vin","odometer","axle_config","position","brand","model","size","dot_code","depth_inner_32nds","depth_centre_32nds","depth_outer_32nds","depth_min_32nds","depth_min_mm","pressure_psi","status","method","photo_url","notes","scan_confidence_32nds"];
+const HEADER = ["inspection_id","date","technician","customer","unit_number","plate","vin","odometer","axle_config","position","brand","model","size","dot_code","depth_inner_32nds","depth_centre_32nds","depth_outer_32nds","depth_min_32nds","depth_min_mm","pressure_psi","status","method","photo_url","notes","scan_confidence_32nds",
+  "survey_id","location","reported_by","vehicle_type","axle_role","config_code","slot","valve_cap","pull_point_32nds","rec_psi","min_psi","retreads_allowed"];
 const num = (v, d = 1) => v == null || v === "" ? "" : Number(v).toFixed(d);
 function rows(ins) {
+  const sv = state.surveys.find(x => x.id === ins.surveyId);
+  const cfg = YardCheck.configCode(axlesOf(ins));
   return ins.positions.map(p => {
     const r = ins.readings[p.code] || {};
-    const min = minOf(r), st = status(min, p.role);
+    const pol = policyFor(ins.customer)[p.role === "steer" ? "steer" : p.role === "trailer" ? "trailer" : p.role === "tag" ? "tag" : "drive"];
+    const min = minOf(r), st = status(min, p.role, ins.customer);
     return [shortId(ins), new Date(ins.date).toISOString(), ins.technician, ins.customer, ins.unit, ins.plate, ins.vin, ins.odometer ?? "",
       ins.preset, p.code, r.brand || "", r.model || "", r.size || "", r.dot || "",
       num(r.inner), num(r.centre), num(r.outer), num(min), min == null ? "" : (min * MM).toFixed(2), r.pressure ?? "",
-      st === "none" ? "" : st, min == null ? "" : "manual", r.photo ? `${shortId(ins)}_${p.code}.jpg` : "", r.notes || "", ""];
+      st === "none" ? "" : st, min == null ? "" : "manual", r.photo ? `${shortId(ins)}_${p.code}.jpg` : "", r.notes || "", "",
+      sv ? sv.id : "", sv ? sv.location || "" : "", sv ? sv.reportedBy || "" : "", ins.vehicleType || "", p.role, cfg, YardCheck.slotNumber(p),
+      r.valveCap || "ok", pol.pull, pol.recPsi ?? "", pol.minPsi ?? "", pol.retreads ? "Yes" : "No"];
   });
+}
+/** Axle list {role,dual,size} for an inspection, size taken from the first tire on the axle that has one. */
+function axlesOf(ins) {
+  const m = new Map();
+  for (const p of ins.positions) {
+    if (!m.has(p.axle)) m.set(p.axle, { role: p.role, dual: !!p.dual, size: "" });
+    const r = ins.readings[p.code]; if (r && r.size && !m.get(p.axle).size) m.get(p.axle).size = r.size;
+  }
+  return [...m.keys()].sort((a, b) => a - b).map(k => m.get(k));
 }
 const csvEsc = c => /[",\r\n]/.test(c = String(c)) ? `"${c.replace(/"/g, '""')}"` : c;
 const csv = ins => [HEADER, ...rows(ins)].map(r => r.map(csvEsc).join(",")).join("\r\n") + "\r\n";
@@ -125,8 +151,8 @@ const findIns = id => state.inspections.find(i => i.id === id);
 function render() {
   view.innerHTML = "";
   backBtn.hidden = route.name === "home";
-  menuBtn.hidden = !["home", "inspection", "report"].includes(route.name);
-  ({ home, newIns, inspection, tire, settings, report, history: unitHistory })[route.name]();
+  menuBtn.hidden = !["home", "inspection", "report", "yardcheck"].includes(route.name);
+  ({ home, newIns, inspection, tire, settings, report, history: unitHistory, yardchecks, yardcheck })[route.name]();
   window.scrollTo(0, 0);
 }
 
@@ -134,6 +160,7 @@ function render() {
 function home() {
   titleEl.textContent = "Tread Scanner";
   menuBtn.onclick = () => actionSheet([
+    ["Yard checks (fleet reports)", () => go({ name: "yardchecks" })],
     ["Settings", () => go({ name: "settings" })],
     state.inspections.length ? ["Export all inspections (CSV)", exportAllCSV] : null,
   ]);
@@ -157,8 +184,17 @@ function home() {
 function newIns() {
   titleEl.textContent = "New inspection";
   const customers = [...new Set(state.inspections.map(i => i.customer).filter(Boolean))];
-  const f = { customer: inp({ list: "customers", autocapitalize: "words" }), unit: inp({}), plate: inp({ autocapitalize: "characters" }), vin: inp({ autocapitalize: "characters" }), odo: inp({ type: "number", inputmode: "numeric", style: "font-size:16px;text-align:left" }), tech: inp({ autocapitalize: "words" }, state.settings.technician) };
+  const f = { customer: inp({ list: "customers", autocapitalize: "words" }), unit: inp({}), vtype: inp({ list: "vtypes", placeholder: "Tractor - Class 8", autocapitalize: "words" }), plate: inp({ autocapitalize: "characters" }), vin: inp({ autocapitalize: "characters" }), odo: inp({ type: "number", inputmode: "numeric", style: "font-size:16px;text-align:left" }), tech: inp({ autocapitalize: "words" }, state.settings.technician) };
   const preset = h("select", {}, ...Object.entries(PRESETS).map(([k, p]) => h("option", { value: k }, p.label))); preset.value = "TRACTOR_3A";
+  // Yard check (survey) picker: existing, none, or a new one
+  const surveySel = h("select", {}, h("option", { value: "" }, "Not part of a yard check"),
+    ...state.surveys.slice().reverse().map(sv => h("option", { value: sv.id }, `${sv.fleet} · ${sv.location || ""} · ${(sv.dates || [])[0] || ""}`)),
+    h("option", { value: "__new" }, "+ New yard check…"));
+  const nf = { location: inp({ placeholder: "Yard / location" }), reportedBy: inp({ autocapitalize: "words" }, state.settings.technician), account: inp({ placeholder: "Account # (optional)" }) };
+  const newSurveyBox = h("div", { hidden: true }, field("Location", nf.location), field("Reported by", nf.reportedBy), field("Account number", nf.account));
+  surveySel.onchange = () => { newSurveyBox.hidden = surveySel.value !== "__new"; };
+  const lastSv = state.surveys[state.surveys.length - 1];
+  if (lastSv && Date.now() - lastSv.created < 12 * 3600 * 1000) surveySel.value = lastSv.id;   // same-day visit: preselect
   let custom = PRESETS.CUSTOM.axles.map(a => ({ ...a }));
   const customBox = h("div", { hidden: true });
   const summary = h("div", { class: "muted" });
@@ -177,13 +213,23 @@ function newIns() {
   preset.onchange = refresh; refresh();
   view.append(
     h("datalist", { id: "customers" }, ...customers.map(c => h("option", { value: c }))),
-    h("div", { class: "card" }, h("h2", {}, "Customer & vehicle"), field("Customer / fleet", f.customer), field("Unit number", f.unit), field("Plate", f.plate), field("VIN", f.vin), field("Odometer (km)", f.odo)),
+    h("div", { class: "card" }, h("h2", {}, "Customer & vehicle"), field("Customer / fleet", f.customer), field("Unit number", f.unit), field("Vehicle type", f.vtype), field("Plate", f.plate), field("VIN", f.vin), field("Odometer (km)", f.odo)),
+    h("datalist", { id: "vtypes" }, ...["Pick-up", "Van - Utility", "Rigid Truck", "Tractor - Class 8", "Trailer - Van (Dry-Van)", "Trailer - Dump", "Trailer - Liquid Tank", "Trailer - Flatbed"].map(t => h("option", { value: t }))),
+    h("div", { class: "card" }, h("h2", {}, "Yard check"),
+      h("div", { class: "muted", style: "margin-bottom:6px" }, "Group this truck with the others inspected in the same yard visit. Needed for the fleet report."),
+      surveySel, newSurveyBox),
     h("div", { class: "card" }, h("h2", {}, "Technician"), f.tech),
     h("div", { class: "card" }, h("h2", {}, "Axle configuration"), preset, customBox, summary),
     h("button", { class: "primary", on: { click: () => {
       if (!f.unit.value.trim()) return toast("Enter a unit number");
       state.settings.technician = f.tech.value.trim();
-      const ins = { id: crypto.randomUUID(), date: Date.now(), customer: f.customer.value.trim(), unit: f.unit.value.trim(), plate: f.plate.value.trim(), vin: f.vin.value.trim(), odometer: f.odo.value ? Number(f.odo.value) : null, technician: f.tech.value.trim(), preset: preset.value, positions: positions(axles()), readings: {}, notes: "", complete: false, sync: "" };
+      let surveyId = surveySel.value;
+      if (surveyId === "__new") {
+        const sv = { id: String(100000 + Math.floor(Math.random() * 900000)), fleet: f.customer.value.trim(), location: nf.location.value.trim(), account: nf.account.value.trim(),
+                     dates: [new Date().toISOString().slice(0, 10)], reportedBy: nf.reportedBy.value.trim() || f.tech.value.trim(), participants: [], created: Date.now() };
+        state.surveys.push(sv); surveyId = sv.id;
+      }
+      const ins = { id: crypto.randomUUID(), date: Date.now(), customer: f.customer.value.trim(), unit: f.unit.value.trim(), vehicleType: f.vtype.value.trim(), surveyId: surveyId || null, plate: f.plate.value.trim(), vin: f.vin.value.trim(), odometer: f.odo.value ? Number(f.odo.value) : null, technician: f.tech.value.trim(), preset: preset.value, positions: positions(axles()), readings: {}, notes: "", complete: false, sync: "" };
       state.inspections.push(ins); saveAll();
       history.replaceState({ name: "inspection", id: ins.id }, "");
       go({ name: "tire", id: ins.id, code: ins.positions[0].code });
@@ -196,7 +242,7 @@ function diagram(ins, nextCode) {
   const axleNums = [...new Set(ins.positions.map(p => p.axle))];
   for (const n of axleNums) {
     const ts = ins.positions.filter(p => p.axle === n);
-    const side = list => h("div", { class: "side" }, ...list.map(p => { const r = ins.readings[p.code], m = minOf(r), st = status(m, p.role);
+    const side = list => h("div", { class: "side" }, ...list.map(p => { const r = ins.readings[p.code], m = minOf(r), st = status(m, p.role, ins.customer);
       return h("button", { class: `tire ${st}${p.code === nextCode ? " next" : ""}`, on: { click: () => go({ name: "tire", id: ins.id, code: p.code }) } }, p.code, h("small", {}, fmt32(m))); }));
     const L = ts.filter(p => p.side === "L").sort((a, b) => (a.inner ? 1 : 0) - (b.inner ? 1 : 0));
     const R = ts.filter(p => p.side === "R").sort((a, b) => (b.inner ? 1 : 0) - (a.inner ? 1 : 0));
@@ -221,10 +267,10 @@ function inspection() {
   if (next) view.append(h("button", { class: "primary", style: "margin:12px 0", on: { click: () => go({ name: "tire", id: ins.id, code: next.code }) } }, `Next: ${next.code} · ${describe(next)}`));
   else if (!ins.complete) view.append(h("button", { class: "green", style: "margin:12px 0", on: { click: () => finish(ins) } }, "Finish & send to spreadsheet"));
   const counts = { REPLACE: 0, WATCH: 0, OK: 0 };
-  ins.positions.forEach(p => { const s = status(minOf(ins.readings[p.code]), p.role); if (counts[s] != null) counts[s]++; });
+  ins.positions.forEach(p => { const s = status(minOf(ins.readings[p.code]), p.role, ins.customer); if (counts[s] != null) counts[s]++; });
   view.append(h("div", { style: "margin:8px 0" }, h("span", { class: "badge REPLACE pill" }, `${counts.REPLACE} replace`), h("span", { class: "badge WATCH pill" }, `${counts.WATCH} watch`), h("span", { class: "badge OK pill" }, `${counts.OK} ok`), h("span", { class: "muted" }, ins.sync ? ` · ${ins.sync}` : "")));
   const list = h("div", { class: "card list" });
-  ins.positions.forEach(p => { const r = ins.readings[p.code], m = minOf(r), st = status(m, p.role);
+  ins.positions.forEach(p => { const r = ins.readings[p.code], m = minOf(r), st = status(m, p.role, ins.customer);
     list.append(h("div", { class: "item", on: { click: () => go({ name: "tire", id: ins.id, code: p.code }) } },
       h("span", { class: `badge ${st}`, style: "width:14px;height:14px;padding:0;border-radius:50%" }), h("b", { style: "width:44px" }, p.code), h("span", { class: "muted", style: "flex:1" }, describe(p)),
       h("span", { class: "muted", style: "font-size:12px" }, grooves(r).map(fmt32).join(" · ")), h("b", {}, fmtDepth(m)))); });
@@ -240,12 +286,13 @@ function tire() {
   titleEl.textContent = p.code;
   const g = {}; const mk = k => g[k] = inp({ type: "number", inputmode: "decimal", step: "0.5", min: "0", max: "40", placeholder: "—" }, r[k]);
   const statusEl = h("span", { class: "badge none" }, "—"), minEl = h("b", {}, "—"), warn = h("div", { class: "muted", style: "color:var(--watch)", hidden: true });
-  const live = () => { const vals = ["inner", "centre", "outer"].map(k => g[k].value === "" ? null : Number(g[k].value)).filter(v => v != null); const m = vals.length ? Math.min(...vals) : null; const st = status(m, p.role); statusEl.className = `badge ${st}`; statusEl.textContent = st === "none" ? "—" : st; minEl.textContent = fmtDepth(m); const spread = vals.length ? Math.max(...vals) - Math.min(...vals) : 0; warn.hidden = spread < 3; warn.textContent = `Grooves differ by ${fmt32(spread)}. Check alignment and inflation.`; };
+  const live = () => { const vals = ["inner", "centre", "outer"].map(k => g[k].value === "" ? null : Number(g[k].value)).filter(v => v != null); const m = vals.length ? Math.min(...vals) : null; const st = status(m, p.role, ins.customer); statusEl.className = `badge ${st}`; statusEl.textContent = st === "none" ? "—" : st; minEl.textContent = fmtDepth(m); const spread = vals.length ? Math.max(...vals) - Math.min(...vals) : 0; warn.hidden = spread < 3; warn.textContent = `Grooves differ by ${fmt32(spread)}. Check alignment and inflation.`; };
   ["inner", "centre", "outer"].forEach(mk); Object.values(g).forEach(i => i.oninput = live);
+  const valve = h("select", {}, ...[["ok", "Cap present"], ["missing", "Missing cap"], ["replaced", "Cap replaced"], ["inaccessible", "Valve inaccessible"]].map(([v, l]) => h("option", { value: v }, l))); valve.value = r.valveCap || "ok";
   const extra = { pressure: inp({ type: "number", inputmode: "numeric", style: "font-size:16px;text-align:left" }, r.pressure), dot: inp({ autocapitalize: "characters" }, r.dot), brand: inp({}, r.brand), model: inp({}, r.model), size: inp({ placeholder: "11R22.5" }, r.size), notes: inp({}, r.notes) };
   const img = h("img", { class: "photo", hidden: !r.photo, src: r.photo || "" });
   const file = h("input", { type: "file", accept: "image/*", capture: "environment", hidden: true, on: { change: async e => { const f = e.target.files[0]; if (!f) return; r.photo = await shrink(f); img.src = r.photo; img.hidden = false; } } });
-  const save = () => { ["inner", "centre", "outer"].forEach(k => r[k] = g[k].value === "" ? null : Number(g[k].value)); r.pressure = extra.pressure.value ? Number(extra.pressure.value) : null; ["dot", "brand", "model", "size", "notes"].forEach(k => r[k] = extra[k].value.trim()); r.updated = Date.now(); saveAll(); };
+  const save = () => { ["inner", "centre", "outer"].forEach(k => r[k] = g[k].value === "" ? null : Number(g[k].value)); r.pressure = extra.pressure.value ? Number(extra.pressure.value) : null; ["dot", "brand", "model", "size", "notes"].forEach(k => r[k] = extra[k].value.trim()); r.valveCap = valve.value; r.updated = Date.now(); saveAll(); };
   view.append(
     h("div", { class: "card" }, h("div", { class: "row" }, h("div", {}, h("div", { style: "font-size:28px;font-weight:800" }, p.code), h("div", { class: "muted" }, describe(p))), h("div", { style: "flex:0;text-align:right" }, statusEl)),
       p.inner ? h("div", { class: "muted", style: "margin-top:8px" }, "Inner dual: read the gauge and type the value.") : null),
@@ -256,7 +303,7 @@ function tire() {
     h("div", { class: "card" }, h("h2", {}, "Photo for the record"),
       h("div", { class: "muted", style: "margin:-4px 0 8px" }, "Saves a picture with the inspection. It does not read tread depth."),
       img, h("button", { style: "width:100%;margin-top:8px", on: { click: () => file.click() } }, r.photo ? "Retake photo" : "📷 Take photo"), file),
-    h("div", { class: "card" }, h("h2", {}, "Tire details (optional)"), field("Pressure (psi)", extra.pressure), field("DOT code", extra.dot), field("Brand", extra.brand), field("Model", extra.model), field("Size", extra.size), field("Notes", extra.notes)),
+    h("div", { class: "card" }, h("h2", {}, "Tire details (optional)"), field("Pressure (psi)", extra.pressure), field("Valve cap", valve), field("DOT code", extra.dot), field("Brand", extra.brand), field("Model", extra.model), field("Size", extra.size), field("Notes", extra.notes)),
     h("button", { class: "primary", on: { click: () => { save(); const i = ins.positions.indexOf(p); const order = [...ins.positions.slice(i + 1), ...ins.positions.slice(0, i)]; const nxt = order.find(x => minOf(ins.readings[x.code]) == null); route = { name: "inspection", id: ins.id }; history.replaceState(route, ""); if (nxt) go({ name: "tire", id: ins.id, code: nxt.code }); else render(); } } }, "Save & next"),
     h("button", { style: "width:100%;margin-top:8px", on: { click: () => { save(); history.back(); } } }, "Save")
   );
@@ -290,7 +337,7 @@ function report() {
   titleEl.textContent = "Report";
   menuBtn.onclick = () => actionSheet([["Print / Save as PDF", () => window.print()], ["Share CSV", () => exportCSV(ins)]]);
   const counts = { REPLACE: [], WATCH: [], OK: [] };
-  ins.positions.forEach(p => { const st = status(minOf(ins.readings[p.code]), p.role); if (counts[st]) counts[st].push(p.code); });
+  ins.positions.forEach(p => { const st = status(minOf(ins.readings[p.code]), p.role, ins.customer); if (counts[st]) counts[st].push(p.code); });
   const rep = h("div", { class: "report" },
     h("div", { class: "rep-head" },
       h("div", {}, h("div", { class: "rep-brand" }, "Scotia Tire & Alignment"), h("div", { class: "rep-title" }, "Tire tread inspection")),
@@ -304,7 +351,7 @@ function report() {
     h("div", { class: "rep-hint noprint" }, "Swipe the table sideways for status and notes."),
     h("div", { class: "rep-tablewrap" }, h("table", { class: "rep-table" },
       h("thead", {}, h("tr", {}, ...["Position", "Inner", "Centre", "Outer", "Min", "PSI", "Status", "Notes"].map(t => h("th", {}, t)))),
-      h("tbody", {}, ...ins.positions.map(p => { const r = ins.readings[p.code] || {}, m = minOf(r), st = status(m, p.role);
+      h("tbody", {}, ...ins.positions.map(p => { const r = ins.readings[p.code] || {}, m = minOf(r), st = status(m, p.role, ins.customer);
         return h("tr", {}, h("td", {}, h("b", {}, p.code), h("div", { class: "muted", style: "font-size:11px" }, describe(p))), h("td", {}, fmt32(r.inner)), h("td", {}, fmt32(r.centre)), h("td", {}, fmt32(r.outer)),
           h("td", {}, h("b", {}, fmtDepth(m))), h("td", {}, r.pressure ?? "—"), h("td", {}, h("span", { class: `badge ${st}` }, st === "none" ? "—" : st)), h("td", { class: "muted" }, [r.notes, (r.brand || r.size) ? `${r.brand} ${r.size}`.trim() : "", (grooves(r).length > 1 && Math.max(...grooves(r)) - Math.min(...grooves(r)) >= 3) ? "uneven wear" : ""].filter(Boolean).join(" · "))); })))),
     ins.notes ? h("p", { class: "rep-notes" }, h("b", {}, "Notes: "), ins.notes) : null,
@@ -334,7 +381,7 @@ function unitHistory() {
   const wrap = h("div", { class: "card", style: "overflow-x:auto;padding:0" });
   const tbl = h("table", { class: "hist" });
   tbl.append(h("thead", {}, h("tr", {}, h("th", {}, "Pos"), ...list.map(i => h("th", {}, new Date(i.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }), h("div", { class: "muted", style: "font-weight:400" }, i.odometer != null ? `${Math.round(i.odometer / 1000)}k` : ""))), h("th", {}, "Wear /10k km"))));
-  tbl.append(h("tbody", {}, ...codes.map(c => h("tr", {}, h("td", {}, h("b", {}, c)), ...list.map(i => { const m = minOf(i.readings[c]); const st = status(m, roleOf(c)); return h("td", {}, h("span", { class: `badge ${st}` }, fmt32(m))); }),
+  tbl.append(h("tbody", {}, ...codes.map(c => h("tr", {}, h("td", {}, h("b", {}, c)), ...list.map(i => { const m = minOf(i.readings[c]); const st = status(m, roleOf(c), route.customer); return h("td", {}, h("span", { class: `badge ${st}` }, fmt32(m))); }),
     h("td", {}, rate(c) != null ? h("span", { class: "muted" }, `${rate(c).toFixed(1)}/32`) : h("span", { class: "muted" }, "—"))))));
   wrap.append(tbl); view.append(wrap);
   view.append(h("div", { class: "muted", style: "margin-top:8px" }, "Wear rate needs odometer readings on at least two inspections. Projected life = (current depth − minimum) ÷ rate."));
@@ -349,15 +396,81 @@ function exportAllCSV() {
   const a = h("a", { href: URL.createObjectURL(blob), download: name }); document.body.append(a); a.click(); a.remove();
 }
 
+// ---------- yard checks (fleet reports in the Bridgestone yard-check layout) ----------
+const surveyInspections = sv => state.inspections.filter(i => i.surveyId === sv.id);
+function yardchecks() {
+  titleEl.textContent = "Yard checks";
+  view.append(h("div", { class: "muted", style: "margin-bottom:10px" }, "A yard check is one report for every truck inspected in a yard visit: fleet summary, tread depth distribution, conditions, dual mismatches, fleet policy and a page per vehicle. Start one from the new-inspection screen."));
+  if (!state.surveys.length) { view.append(h("div", { class: "card muted" }, "No yard checks yet. When you start an inspection, choose “+ New yard check…”.")); return; }
+  const list = h("div", { class: "card list" });
+  state.surveys.slice().reverse().forEach(sv => {
+    const ins = surveyInspections(sv), tires = ins.reduce((n, i) => n + i.positions.length, 0);
+    list.append(h("div", { class: "item", on: { click: () => go({ name: "yardcheck", id: sv.id }) } },
+      h("div", { style: "flex:1" }, h("b", {}, sv.fleet), h("div", { class: "muted" }, `${sv.location || "—"} · ${(sv.dates || []).join(", ")} · #${sv.id}`)),
+      h("div", { style: "text-align:right" }, h("div", {}, `${ins.length} vehicles`), h("div", { class: "muted" }, `${tires} tires`))));
+  });
+  view.append(list);
+}
+function yardcheck() {
+  const sv = state.surveys.find(x => x.id === route.id); if (!sv) return go({ name: "yardchecks" }, false);
+  titleEl.textContent = `Yard check #${sv.id}`;
+  const ins = surveyInspections(sv);
+  menuBtn.onclick = () => actionSheet([
+    ["Print / Save as PDF", () => window.print()],
+    ["Fleet policy for " + sv.fleet, () => go({ name: "settings", policyFor: sv.fleet })],
+    ["Delete yard check (keeps inspections)", () => { if (confirm("Delete this yard check?")) { state.inspections.forEach(i => { if (i.surveyId === sv.id) i.surveyId = null; }); state.surveys = state.surveys.filter(x => x !== sv); saveAll(); go({ name: "yardchecks" }, false); } }, "danger"],
+  ]);
+  if (!ins.length) { view.append(h("div", { class: "card muted" }, "No inspections in this yard check yet.")); return; }
+  const doc = YardCheck.fromInspections(ins, Object.assign({}, sv, { generated: new Date().toISOString().slice(0, 10) }), policyFor(sv.fleet), { name: "Scotia Tire & Alignment" });
+  const wrap = h("div", { class: "yc-wrap" });
+  YardCheck.mount(doc, wrap);
+  const fit = () => { wrap.style.zoom = Math.min(1, (document.documentElement.clientWidth - 8) / 830); };
+  fit(); window.addEventListener("resize", fit, { once: true });
+  view.append(h("button", { class: "primary noprint", style: "margin-bottom:10px", on: { click: () => window.print() } }, "Print / Save as PDF"),
+    h("div", { class: "muted noprint", style: "margin-bottom:8px" }, `${ins.length} vehicles · ${doc.vehicles.reduce((n, v) => n + v.tires.length, 0)} tires · pull points from ${state.policies[sv.fleet] ? sv.fleet + "'s fleet policy" : "shop defaults (set a fleet policy in Settings)"}`),
+    wrap);
+}
+
+// ---------- fleet policy editor (used inside Settings) ----------
+function policyEditor(initialCustomer) {
+  const customers = [...new Set([...state.inspections.map(i => i.customer), ...state.surveys.map(s => s.fleet), ...Object.keys(state.policies)].filter(Boolean))].sort();
+  const sel = h("select", {}, h("option", { value: "" }, "Choose a customer…"), ...customers.map(c => h("option", { value: c }, c)));
+  const grid = h("div");
+  const roles = [["steer", "Steer"], ["drive", "Drive"], ["trailer", "Trailer (free rolling)"], ["tag", "Lift / tag"]];
+  let fields = null;
+  const draw = () => {
+    grid.innerHTML = ""; fields = null;
+    if (!sel.value) return;
+    const pol = policyFor(sel.value); fields = {};
+    grid.append(h("div", { class: "muted", style: "margin:8px 0 4px" }, "Pull point is the fleet's replace-at depth (32nds). Tires within 2/32 above it are flagged “near pull point”."));
+    grid.append(h("div", { class: "row", style: "font-size:12px;color:var(--muted)" }, h("span", { style: "flex:1.4" }, "Axle"), h("span", {}, "Pull"), h("span", {}, "Rec PSI"), h("span", {}, "Min PSI"), h("span", { style: "flex:0.8" }, "Retread")));
+    for (const [r, label] of roles) {
+      const f = { pull: inp({ type: "number", inputmode: "numeric", style: "font-size:16px;padding:8px" }, pol[r].pull), recPsi: inp({ type: "number", inputmode: "numeric", style: "font-size:16px;padding:8px" }, pol[r].recPsi ?? ""), minPsi: inp({ type: "number", inputmode: "numeric", style: "font-size:16px;padding:8px" }, pol[r].minPsi ?? ""), retreads: h("input", { type: "checkbox", style: "width:auto" }) };
+      f.retreads.checked = !!pol[r].retreads; fields[r] = f;
+      grid.append(h("div", { class: "row", style: "margin:6px 0" }, h("span", { style: "flex:1.4" }, label), f.pull, f.recPsi, f.minPsi, h("span", { style: "flex:0.8;text-align:center" }, f.retreads)));
+    }
+  };
+  sel.onchange = draw; if (initialCustomer) { sel.value = initialCustomer; } draw();
+  const save = () => {
+    if (!sel.value || !fields) return;
+    const out = {};
+    for (const [r] of roles) out[r] = { pull: Number(fields[r].pull.value) || 0, recPsi: fields[r].recPsi.value ? Number(fields[r].recPsi.value) : null, minPsi: fields[r].minPsi.value ? Number(fields[r].minPsi.value) : null, retreads: fields[r].retreads.checked };
+    state.policies[sel.value] = out; saveAll();
+  };
+  return { el: h("div", {}, sel, grid), save };
+}
+
 function settings() {
   titleEl.textContent = "Settings";
   const s = state.settings;
   const f = { technician: inp({}, s.technician), steer: inp({ type: "number", inputmode: "numeric", style: "font-size:16px" }, s.steer), other: inp({ type: "number", inputmode: "numeric", style: "font-size:16px" }, s.other), watch: inp({ type: "number", inputmode: "numeric", style: "font-size:16px" }, s.watch), clientId: inp({ autocapitalize: "off", placeholder: "1234-abc.apps.googleusercontent.com" }, s.clientId), spreadsheetId: inp({ autocapitalize: "off", placeholder: "from the sheet URL" }, s.spreadsheetId), sheetName: inp({}, s.sheetName) };
   const mm = h("input", { type: "checkbox", style: "width:auto" }); mm.checked = s.mm;
-  const save = () => { s.technician = f.technician.value.trim(); s.steer = Number(f.steer.value) || 4; s.other = Number(f.other.value) || 2; s.watch = Number(f.watch.value) || 0; s.mm = mm.checked; s.clientId = f.clientId.value.trim(); s.spreadsheetId = f.spreadsheetId.value.trim(); s.sheetName = f.sheetName.value.trim() || "Inspections"; gToken = null; saveAll(); };
+  const policy = policyEditor(route.policyFor);
+  const save = () => { s.technician = f.technician.value.trim(); s.steer = Number(f.steer.value) || 4; s.other = Number(f.other.value) || 2; s.watch = Number(f.watch.value) || 0; s.mm = mm.checked; s.clientId = f.clientId.value.trim(); s.spreadsheetId = f.spreadsheetId.value.trim(); s.sheetName = f.sheetName.value.trim() || "Inspections"; gToken = null; policy.save(); saveAll(); };
   view.append(
     h("div", { class: "card" }, h("h2", {}, "Technician"), f.technician),
     h("div", { class: "card" }, h("h2", {}, "Thresholds (32nds)"), field("Steer minimum", f.steer), field("Drive / trailer minimum", f.other), field("Watch band above minimum", f.watch), h("div", { class: "muted", style: "margin-top:8px" }, "Defaults 4/32 steer, 2/32 others (Canada NSC / US FMCSA)."), h("label", { class: "row", style: "margin-top:10px" }, mm, h("span", {}, "Show millimetres instead of 32nds"))),
+    h("div", { class: "card" }, h("h2", {}, "Fleet policy (per customer)"), policy.el, h("div", { class: "muted", style: "margin-top:8px" }, "Used by the yard check report and the OK / WATCH / REPLACE badges for that customer's trucks. Customers without a policy use the thresholds above.")),
     h("div", { class: "card" }, h("h2", {}, "Google Sheets (optional)"), field("Web OAuth client ID", f.clientId), field("Spreadsheet ID", f.spreadsheetId), field("Tab name", f.sheetName),
       h("div", { class: "muted", style: "margin-top:8px" }, `Google Cloud console → Credentials → OAuth client ID, type Web application, authorized JavaScript origin: ${location.origin}. Enable the Sheets API. Add technicians as test users.`),
       h("button", { style: "width:100%;margin-top:10px", on: { click: async () => { save(); try { await ensureToken(); toast("Google connected"); flushQueue(); } catch (e) { toast(e.message); } } } }, "Connect Google")),

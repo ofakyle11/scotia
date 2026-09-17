@@ -1,0 +1,6 @@
+{
+  "steer":   { "pull": 5, "recPsi": 100, "minPsi": 80, "retreads": false },
+  "drive":   { "pull": 5, "recPsi": 100, "minPsi": 80, "retreads": true },
+  "trailer": { "pull": 5, "recPsi": 100, "minPsi": 80, "retreads": true },
+  "tag":     { "pull": 5, "recPsi": 100, "minPsi": 80, "retreads": true }
+}
