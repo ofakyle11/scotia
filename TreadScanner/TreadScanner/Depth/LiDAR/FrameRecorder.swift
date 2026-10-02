@@ -82,7 +82,11 @@ final class FrameRecorder {
             "tiltDegrees": guidance?.tiltDegrees as Any,
             "motionMPerS": guidance?.motionMPerS as Any,
             "highConfidenceFraction": guidance?.highConfidenceFraction as Any,
-            "inGate": guidance?.isReady as Any
+            "inGate": guidance?.isReady as Any,
+            // Which motion source the gate was using. Close to a black tread face world tracking
+            // is expected to drop to limited(insufficientFeatures); the analysis needs to know
+            // how often the depth-only fallback was in charge.
+            "trackingState": String(describing: frame.camera.trackingState)
         ]
         let metaData = (try? JSONSerialization.data(withJSONObject: meta)) ?? Data()
 

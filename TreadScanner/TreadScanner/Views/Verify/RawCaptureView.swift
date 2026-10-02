@@ -43,7 +43,7 @@ struct RawCaptureView: View {
                         captures = FrameRecorder.listCaptures()
                     }
                 } header: { Text("Captures on this phone (\(captures.count))") } footer: {
-                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep from about 10 cm out to 30 cm at roughly \(Int(ScanSettings.captureSweepSpeedCmPerS)) cm per second while it records. Share to a computer and run: python3 tools/treadlab/treadlab.py pose <file>. Each file is roughly 15 MB.")
+                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep from about 10 cm out to 40 cm at roughly \(Int(ScanSettings.captureSweepSpeedCmPerS)) cm per second while it records. Share to a computer and run: python3 tools/treadlab/treadlab.py pose <file>. Each file is roughly 15 MB.")
                 }
             }
             .navigationTitle("Raw LiDAR capture")
@@ -87,6 +87,9 @@ struct RecordingScanView: View {
         }
         .onAppear { lidar.start(); restart() }
         .onDisappear { lidar.stop(); recorder.stop() }
+        .onReceive(lidar.$failure) { failure in
+            if let failure { error = failure }
+        }
         .onReceive(lidar.$latestPoints) { points in
             provider.ingest(points: points, guidance: lidar.guidance)
             #if canImport(ARKit)
