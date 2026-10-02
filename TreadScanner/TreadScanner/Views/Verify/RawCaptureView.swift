@@ -43,7 +43,7 @@ struct RawCaptureView: View {
                         captures = FrameRecorder.listCaptures()
                     }
                 } header: { Text("Captures on this phone (\(captures.count))") } footer: {
-                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep from about 10 cm out to 30 cm at roughly \(Int(ScanSettings.captureSweepSpeedCmPerS)) cm per second while it records. Each file is about 45 MB (256×192 depth + confidence per frame), too big for most email: on a Windows PC plug in and use the Apple Devices or iTunes File Sharing tab, or on the phone open Files › On My iPhone › Tread Scanner › Captures and share to a cloud drive. Then run: python3 tools/treadlab/treadlab.py pose <file>.")
+                    Text("Every frame is recorded, in range or not, so the analysis can work out which distance reads best. Sweep from about 10 cm out to 40 cm at roughly \(Int(ScanSettings.captureSweepSpeedCmPerS)) cm per second while it records. Each file is about 45 MB (256×192 depth + confidence per frame), too big for most email: on a Windows PC plug in and use the Apple Devices or iTunes File Sharing tab, or on the phone open Files › On My iPhone › Tread Scanner › Captures and share to a cloud drive. Then run: python3 tools/treadlab/treadlab.py pose <file>.")
                 }
             }
             .navigationTitle("Raw LiDAR capture")
@@ -87,6 +87,9 @@ struct RecordingScanView: View {
         }
         .onAppear { lidar.start(); restart() }
         .onDisappear { lidar.stop(); recorder.stop() }
+        .onReceive(lidar.$failure) { failure in
+            if let failure { error = failure }
+        }
         .onReceive(lidar.$latestPoints) { points in
             provider.ingest(points: points, guidance: lidar.guidance)
             #if canImport(ARKit)

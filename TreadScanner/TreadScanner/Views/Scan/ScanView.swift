@@ -34,7 +34,8 @@ struct ScanView: View {
                 error: error,
                 onAccept: accept,
                 onRetry: { provider.reset(); error = nil },
-                onCancel: { dismiss() }
+                onCancel: { dismiss() },
+                onOpenSettings: openSettings
             )
         }
         .onAppear {
@@ -45,9 +46,18 @@ struct ScanView: View {
             lidar.start()
         }
         .onDisappear { lidar.stop() }
+        .onReceive(lidar.$failure) { failure in
+            if let failure { error = failure }
+        }
         .onReceive(lidar.$latestPoints) { points in
             provider.ingest(points: points, guidance: lidar.guidance)
         }
+    }
+
+    /// Offered only when ARKit refused to start, which on a fresh sideload is camera permission.
+    private var openSettings: (() -> Void)? {
+        guard lidar.failure != nil else { return nil }
+        return { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }
     }
 
     private func accept() {

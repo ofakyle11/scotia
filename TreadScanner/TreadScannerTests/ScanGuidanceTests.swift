@@ -40,6 +40,22 @@ final class ScanGuidanceTests: XCTestCase {
         XCTAssertFalse(far.isReady)
     }
 
+    func testNoSurfaceFitWithLowQualityBlamesQualityNotAim() {
+        // The sensor sees a surface in range but returns too few trusted points for a plane fit
+        // (tilt unknown). Say why, instead of "Point at the tread" while it is pointed at it.
+        let working = (ScanSettings.closeRangeM + ScanSettings.maxDistanceM) / 2
+        let close = (ScanSettings.minDistanceM + ScanSettings.closeRangeM) / 2
+        XCTAssertEqual(guidance(distance: working, tilt: nil, quality: 0.0).hint, .lowConfidence)
+        XCTAssertEqual(guidance(distance: close, tilt: nil, quality: 0.0).hint, .lowConfidenceClose)
+        XCTAssertFalse(guidance(distance: working, tilt: nil, quality: 0.0).isReady)
+    }
+
+    func testNoSurfaceFitIsNeverReady() {
+        let g = guidance(distance: 0.25, tilt: nil, quality: 0.9)
+        XCTAssertEqual(g.hint, .searching)
+        XCTAssertFalse(g.isReady)
+    }
+
     func testCloseRangeSitsInsideTheGate() {
         XCTAssertGreaterThan(ScanSettings.closeRangeM, ScanSettings.minDistanceM)
         XCTAssertLessThan(ScanSettings.closeRangeM, ScanSettings.maxDistanceM)

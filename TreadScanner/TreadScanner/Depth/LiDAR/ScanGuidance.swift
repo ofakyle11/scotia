@@ -27,10 +27,10 @@ struct ScanGuidance: Equatable {
     }
 
     var hint: Hint {
-        guard let distanceM, let tiltDegrees else { return .searching }
+        guard let distanceM else { return .searching }
         if distanceM < ScanGuidance.minDistanceM { return .tooClose }
         if distanceM > ScanGuidance.maxDistanceM { return .tooFar }
-        if tiltDegrees > ScanGuidance.maxTiltDegrees { return .tilted }
+        if let tiltDegrees, tiltDegrees > ScanGuidance.maxTiltDegrees { return .tilted }
         if motionMPerS > ScanGuidance.maxMotionMPerS { return .moving }
         if highConfidenceFraction < ScanGuidance.minHighConfidenceFraction {
             // The sensor loses confidence before the distance gate closes: inside the gate but
@@ -38,6 +38,8 @@ struct ScanGuidance: Equatable {
             // telling the technician to clean the tire sends them the wrong way.
             return distanceM < ScanSettings.closeRangeM ? .lowConfidenceClose : .lowConfidence
         }
+        // In range with acceptable quality but no surface could be fitted: not ready, keep looking.
+        guard tiltDegrees != nil else { return .searching }
         return .ready
     }
 

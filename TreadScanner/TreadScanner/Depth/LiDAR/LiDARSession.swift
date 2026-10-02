@@ -13,16 +13,21 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
     @Published var guidance = ScanGuidance()
     @Published var latestPoints: [SIMD3<Double>] = []
     @Published var latestImage: CVPixelBuffer?
+    /// Set when ARKit stops the session with an error. On a fresh sideload that is the owner
+    /// tapping Don't Allow on the camera prompt, which otherwise leaves a black preview saying
+    /// "Point at the tread" with nothing to explain it.
+    @Published var failure: String?
 
-    /// Fraction of the depth map width/height used as the region of interest, centred.
-    nonisolated let roiFraction = 0.35
+    /// Fraction of the depth map width/height used as the region of interest, centred. Lives in
+    /// ScanSettings so the reticle in ScanOverlay is drawn from the same number.
+    nonisolated let roiFraction = ScanSettings.roiFraction
     /// Box-filter radius (pixels) applied to the depth map before unprojection. At 20 cm one
     /// depth pixel is about 1 mm and a groove 8-12 px wide, so 3x3 (radius 1) is the sweet spot:
     /// 5x5 blurs groove edges and reads shallow. Confirmed by tools/treadlab sweep on synthetic
     /// tires; re-check against real captures.
     nonisolated let smoothingRadius = 1
     /// ARKit calls the delegate on the main queue unless told otherwise. The per-frame extraction
-    /// (box filter + RANSAC over ~6k points, 60 times a second) belongs off the thread that draws
+    /// (box filter + RANSAC over ~6k points, 30 times a second) belongs off the thread that draws
     /// the camera preview and the guidance overlay, or both stutter.
     nonisolated private let frameQueue = DispatchQueue(label: "ca.scotiatire.treadscanner.lidar", qos: .userInteractive)
     private var lastCameraPosition: SIMD3<Float>?
@@ -36,6 +41,17 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
         // lower than raw sceneDepth for a still camera, which is exactly our scan pose.
         config.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? [.smoothedSceneDepth] : [.sceneDepth]
         config.environmentTexturing = .none
+        // ARKit's default video format runs at 60 fps with depth on every frame. Every second
+        // quoted in ScanSettings assumes `depthFrameRateHz`, and the scan gains nothing from the
+        // extra frames (smoothedSceneDepth is temporally filtered, so they are far from
+        // independent samples) while the phone runs twice as hot. Pin the 30 fps format at the
+        // default resolution so intrinsics and the photo stay as they are.
+        let defaultResolution = config.videoFormat.imageResolution
+        if let format = ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
+            $0.imageResolution == defaultResolution && $0.framesPerSecond == Int(ScanSettings.depthFrameRateHz)
+        }) {
+            config.videoFormat = format
+        }
         session.delegate = self
         session.delegateQueue = frameQueue
         session.run(config, options: [.resetTracking, .removeExistingAnchors])
@@ -43,6 +59,18 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
 
     func stop() {
         session.pause()
+    }
+
+    nonisolated func session(_ session: ARSession, didFailWithError error: Error) {
+        let message: String
+        if (error as? ARError)?.code == .cameraUnauthorized {
+            message = "Camera access is off for Tread Scanner. Allow it in Settings to scan."
+        } else {
+            message = "Camera stopped: \(error.localizedDescription)"
+        }
+        Task { @MainActor in
+            self.failure = message
+        }
     }
 
     nonisolated func session(_ session: ARSession, didUpdate frame: ARFrame) {
@@ -61,7 +89,6 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     private func apply(_ e: Extracted, frame: ARFrame) {
-        latestPoints = e.points
         latestImage = frame.capturedImage
 
         // Motion estimate from camera translation between frames. World tracking needs visual
@@ -89,6 +116,9 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
             motionMPerS: motion,
             highConfidenceFraction: e.highConfidenceFraction
         )
+        // @Published emits in willSet: ScanView's onReceive($latestPoints) reads `guidance`
+        // before the new points land, so guidance must already be this frame's.
+        latestPoints = e.points
     }
 
     /// Unproject the ROI of the depth map into camera-space points (metres).
@@ -129,10 +159,15 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
         var points: [SIMD3<Double>] = []
         points.reserveCapacity((rx1 - rx0) * (ry1 - ry0))
         var depths: [Double] = []
+        // Depth at any confidence, so the guidance can still say how far the surface is when the
+        // sensor returns no high-confidence points at all (wet or very dark rubber, too close).
+        var anyDepths: [Double] = []
         var total = 0, high = 0
         for y in ry0..<ry1 {
             for x in rx0..<rx1 {
                 total += 1
+                let raw = Double(dPtr[y * dStride + x])
+                if raw > 0.05, raw < 0.6 { anyDepths.append(raw) }
                 guard Int(cPtr[y * cStride + x]) == ARConfidenceLevel.high.rawValue else { continue }
                 high += 1
                 // Smooth: mean of high-confidence neighbours in a (2r+1)^2 box.
@@ -162,6 +197,12 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
         if !depths.isEmpty {
             depths.sort()
             medianDistance = depths[depths.count / 2]
+        } else if !anyDepths.isEmpty {
+            // Nothing the sensor trusts, but it does see a surface: report that distance so the
+            // hint becomes "quality" rather than "Point at the tread" while it is pointed at it.
+            // Never used for measurement: `ready` still needs a plane fit from high-confidence points.
+            anyDepths.sort()
+            medianDistance = anyDepths[anyDepths.count / 2]
         }
         if points.count >= 60, let plane = TreadDepthEstimator().fitPlane(points) {
             // Tilt = angle between surface normal and the camera's optical axis.
