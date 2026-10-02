@@ -39,13 +39,13 @@ PINNED_TOL_MM = 1e-3      # measure --json rounds depth_mm to 4 decimals
 #   python3 test_regression.py --print-golden
 # and paste, in the same commit as the estimator change that moved them.
 GOLDEN = {
-    (2, 0.5, True, 0.5, 15): (1.4598445836446936, 6),
-    (3, 1.0, True, 0.5, 22): (2.264495284281757, 6),
-    (4, 0.5, False, 0.5, 29): (3.0829372111158904, 6),
-    (4, 0.5, True, 0.5, 29): (3.113910657427406, 6),
-    (6, 0.3, True, 0.3, 43): (4.7609585942879455, 6),
-    (8, 0.5, True, 0.5, 57): (6.352489593701233, 6),
-    (12, 0.5, True, 0.5, 85): (9.512513078914482, 6),
+    (2, 0.5, True, 0.5, 15): (1.4807766473354462, 6),
+    (3, 1.0, True, 0.5, 22): (2.2045520147906554, 6),
+    (4, 0.5, False, 0.5, 29): (3.079736007578925, 6),
+    (4, 0.5, True, 0.5, 29): (3.1075775917585724, 6),
+    (6, 0.3, True, 0.3, 43): (4.757810176382884, 6),
+    (8, 0.5, True, 0.5, 57): (6.348903900136679, 6),
+    (12, 0.5, True, 0.5, 85): (9.511164481126746, 6),
 }
 
 
@@ -83,12 +83,20 @@ SWIFT_ESTIMATOR = REPO / "TreadScanner/TreadScanner/Depth/LiDAR/TreadDepthEstima
 SWIFT_SESSION = REPO / "TreadScanner/TreadScanner/Depth/LiDAR/LiDARSession.swift"
 
 
+SWIFT_SETTINGS = REPO / "TreadScanner/TreadScanner/Depth/ScanSettings.swift"
+
+
 def _swift_value(src, name):
     m = re.search(rf"\b(?:var|let)\s+{name}\s*(?::\s*[\w<>]+)?\s*=\s*([^\s/]+)", src)
     assert m, f"{name} not found in Swift source"
     v = m.group(1)
     if v.startswith("."):
         return v[1:]
+    # A value defined once in ScanSettings and referenced from here (roiFraction is shared with
+    # the on-screen reticle): follow the reference so the parity test reads the real number.
+    ref = re.fullmatch(r"ScanSettings\.(\w+)", v)
+    if ref:
+        return _swift_value(SWIFT_SETTINGS.read_text(), ref.group(1))
     return int(v, 0) if re.fullmatch(r"0x[0-9A-Fa-f]+|\d+", v) else float(v)
 
 

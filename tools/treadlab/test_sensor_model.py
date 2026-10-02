@@ -78,8 +78,6 @@ def test_smooth_densifier_under_reads_a_4_32_groove(tmp_path):
     assert sd < 1.5              # ...and would be shown green
 
 
-@pytest.mark.xfail(reason="needs the groove-floor separability guard in Estimator.frame, not in this estimator yet: "
-                          "it reads 2.7-4.5/32 for a 2/32 groove at 12-15 cm")
 @pytest.mark.parametrize("distance", [0.12, 0.13, 0.15])
 def test_close_range_2_32_is_refused_not_over_read(tmp_path, distance):
     """Inside the old 12 cm gate the ARKit noise (6.5 mm at 12 cm, Tondo et al. 2023) is above a
