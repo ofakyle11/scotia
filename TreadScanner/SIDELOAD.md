@@ -74,7 +74,7 @@ The switch only appears after the first app has been installed.
 1. Tap **+**, enter any unit number, pick **Tractor (3 axle)**, tap **Start**.
 2. On the LF tire, tap the **scope icon** beside the Centre groove.
 3. Allow camera access.
-4. Hold the phone 12 to 30 cm from the tread, flat to the tire. The frame turns
+4. Hold the phone 20 to 30 cm from the tread, flat to the tire. The frame turns
    green when distance, tilt and steadiness are all acceptable. Hold still.
 5. The ring fills in 2 to 3 seconds and shows a depth with a ± band.
 
@@ -97,7 +97,7 @@ the PC is on the same network, if you would rather not plug in weekly.
 The scanner has never been tested against a real tire. Everything measured so far
 was synthetic. Before it goes near a customer's invoice, use
 **menu → Record raw LiDAR capture**: type the dial-gauge reading, then record the
-groove while sweeping the phone slowly from about 10 cm out to 30 cm.
+groove while sweeping the phone slowly from about 10 cm out to 40 cm.
 
 Every frame is saved with the distance and angle it was taken at, whether or not
 the on-screen frame was green. That matters: the green limits are my estimates,
