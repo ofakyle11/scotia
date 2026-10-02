@@ -20,6 +20,10 @@ struct InspectionReviewView: View {
     @State private var showFinishConfirm = false
 
     private var thresholds: Thresholds { .current }
+    private var policy: FleetPolicy? { FleetPolicy.find(inspection.vehicle?.customer?.name, in: context) }
+    private func status(_ pos: TirePosition) -> TireStatus {
+        thresholds.status(depth32: inspection.reading(for: pos)?.depthMin32, role: pos.role, minimum: policy?.role(pos.role).pull)
+    }
     private var nextOpen: TirePosition? {
         inspection.positions.first { inspection.reading(for: $0)?.hasDepth != true }
     }
@@ -27,7 +31,7 @@ struct InspectionReviewView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                VehicleDiagramView(inspection: inspection, highlighted: nextOpen) { selected = $0 }
+                VehicleDiagramView(inspection: inspection, highlighted: nextOpen, policy: policy) { selected = $0 }
 
                 if let next = nextOpen {
                     Button { selected = next } label: {
@@ -49,7 +53,7 @@ struct InspectionReviewView: View {
                         let r = inspection.reading(for: pos)
                         Button { selected = pos } label: {
                             HStack {
-                                Circle().fill(VehicleDiagramView.color(for: thresholds.status(depth32: r?.depthMin32, role: pos.role))).frame(width: 12)
+                                Circle().fill(VehicleDiagramView.color(for: status(pos))).frame(width: 12)
                                 Text(pos.code).bold().frame(width: 44, alignment: .leading)
                                 Text(pos.displayName).foregroundStyle(.secondary).lineLimit(1)
                                 Spacer()
@@ -98,7 +102,7 @@ struct InspectionReviewView: View {
         .navigationDestination(item: $route) { route in
             switch route {
             case .report:
-                InspectionReportView(inspection: inspection)
+                InspectionReportView(inspection: inspection, policy: policy)
             case .history:
                 UnitHistoryView(unitNumber: inspection.vehicle?.unitNumber ?? "",
                                 vehicleID: inspection.vehicle?.id)
@@ -114,7 +118,7 @@ struct InspectionReviewView: View {
     }
 
     private var summary: some View {
-        let statuses = inspection.positions.map { thresholds.status(depth32: inspection.reading(for: $0)?.depthMin32, role: $0.role) }
+        let statuses = inspection.positions.map { status($0) }
         return HStack(spacing: 12) {
             pill("\(statuses.filter { $0 == .replace }.count) replace", .red)
             pill("\(statuses.filter { $0 == .watch }.count) watch", .orange)
@@ -144,7 +148,7 @@ struct InspectionReviewView: View {
     }
 
     private func export() {
-        shareURL = try? CSVExporter.write(inspection)
+        shareURL = try? CSVExporter.write(inspection, policy: policy)
     }
 }
 

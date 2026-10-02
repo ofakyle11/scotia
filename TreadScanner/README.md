@@ -139,7 +139,8 @@ the iOS Keychain.
 2. The app opens the first tire (LF). Tap the scope icon beside a groove,
    hold the phone 12-30 cm from the tread, flat to the tire. When the frame
    turns green, hold still. The ring fills in about 2-3 seconds. Accept.
-   The scan moves to the next groove automatically.
+   The scanner closes and the number lands in its row; tap the scope icon
+   on the next groove to scan it.
 3. Inner duals: read a gauge and type the number.
 4. Save & next walks you around the truck. The diagram colours each tire.
 5. When every position is filled, tap **Finish & send to spreadsheet**.

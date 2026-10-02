@@ -4,6 +4,8 @@ import SwiftUI
 struct VehicleDiagramView: View {
     let inspection: Inspection
     var highlighted: TirePosition?
+    /// Customer fleet policy; nil means shop thresholds. Passed in so the report's copy agrees.
+    var policy: FleetPolicy? = nil
     var onTap: (TirePosition) -> Void
 
     private var thresholds: Thresholds { .current }
@@ -40,7 +42,7 @@ struct VehicleDiagramView: View {
 
     private func tireView(_ tire: TirePosition) -> some View {
         let reading = inspection.reading(for: tire)
-        let status = thresholds.status(depth32: reading?.depthMin32, role: tire.role)
+        let status = thresholds.status(depth32: reading?.depthMin32, role: tire.role, minimum: policy?.role(tire.role).pull)
         return Button { onTap(tire) } label: {
             VStack(spacing: 2) {
                 Text(tire.code).font(.caption2.bold())
