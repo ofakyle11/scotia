@@ -50,6 +50,26 @@ final class SpreadsheetRowTests: XCTestCase {
         XCTAssertEqual(rf[SpreadsheetRow.header.firstIndex(of: "method")!], "")
     }
 
+    /// A customer with a fleet policy must get that policy's pull point in status and
+    /// pull_point_32nds, on every path that writes a row (share-sheet CSV included).
+    func testFleetPolicyPullPointDrivesStatusAndColumn() throws {
+        let (ctx, inspection) = try makeInspection()
+        let policy = FleetPolicy(customerName: "Acme Freight, Inc.", thresholds: Thresholds())
+        policy.steerPull32 = 7
+        ctx.insert(policy); try ctx.save()
+        func col(_ row: [String], _ name: String) -> String { row[SpreadsheetRow.header.firstIndex(of: name)!] }
+        let shop = SpreadsheetRow.rows(for: inspection, thresholds: Thresholds())[0]
+        XCTAssertEqual(col(shop, "status"), "WATCH")
+        XCTAssertEqual(col(shop, "pull_point_32nds"), "4")
+        let fleet = SpreadsheetRow.rows(for: inspection, thresholds: Thresholds(), policy: policy)[0]
+        XCTAssertEqual(col(fleet, "status"), "REPLACE")      // 5/32 steer, pull point 7
+        XCTAssertEqual(col(fleet, "pull_point_32nds"), "7")
+        let found = FleetPolicy.find("Acme Freight, Inc.", in: ctx)
+        XCTAssertNotNil(found)
+        let csv = CSVExporter.csv(for: inspection, policy: found)
+        XCTAssertTrue(csv.split(separator: "\r\n")[1].contains(",REPLACE,"), "share-sheet CSV must carry the fleet policy")
+    }
+
     func testCSVEscaping() throws {
         let (_, inspection) = try makeInspection()
         let csv = CSVExporter.csv(for: inspection)

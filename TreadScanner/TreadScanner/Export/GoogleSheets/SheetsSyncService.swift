@@ -37,7 +37,8 @@ final class SheetsSyncService: ObservableObject {
     // MARK: Enqueue
 
     func enqueue(_ inspection: Inspection, context: ModelContext) {
-        for row in SpreadsheetRow.rows(for: inspection) {
+        let policy = FleetPolicy.find(inspection.vehicle?.customer?.name, in: context)
+        for row in SpreadsheetRow.rows(for: inspection, policy: policy) {
             context.insert(SyncQueueItem(inspectionID: inspection.id, sheetName: AppConfig.inspectionsSheetName, cells: row))
         }
         inspection.syncState = .pending

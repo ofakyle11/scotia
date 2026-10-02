@@ -40,6 +40,15 @@ struct TireDetailView: View {
         _centre = State(initialValue: Self.text(existing.depthCentre32))
         _outer = State(initialValue: Self.text(existing.depthOuter32))
         _pressure = State(initialValue: existing.pressurePSI.map { String($0) } ?? "")
+        // A tire saved as a scan reopens with its grooves known to be scanned, so a rescan of one
+        // groove keeps the method honest without demanding all three again.
+        if existing.method == .scan {
+            var scanned: [Groove: String] = [:]
+            for (g, v) in [(Groove.inner, existing.depthInner32), (.centre, existing.depthCentre32), (.outer, existing.depthOuter32)] where v != nil {
+                scanned[g] = Self.text(v)
+            }
+            _scannedText = State(initialValue: scanned)
+        }
     }
 
     private var thresholds: Thresholds { .current }
@@ -75,7 +84,8 @@ struct TireDetailView: View {
                     }
                 }
                 Picker("Method", selection: Binding(get: { reading.method }, set: { reading.method = $0 })) {
-                    ForEach(ReadingMethod.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                    // "Scan" is set only by the scanner (apply); a typed number may be gauge or manual.
+                    ForEach(ReadingMethod.allCases.filter { $0 != .scan || reading.method == .scan }, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 if let uneven = unevenWear, uneven >= 3 {
@@ -137,18 +147,18 @@ struct TireDetailView: View {
             ScanView(title: "\(position.code) · \(scanTarget.label) groove") { result, image in
                 apply(result, to: scanTarget)
                 if let image { reading.photoFilename = PhotoStore.save(image, inspectionID: inspection.id, positionCode: position.code) }
-                // Move to the next groove automatically.
-                if let next = Groove.allCases.first(where: { value(for: $0).isEmpty }) {
-                    scanTarget = next
-                } else {
-                    showScan = false
-                }
+                // Close the scanner so the number is seen landing in its row and the next groove is
+                // aimed at deliberately. Auto-advancing kept the session live with the gate already
+                // green, so the next slot filled with the groove still under the lens in under a second
+                // and the only cue was the small title at the top.
+                showScan = false
             }
         }
     }
 
     private var statusPill: some View {
-        let status = thresholds.status(depth32: currentMin, role: position.role)
+        let policy = FleetPolicy.find(inspection.vehicle?.customer?.name, in: context)
+        let status = thresholds.status(depth32: currentMin, role: position.role, minimum: policy?.role(position.role).pull)
         return Text(status == .unknown ? "—" : status.rawValue)
             .font(.caption.bold())
             .padding(.horizontal, 10).padding(.vertical, 6)
@@ -174,7 +184,11 @@ struct TireDetailView: View {
                 Button {
                     scanTarget = groove
                     showScan = true
-                } label: { Image(systemName: "dot.scope").font(.title3) }
+                } label: {
+                    Image(systemName: "dot.scope").font(.title3)
+                        .frame(minWidth: 44, minHeight: 44)   // glove-sized target (HIG minimum)
+                        .contentShape(Rectangle())
+                }
                 .buttonStyle(.borderless)
             }
         }
@@ -195,13 +209,19 @@ struct TireDetailView: View {
     private func apply(_ result: DepthResult, to groove: Groove) {
         let text = String(format: "%.1f", Units.roundedHalf32(result.depth32))
         scannedText[groove] = text
-        reading.method = .scan
-        reading.scanConfidence32 = max(reading.scanConfidence32 ?? 0, Units.roundedHalf32(result.uncertainty32))
         switch groove {
         case .inner: inner = text
         case .centre: centre = text
         case .outer: outer = text
         }
+        // The tire is a "scan" only when every groove that holds a value came from the scanner.
+        // One scanned groove beside two typed ones used to export as method=scan with a ± band
+        // that belonged to a groove which may not even be the minimum.
+        let allScanned = Groove.allCases.allSatisfy { value(for: $0).isEmpty || scannedText[$0] == value(for: $0) }
+        reading.method = allScanned ? .scan : .manual
+        // The ± band is rounded UP and never below a half 32nd; rounding to nearest printed
+        // "± 0.0" for any band under 0.25/32.
+        reading.scanConfidence32 = allScanned ? max(reading.scanConfidence32 ?? 0, Units.ceilHalf32(result.uncertainty32)) : nil
     }
 
     private func save() {

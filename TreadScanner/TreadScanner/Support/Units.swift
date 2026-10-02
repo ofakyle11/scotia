@@ -9,6 +9,10 @@ enum Units {
     /// Round to the nearest half 32nd, which is what a dial gauge realistically resolves.
     static func roundedHalf32(_ v: Double) -> Double { (v * 2).rounded() / 2 }
 
+    /// Round an uncertainty UP to the next half 32nd and never below a half. A ± band that
+    /// rounds to "± 0.0" claims a perfection no sensor has.
+    static func ceilHalf32(_ v: Double) -> Double { max(0.5, (v * 2).rounded(.up) / 2) }
+
     static func format32(_ v: Double?) -> String {
         guard let v else { return "—" }
         let r = roundedHalf32(v)

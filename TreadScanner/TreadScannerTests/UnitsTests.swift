@@ -25,6 +25,15 @@ final class UnitsTests: XCTestCase {
         XCTAssertEqual(Units.formatMM(3.175), "3.2 mm")
     }
 
+    func testUncertaintyNeverRoundsToZero() {
+        // What TireDetailView.apply did before: a ±0.24/32 band stored and exported as 0.0.
+        XCTAssertEqual(Units.roundedHalf32(0.24), 0)
+        XCTAssertEqual(Units.ceilHalf32(0.24), 0.5)
+        XCTAssertEqual(Units.ceilHalf32(0.51), 1.0)
+        XCTAssertEqual(Units.ceilHalf32(1.5), 1.5)
+        XCTAssertEqual(Units.ceilHalf32(0), 0.5)
+    }
+
     func testThresholdStatus() {
         let t = Thresholds(steerMinimum32: 4, otherMinimum32: 2, watchBand32: 2)
         XCTAssertEqual(t.status(depth32: 4, role: .steer), .replace)

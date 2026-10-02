@@ -4,6 +4,9 @@ import UIKit
 /// Printable customer-facing report for one inspection. Mirrors the web app's report page.
 struct InspectionReportView: View {
     let inspection: Inspection
+    /// Customer fleet policy; nil means shop thresholds. Passed in because ImageRenderer
+    /// (the PDF path) does not carry the SwiftData environment.
+    var policy: FleetPolicy? = nil
 
     @State private var shareURL: URL?
     @State private var exportFailed = false
@@ -11,7 +14,7 @@ struct InspectionReportView: View {
     var body: some View {
         // The report is laid out at a fixed page width, so allow panning on narrow phones.
         ScrollView([.vertical, .horizontal]) {
-            ReportBody(inspection: inspection)
+            ReportBody(inspection: inspection, policy: policy)
                 .padding()
         }
         .navigationTitle("Report")
@@ -28,7 +31,7 @@ struct InspectionReportView: View {
     }
 
     @MainActor private func exportPDF() {
-        if let url = ReportPDF.write(ReportBody(inspection: inspection), for: inspection) {
+        if let url = ReportPDF.write(ReportBody(inspection: inspection, policy: policy), for: inspection) {
             shareURL = url
         } else {
             exportFailed = true
@@ -41,6 +44,7 @@ struct InspectionReportView: View {
 /// The report itself, laid out at a fixed width so it renders the same on screen and in the PDF.
 struct ReportBody: View {
     let inspection: Inspection
+    var policy: FleetPolicy? = nil
     var width: CGFloat = ReportPDF.contentWidth
 
     private var thresholds: Thresholds { .current }
@@ -48,7 +52,8 @@ struct ReportBody: View {
     private var positions: [TirePosition] { inspection.positions }
 
     private func status(_ position: TirePosition) -> TireStatus {
-        thresholds.status(depth32: inspection.reading(for: position)?.depthMin32, role: position.role)
+        thresholds.status(depth32: inspection.reading(for: position)?.depthMin32, role: position.role,
+                          minimum: policy?.role(position.role).pull)
     }
 
     private func codes(_ status: TireStatus) -> [String] {
@@ -63,7 +68,7 @@ struct ReportBody: View {
         VStack(alignment: .leading, spacing: 18) {
             header
             summary
-            VehicleDiagramView(inspection: inspection, highlighted: nil) { _ in }
+            VehicleDiagramView(inspection: inspection, highlighted: nil, policy: policy) { _ in }
             table
             if !inspection.notes.isEmpty {
                 Text("Notes: ").bold() + Text(inspection.notes)
@@ -168,7 +173,7 @@ struct ReportBody: View {
             Text(Units.format32(r?.depthInner32)).frame(width: 52, alignment: .trailing)
             Text(Units.format32(r?.depthCentre32)).frame(width: 52, alignment: .trailing)
             Text(Units.format32(r?.depthOuter32)).frame(width: 52, alignment: .trailing)
-            Text(Units.formatDepth(r?.depthMin32)).bold().frame(width: 58, alignment: .trailing)
+            Text(Units.format32(r?.depthMin32)).bold().frame(width: 58, alignment: .trailing)
             Text(r?.pressurePSI.map { String($0) } ?? "—").frame(width: 34, alignment: .trailing)
             Text(st == .unknown ? "—" : st.rawValue)
                 .font(.system(size: 10, weight: .bold))
@@ -210,7 +215,7 @@ struct ReportBody: View {
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            Text("\(pos.code) · \(Units.formatDepth(reading?.depthMin32))")
+            Text("\(pos.code) · \(Units.format32(reading?.depthMin32))")
                 .font(.caption2).foregroundStyle(.secondary)
         }
         .frame(width: itemWidth, alignment: .leading)
@@ -218,7 +223,13 @@ struct ReportBody: View {
 
     private var footnote: String {
         let t = thresholds
-        return "Minimums: \(t.steerMinimum32)/32 steer, \(t.otherMinimum32)/32 drive & trailer (Canada NSC / US FMCSA). "
+        let minimums: String
+        if let p = policy {
+            minimums = "Pull points (\(p.customerName) fleet policy): \(p.steerPull32)/32 steer, \(p.drivePull32)/32 drive, \(p.trailerPull32)/32 trailer. "
+        } else {
+            minimums = "Minimums: \(t.steerMinimum32)/32 steer, \(t.otherMinimum32)/32 drive & trailer (Canada NSC / US FMCSA). "
+        }
+        return minimums
             + "WATCH = within \(t.watchBand32)/32 of the minimum. "
             + "Depths in 32nds of an inch, lowest of three grooves."
     }
