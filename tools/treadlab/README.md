@@ -12,7 +12,21 @@ python3 treadlab.py info    *.treadcap          # what is in each file
 python3 treadlab.py measure capture.treadcap    # depth estimate for one capture
 python3 treadlab.py report  *.treadcap --csv results.csv   # scan vs gauge across many
 python3 treadlab.py sweep   *.treadcap          # try model/ROI/smoothing combos, best first
+python3 treadlab.py pose    capture.treadcap    # which holding distance agreed with the gauge: PASS / FAIL
 ```
+
+`pose` ends with a verdict in plain words. A 2 cm distance band is only named if it has at
+least 5 usable frames (one lucky frame is not evidence); PASS lists every band within ±1/32 of
+the gauge and the ScanSettings range to copy; FAIL names the closest band and says not to
+trust scans yet; NOT ENOUGH DATA means no band had 5 readable frames. `--json` carries the
+same `verdict`, `closest` and `summary`.
+
+`measure`, `report` and `sweep` use only the frames that passed the phone's pose gate, i.e.
+what a scan would have averaged; a raw capture is a 10-30 cm sweep and records every frame.
+`--all-frames` uses the whole recording. `info` prints how long the phone really recorded,
+the distance range swept, how many depth maps were actually new (ARKit can hand out the same
+LiDAR map on several consecutive frames) and whether neighbouring pixels carry independent
+noise (`per-pixel`) or look interpolated from a sparse dot grid (`interpolated`).
 
 Every command takes `--json`, which prints the same numbers as a single JSON
 document on stdout (warnings stay on stderr) so results can be piped into other
@@ -36,6 +50,17 @@ It ranks by RMSE against the gauge, but only among combinations that measured
 at least 90% as many captures as the best combination did, so a setting that
 measures 2 of 10 tires very precisely cannot outrank one that measures all 10.
 Low-coverage combinations are still listed, marked `[low coverage]`, last.
+
+`make_synthetic.py` draws every depth pixel as an independent measurement, which
+the phone is not: it has 576 emitter spots (about 9 mm apart at 20 cm, wider
+than a groove at 30 cm), interpolated to 256x192 by Apple's RGB-guided network,
+refreshed at 15 Hz and smoothed over time. `make_synthetic_sensor.py` models
+that (sources in its docstring) and `test_sensor_model.py` runs the estimator
+on it: `python3 -m pytest tools/treadlab/test_sensor_model.py -q -s` prints
+what the maths reads at 15-30 cm under an edge-aware and a depth-only
+upsampler. The two disagree by ~1.5/32 on a two-quarter (3.16 mm) step, which
+is what a coin-board scan decides (two rows of quarters 12 mm apart, see
+`test_coin_board_two_quarters_edge_vs_smooth`).
 
 No phone yet? `python3 make_synthetic.py test.treadcap --depth32 5 --noise 0.5`
 writes a synthetic curved-tire capture so the pipeline can be exercised

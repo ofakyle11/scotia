@@ -29,7 +29,7 @@ final class FrameRecorder {
         FileManager.default.createFile(atPath: url.path, contents: nil)
         let h = try FileHandle(forWritingTo: url)
         let header: [String: Any] = [
-            "version": 1, "label": label, "gauge32": gauge32 as Any,
+            "version": 1, "label": label, "gauge32": FrameRecorder.jsonValue(gauge32),
             // UIDevice.current.model is just "iPhone" on every handset, which cannot tell a
             // 15 Pro Max from a 16 Pro Max. The hardware identifier can, and different
             // sensor generations may well read differently.
@@ -78,13 +78,19 @@ final class FrameRecorder {
             // Pose at capture time. Recorded for every frame, in range or not, so the
             // analysis can work out which distances and angles actually read well
             // instead of assuming the on-screen limits were right.
-            "distanceM": guidance?.distanceM as Any,
-            "tiltDegrees": guidance?.tiltDegrees as Any,
-            "motionMPerS": guidance?.motionMPerS as Any,
-            "highConfidenceFraction": guidance?.highConfidenceFraction as Any,
-            "inGate": guidance?.isReady as Any
+            // Explicit NSNull for a missing value: a nil Optional boxed in Any relies on bridging
+            // to become JSON null, and a serialization failure here must not write a frame the
+            // reader cannot parse (an empty metadata record makes the whole file unreadable).
+            "distanceM": FrameRecorder.jsonValue(guidance?.distanceM),
+            "tiltDegrees": FrameRecorder.jsonValue(guidance?.tiltDegrees),
+            "motionMPerS": FrameRecorder.jsonValue(guidance?.motionMPerS),
+            "highConfidenceFraction": FrameRecorder.jsonValue(guidance?.highConfidenceFraction),
+            "inGate": FrameRecorder.jsonValue(guidance?.isReady)
         ]
-        let metaData = (try? JSONSerialization.data(withJSONObject: meta)) ?? Data()
+        guard JSONSerialization.isValidJSONObject(meta),
+              let metaData = try? JSONSerialization.data(withJSONObject: meta) else {
+            return true   // skip this frame, keep recording; never write a record treadlab cannot read
+        }
 
         // Small JPEG of the RGB frame for context (not used for measurement).
         var jpeg = Data()
@@ -113,6 +119,13 @@ final class FrameRecorder {
     }
 
     private static func le32(_ v: UInt32) -> Data { withUnsafeBytes(of: v.littleEndian) { Data($0) } }
+
+    /// nil -> JSON null; a non-finite Double would make JSONSerialization throw, so it is null too.
+    static func jsonValue<T>(_ v: T?) -> Any {
+        guard let v else { return NSNull() }
+        if let d = v as? Double, !d.isFinite { return NSNull() }
+        return v
+    }
 
     /// Hardware identifier such as "iPhone17,2". Simulators report their host's value
     /// through the SIMULATOR_MODEL_IDENTIFIER environment variable.
