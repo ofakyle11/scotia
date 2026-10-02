@@ -120,15 +120,35 @@ def extract_points(fr, roi=0.35, smooth=1):
     return np.stack([px, py, -zz], 1), high[y0:y1, x0:x1].mean()
 
 # ---------------- estimator (mirrors TreadDepthEstimator.swift) ----------------
+class SplitMix64:
+    """Same generator as SplitMix64 in TreadDepthEstimator.swift, so RANSAC draws the same three
+    points per iteration here as on the phone. Checked against Vigna's splitmix64.c reference
+    vector in the tests."""
+    MASK = (1 << 64) - 1
+
+    def __init__(self, seed):
+        self.state = seed & self.MASK
+
+    def next(self):
+        self.state = (self.state + 0x9E3779B97F4A7C15) & self.MASK
+        z = self.state
+        z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & self.MASK
+        z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & self.MASK
+        return z ^ (z >> 31)
+
+
 class Estimator:
-    def __init__(self, model="quadratic", groove_threshold=1.0, max_depth=30.0, iters=120, inlier=0.6, min_surface=60, min_groove=12, seed=0x5EED):
+    def __init__(self, model="quadratic", groove_threshold=1.0, max_depth=30.0, iters=120, inlier=0.6, min_surface=60, min_groove=12, seed=0x5EED, separation_sigmas=1.5):
         self.model, self.thr0, self.max_depth, self.iters, self.inlier = model, groove_threshold, max_depth, iters, inlier
         self.min_surface, self.min_groove, self.seed = min_surface, min_groove, seed
+        self.separation_sigmas = separation_sigmas    # floor must clear the threshold by this many sigma
 
     def fit_plane(self, P):
-        rng = np.random.default_rng(self.seed); best, best_in = None, 0; inl = self.inlier / 1000
+        rng = SplitMix64(self.seed); best, best_in = None, 0; inl = self.inlier / 1000
+        n_pts = len(P)
         for _ in range(self.iters):
-            a, b, c = P[rng.integers(len(P), size=3)]
+            # Swift: points[Int(rng.next() % UInt64(points.count))], three draws in a, b, c order.
+            a = P[rng.next() % n_pts]; b = P[rng.next() % n_pts]; c = P[rng.next() % n_pts]
             n = np.cross(b - a, c - a); L = np.linalg.norm(n)
             if L < 1e-12: continue
             u = n / L
@@ -150,7 +170,8 @@ class Estimator:
         pl = self.fit_plane(P)
         if pl is None: return None
         u, d = pl
-        dist = -(P @ u + d) * 1000
+        plane_dist = -(P @ u + d) * 1000
+        dist = plane_dist
         if self.model == "quadratic":
             idx = (dist >= -2 * self.inlier) & (dist <= self.inlier)   # surface only, not groove walls
             if idx.sum() >= 30:
@@ -165,7 +186,12 @@ class Estimator:
                 if c is not None and np.all(np.isfinite(c)):
                     r = P - org; x = (r @ uu) * 1000; y = (r @ vv) * 1000
                     dist = dist + (c[0]*x*x + c[1]*y*y + c[2]*x*y + c[3]*x + c[4]*y + c[5])
-        above = -dist[(dist < 0) & (dist > -3 * self.inlier)]     # points above the plane: never groove
+                    # The asymmetric band biases the constant term toward the camera; re-centre on
+                    # the symmetric RANSAC inlier set (median is unbiased for symmetric noise).
+                    sym = np.abs(plane_dist) <= self.inlier
+                    if sym.sum() >= 30: dist = dist - np.median(dist[sym])
+        # Points above the plane: never groove. Not capped at 3*inlier (that saturated sigma ~1.2 mm).
+        above = -dist[(dist < 0) & (dist > -self.max_depth)]
         if len(above) < self.min_surface // 2: return None
         sigma = 1.4826 * np.median(above); thr = max(self.thr0, 3 * sigma)
         is_surface = np.abs(dist) <= self.inlier
@@ -181,13 +207,17 @@ class Estimator:
             if hi - lo > be - bs: bs, be = lo, hi
         floor = cand[bs:be]
         if len(floor) < self.min_groove: return None
-        return {"depth_mm": float(floor.mean()), "groove_pts": int(len(floor)), "surface_pts": surface, "sigma_mm": float(sigma)}
+        depth = float(floor.mean())
+        # A floor hugging the threshold is the surface noise tail (bald tire) or a truncated
+        # shallow groove; both read deep. Refuse rather than report.
+        if depth - thr < self.separation_sigmas * sigma: return None
+        return {"depth_mm": depth, "groove_pts": int(len(floor)), "surface_pts": surface, "sigma_mm": float(sigma)}
 
     def combine(self, frames):
         if not frames: return None
         d = np.sort([f["depth_mm"] for f in frames]); t = len(d) // 10 if len(d) >= 10 else 0
-        d = d[t:len(d) - t]
-        return {"depth_mm": float(d.mean()), "sd_mm": float(d.std(ddof=1)) if len(d) > 1 else 1.5, "frames": len(frames)}
+        # Trimmed mean for the location; SD of ALL frames (trimming shrinks it to ~0.7x).
+        return {"depth_mm": float(d[t:len(d) - t].mean()), "sd_mm": float(d.std(ddof=1)) if len(d) > 1 else 1.5, "frames": len(frames)}
 
 MM = 25.4 / 32
 def measure(path, model="quadratic", roi=0.35, smooth=1, inlier=0.6, **kw):
@@ -312,10 +342,14 @@ COVERAGE_FLOOR = 0.9
 
 def sweep(a, quiet=True):
     results = []
+    thr = Estimator().thr0            # default groove threshold, mm
     for model in ("plane", "quadratic"):
         for roi in (0.25, 0.35, 0.45):
             for smooth in (0, 1, 2):
                 for inlier in (0.5, 0.6, 0.8, 1.2):
+                    # A band at or above the threshold straddles groove wall and floor in the mode
+                    # window (4/32 reads 3.5/32), so it must not be allowed to win on RMSE.
+                    if inlier >= thr: continue
                     r = cmd_report(a, model, roi, smooth, inlier, quiet=True)
                     if r: results.append({"model": model, "roi": roi, "smooth": smooth, "inlier_mm": inlier, **r})
     if not results:

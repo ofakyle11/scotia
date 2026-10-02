@@ -111,6 +111,84 @@ final class TreadDepthEstimatorTests: XCTestCase {
         XCTAssertNil(TreadDepthEstimator().combine([]))
     }
 
+    /// A bald surface must never produce a groove. Before the separation gate, the upper tail of
+    /// the surface noise formed a "floor" at ~3 sigma and read 1.9/32 (0.5 mm noise) to 5/32
+    /// (2 mm noise), with a frame-to-frame SD of 0.1/32, i.e. confidently.
+    func testBaldSurfaceAtRealisticNoiseReturnsNil() {
+        let est = TreadDepthEstimator()
+        for noise in [0.5, 0.7, 1.0, 1.5, 2.0] {
+            for seed in 0..<6 {
+                XCTAssertNil(est.estimateFrame(points: synthetic(depthMM: 0, noiseMM: noise, seed: UInt64(300 + seed))),
+                             "bald surface at \(noise) mm noise, seed \(seed) produced a groove")
+            }
+        }
+    }
+
+    /// A 2/32 groove under 0.7 mm per-point noise cannot be separated from the surface noise.
+    /// The estimator must say so (nil), not report the truncated tail (which read +1.1 mm deep).
+    func testShallowGrooveInHighNoiseRefusesRatherThanReadsDeep() {
+        let est = TreadDepthEstimator()
+        for seed in 0..<8 {
+            let f = est.estimateFrame(points: synthetic(depthMM: 1.5875, noiseMM: 0.7, seed: UInt64(400 + seed)))
+            if let f { XCTAssertEqual(f.depthMM, 1.5875, accuracy: 0.4, "seed \(seed): a reading must be honest or absent") }
+        }
+    }
+
+    /// The asymmetric quadratic band must not shift the surface: an 8/32 groove at 1 mm noise
+    /// read +0.23 mm deep (0.3/32) before re-centring, with a frame SD of 0.25 mm.
+    func testQuadraticModelHasNoOffsetBiasAtHighNoise() {
+        let est = TreadDepthEstimator()
+        var errs: [Double] = []
+        for seed in 0..<12 {
+            if let f = est.estimateFrame(points: synthetic(depthMM: 6.35, noiseMM: 1.0, seed: UInt64(500 + seed))) {
+                errs.append(f.depthMM - 6.35)
+            }
+        }
+        XCTAssertGreaterThanOrEqual(errs.count, 8)
+        XCTAssertEqual(errs.reduce(0, +) / Double(errs.count), 0, accuracy: 0.1)
+    }
+
+    /// The +/- band is the spread of all frames, not of the trimmed subset.
+    func testUncertaintyIsNotShrunkByTrimming() {
+        let frames = (0..<45).map { TreadDepthEstimator.FrameEstimate(depthMM: Double($0), groovePointCount: 50, surfacePointCount: 500) }
+        let r = TreadDepthEstimator().combine(frames)!
+        // SD of 0...44 is sqrt(45*46/12) = 13.13; the trimmed 4...40 subset would give 10.82.
+        XCTAssertEqual(r.uncertaintyMM, (45.0 * 46.0 / 12.0).squareRoot(), accuracy: 0.01)
+        XCTAssertEqual(r.depthMM, 22, accuracy: 1e-9)
+    }
+
+    /// Calibration at the steer pull point (4/32 = 3.175 mm): whenever the scanner reports a
+    /// number from a full scan, the truth must lie inside 2x its band (or 0.2 mm, whichever is
+    /// larger). Before the fixes, 1 mm noise gave +0.27 mm error with a 0.12 mm band.
+    func testReportedBandCoversTheErrorAtThePullPoint() {
+        let est = TreadDepthEstimator()
+        for noise in [0.3, 0.5, 0.7, 1.0] {
+            var frames: [TreadDepthEstimator.FrameEstimate] = []
+            for seed in 0..<20 {
+                if let f = est.estimateFrame(points: synthetic(depthMM: 3.175, noiseMM: noise, seed: UInt64(600 + seed))) { frames.append(f) }
+            }
+            guard frames.count >= 10, let r = est.combine(frames) else { continue }
+            XCTAssertLessThanOrEqual(abs(r.depthMM - 3.175), max(2 * r.uncertaintyMM, 0.2),
+                                     "noise \(noise): error \(r.depthMM - 3.175) outside band \(r.uncertaintyMM)")
+        }
+    }
+
+    /// Trailer pull point: a 2/32 groove must read true, not the 1.3-1.6/32 that a floor window
+    /// clipped by the 1.0 mm threshold once gave. A -0.6/32 bias there flips WATCH to REPLACE.
+    func testShallowGroovesAtLowNoiseReadTrue() {
+        let est = TreadDepthEstimator()
+        let quarter32 = 0.25 * 25.4 / 32
+        for depth in [2.0 * 25.4 / 32, 2.5 * 25.4 / 32] {
+            var frames: [TreadDepthEstimator.FrameEstimate] = []
+            for seed in 0..<12 {
+                if let f = est.estimateFrame(points: synthetic(depthMM: depth, noiseMM: 0.3, seed: UInt64(700 + seed))) { frames.append(f) }
+            }
+            XCTAssertGreaterThanOrEqual(frames.count, 8, "depth \(depth) mm: most frames should produce an estimate")
+            guard let r = est.combine(frames) else { continue }
+            XCTAssertEqual(r.depthMM, depth, accuracy: quarter32, "depth \(depth) mm read \(r.depthMM) mm")
+        }
+    }
+
     func testConfidenceFlag() {
         let good = DepthResult(depthMM: 4, uncertaintyMM: 0.5, frameCount: 40, pointCount: 400, method: .scan)
         let bad = DepthResult(depthMM: 4, uncertaintyMM: 2.0, frameCount: 40, pointCount: 400, method: .scan)
