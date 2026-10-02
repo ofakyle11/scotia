@@ -574,3 +574,243 @@ def test_sweep_skips_inlier_bands_at_or_above_the_groove_threshold(monkeypatch, 
     assert combos
     assert all(c["inlier_mm"] < Estimator().thr0 for c in combos)
     assert combos[0]["rmse"] == pytest.approx(0.30)
+
+
+# ---------------------------------------------------------------- map diagnostics (info)
+
+def _write_frames(path, depths, header=None):
+    """Raw .treadcap writer for custom depth maps (same layout as make_synthetic)."""
+    hdr = json.dumps(header or {"version": 1, "label": "diag", "gauge32": 4}).encode()
+    out = bytearray(b"TREADCAP") + struct.pack("<I", len(hdr)) + hdr
+    for i, d in enumerate(depths):
+        h, w = d.shape
+        meta = json.dumps({"index": i, "timestamp": i / 30, "width": w, "height": h,
+                           "imageWidth": make_synthetic.IMAGE_W, "imageHeight": make_synthetic.IMAGE_H,
+                           "intrinsics": make_synthetic.INTRINSICS}).encode()
+        conf = np.where(np.isfinite(d), 2, 0).astype(np.uint8)
+        out += struct.pack("<I", len(meta)) + meta + d.astype("<f4").tobytes() + conf.tobytes() + struct.pack("<I", 0)
+    path.write_bytes(bytes(out))
+
+
+def _sparse_interpolated_frames(n=4, dots=24, dot_noise=0.5, seed=3):
+    """A tread at 20 cm sampled by a dots x dots grid and bilinearly densified to 256x192:
+    the shape a map built from ~576 LiDAR dots would have without RGB guidance."""
+    rng = np.random.default_rng(seed)
+    h, w = make_synthetic.H, make_synthetic.W
+    out = []
+    for _ in range(n):
+        zd = 0.20 + rng.normal(0, dot_noise / 1000, (dots, dots))
+        ys, xs = np.mgrid[0:h, 0:w]
+        fy, fx = ys / h * (dots - 1), xs / w * (dots - 1)
+        y0, x0 = np.floor(fy).astype(int), np.floor(fx).astype(int)
+        y1, x1 = np.minimum(y0 + 1, dots - 1), np.minimum(x0 + 1, dots - 1)
+        wy, wx = fy - y0, fx - x0
+        z = (zd[y0, x0] * (1 - wy) * (1 - wx) + zd[y0, x1] * (1 - wy) * wx
+             + zd[y1, x0] * wy * (1 - wx) + zd[y1, x1] * wy * wx)
+        out.append(z)
+    return out
+
+
+def test_info_diagnostics_call_independent_pixel_noise_per_pixel(caps):
+    _, frames = read_treadcap(caps[4])
+    d = treadlab.depth_diagnostics(frames)
+    assert d["sampling"] == "per-pixel", d
+    assert d["sampling_ratio"] > 0.8
+    assert d["float16_quantised"] is False
+    assert d["nan_fraction"] == 0
+
+
+def test_info_diagnostics_detect_interpolation_from_a_sparse_dot_grid(tmp_path):
+    p = tmp_path / "sparse.treadcap"
+    _write_frames(p, _sparse_interpolated_frames())
+    _, frames = read_treadcap(p)
+    d = treadlab.depth_diagnostics(frames)
+    assert d["sampling"] == "interpolated", d
+    assert d["sampling_ratio"] < 0.35
+
+
+def test_info_diagnostics_detect_float16_quantisation_and_nan_holes(tmp_path):
+    rng = np.random.default_rng(5)
+    frames = []
+    for _ in range(3):
+        z = 0.27 + rng.normal(0, 0.5 / 1000, (make_synthetic.H, make_synthetic.W))
+        z = z.astype(np.float16).astype(np.float32)          # what a 'hdep' stream would carry
+        z[::7, ::5] = np.nan                                  # unfiltered AVDepthData holes
+        frames.append(z)
+    p = tmp_path / "f16.treadcap"
+    _write_frames(p, frames, {"version": 1, "label": "f16", "source": "avfoundation"})
+    _, fr = read_treadcap(p)
+    d = treadlab.depth_diagnostics(fr)
+    assert d["float16_quantised"] is True
+    assert d["depth_step_mm"] == pytest.approx(0.2441, abs=0.01)   # ULP of Float16 in 25-50 cm
+    assert d["nan_fraction"] > 0.02
+    r = cli("info", "--json", str(p))
+    doc = json.loads(r.stdout)
+    assert doc["captures"][0]["source"] == "avfoundation"
+    assert doc["captures"][0]["diagnostics"]["float16_quantised"] is True
+
+
+def test_info_json_still_has_the_original_keys_and_adds_diagnostics(caps):
+    r = cli("info", "--json", str(caps[2]))
+    doc = json.loads(r.stdout)
+    c = doc["captures"][0]
+    for k in ("file", "label", "gauge32", "frames", "width", "height", "smoothed", "device"):
+        assert k in c
+    assert c["source"] == "arkit"
+    assert c["diagnostics"]["sampling"] == "per-pixel"
+
+
+def test_info_counts_distinct_depth_frames(tmp_path):
+    """Noise-free synthetic frames are byte-identical (the 15 Hz-behind-60 Hz case); noisy ones are not."""
+    dup = tmp_path / "dup.treadcap"
+    make_synthetic.write_capture(dup, depth32=4, noise=0.0, frames=8, curved=False)
+    fresh = tmp_path / "fresh.treadcap"
+    make_synthetic.write_capture(fresh, depth32=4, noise=0.3, frames=8, curved=False)
+    _, fr = read_treadcap(dup)
+    assert treadlab.distinct_depth_frames(fr) == (1, None)
+    _, fr = read_treadcap(fresh)
+    distinct, hz = treadlab.distinct_depth_frames(fr)
+    assert distinct == 8 and hz == pytest.approx(8 / (7 / 30), rel=0.05)
+    r = cli("info", "--json", str(dup), str(fresh))
+    caps = {c["file"]: c for c in json.loads(r.stdout)["captures"]}
+    assert caps[str(dup)]["distinct_depth_frames"] == 1
+    assert caps[str(fresh)]["distinct_depth_frames"] == 8
+
+
+
+# ---------------------------------------------------------------- field protocol (FIELD-TEST.md)
+
+def test_wildcard_is_expanded_when_the_shell_did_not(tmp_path, caps):
+    """Windows shells hand `*.treadcap` to Python unexpanded. The CLI must expand it itself,
+    otherwise the field protocol's one command reports "No captures" with exit 0."""
+    for d, p in caps.items():
+        (tmp_path / p.name).write_bytes(p.read_bytes())
+    r = cli("report", str(tmp_path / "*.treadcap"))
+    assert r.returncode == 0, r.stderr
+    assert "No captures" not in r.stdout
+    assert f"n={len(caps)}" in r.stdout
+    assert "skipped: 0" in r.stdout
+
+
+def test_wildcard_with_no_match_still_names_the_pattern(tmp_path):
+    r = cli("report", str(tmp_path / "*.treadcap"))
+    assert "*.treadcap" in r.stderr
+    assert "No captures" in r.stdout
+
+
+def test_expand_files_leaves_plain_paths_alone():
+    assert treadlab.expand_files(["a.treadcap", "b.treadcap"]) == ["a.treadcap", "b.treadcap"]
+
+# ---------------------------------------------------------------- pose gate
+
+def test_measure_uses_only_in_gate_frames_unless_all_frames(tmp_path):
+    """A raw capture is a 10-32 cm sweep; the phone only averages frames that passed the gate."""
+    p = tmp_path / "sweep.treadcap"
+    make_synthetic.write_capture(p, depth32=4, noise=0.5, frames=30, sweep_distance=True)
+    _, frames = read_treadcap(p)
+    in_gate = sum(1 for f in frames if treadlab.in_gate(f))
+    assert 0 < in_gate < 30
+    gated = json.loads(cli("measure", "--json", str(p)).stdout)["results"][0]
+    every = json.loads(cli("measure", "--json", "--all-frames", str(p)).stdout)["results"][0]
+    assert gated["frames_usable"] == in_gate and every["frames_usable"] == 30
+    assert json.loads(cli("report", "--json", str(p)).stdout)["rows"][0]["frames"] == in_gate
+    assert json.loads(cli("report", "--json", "--all-frames", str(p)).stdout)["rows"][0]["frames"] == 30
+
+
+# ---------------------------------------------------------------- Swift writer compatibility
+
+def test_reader_accepts_null_fields_the_swift_writer_emits(tmp_path):
+    """FrameRecorder.swift writes `gauge32`, `distanceM`, `tiltDegrees` and friends as JSON null when
+    the value is nil (an Optional boxed in Any bridges to NSNull), e.g. for every frame before the ROI
+    has depth points. The reader and every command must treat null as absent, not crash."""
+    data = bytearray(make_synthetic.build_capture(depth32=6, frames=3))
+    hlen = struct.unpack_from("<I", data, 8)[0]
+    header = json.loads(data[12:12 + hlen]); header["gauge32"] = None; header["created"] = "2026-10-02T12:00:00Z"
+    hdr = json.dumps(header).encode()
+    out = bytearray(b"TREADCAP") + struct.pack("<I", len(hdr)) + hdr
+    off = 12 + hlen
+    first = True
+    while off < len(data):
+        mlen = struct.unpack_from("<I", data, off)[0]
+        meta = json.loads(data[off + 4:off + 4 + mlen])
+        if first:
+            for k in ("distanceM", "tiltDegrees", "motionMPerS", "highConfidenceFraction", "inGate"):
+                meta[k] = None
+            first = False
+        meta["imageWidth"] = float(meta["imageWidth"])            # CGFloat lands as a double
+        m = json.dumps(meta).encode()
+        body = meta["width"] * meta["height"] * 5
+        jlen = struct.unpack_from("<I", data, off + 4 + mlen + body)[0]
+        out += struct.pack("<I", len(m)) + m + data[off + 4 + mlen:off + 4 + mlen + body + 4 + jlen]
+        off += 4 + mlen + body + 4 + jlen
+    p = tmp_path / "swiftnull.treadcap"
+    p.write_bytes(bytes(out))
+    header, frames = read_treadcap(p)
+    assert header["gauge32"] is None and len(frames) == 3
+    _, res, _ = measure(p)
+    assert res is not None
+    for cmd in ("info", "measure", "report", "pose"):
+        r = cli(cmd, str(p))
+        assert "Traceback" not in r.stderr, (cmd, r.stderr)
+    assert json.loads(cli("pose", "--json", str(p)).stdout)["captures"][0]["verdict"] == "no-gauge"
+
+
+def test_info_reports_measured_seconds_and_fps(tmp_path):
+    """The on-screen capture length assumes 30 fps; ARKit delivers depth on every frame (60 Hz).
+    `info` must report what the file actually holds so the protocol can check the sweep covered
+    the whole distance range."""
+    p = tmp_path / "sweep.treadcap"
+    make_synthetic.write_capture(p, depth32=4, noise=0.5, frames=31, curved=True, sweep_distance=True)
+    r = cli("info", "--json", str(p))
+    assert r.returncode == 0, r.stderr
+    cap = json.loads(r.stdout)["captures"][0]
+    assert cap["frames"] == 31
+    assert cap["seconds"] == pytest.approx(1.0, abs=0.01)      # synthetic timestamps are i/30
+    assert cap["fps"] == pytest.approx(30.0, abs=0.1)
+    assert cap["distance_cm"][0] == pytest.approx(10.0, abs=0.1)
+    assert cap["distance_cm"][1] == pytest.approx(32.0, abs=0.1)
+    text = cli("info", str(p)).stdout
+    assert "1.0 s @ 30.0 fps" in text and "distance 10.0-32.0 cm" in text
+
+
+# ---------------------------------------------------------------- pose verdict
+
+def _band(dist, usable, err, sd=0.1, frames=None):
+    return {"distance_cm": dist, "frames": frames or usable, "usable": usable, "in_gate": usable,
+            "depth_32": 5 + err, "sd_32": sd, "error_32": err, "mean_tilt_deg": 2.0, "mean_conf": 0.9}
+
+
+def test_pose_verdict_ignores_one_frame_flukes():
+    rows = [_band("12-14", 1, 0.0), _band("18-20", 12, 0.4), _band("28-30", 2, -0.1)]
+    v = treadlab.pose_verdict(rows, 5)
+    assert v["verdict"] == "pass" and v["closest"]["distance_cm"] == "18-20"
+    assert v["text"][0].startswith("PASS")
+
+
+def test_pose_verdict_fails_when_nothing_is_within_tolerance():
+    rows = [_band("16-18", 10, 1.6), _band("18-20", 10, -2.2)]
+    v = treadlab.pose_verdict(rows, 5)
+    assert v["verdict"] == "fail" and v["closest"]["distance_cm"] == "16-18"
+    assert v["text"][0].startswith("FAIL")
+
+
+def test_pose_verdict_insufficient_and_no_gauge():
+    rows = [_band("16-18", 2, 0.0, frames=20)]
+    v = treadlab.pose_verdict(rows, 5)
+    assert v["verdict"] == "insufficient" and v["closest"] is None
+    assert "NOT ENOUGH DATA" in v["text"][0] and "could not see" in v["text"][1]
+    # readable frames spread too thin is the sweep's fault, not the sensor's; say so
+    v = treadlab.pose_verdict([_band(f"{c}-{c+2}", 3, 0.0) for c in range(10, 30, 2)], 5)
+    assert v["verdict"] == "insufficient" and "too fast" in v["text"][1]
+    assert treadlab.pose_verdict(rows, None)["verdict"] == "no-gauge"
+
+
+def test_cli_pose_prints_a_verdict_and_json_carries_it(tmp_path):
+    p = tmp_path / "sweep.treadcap"
+    make_synthetic.write_capture(p, depth32=5, noise=0.5, frames=150, sweep_distance=True)   # the app's capture length
+    r = cli("pose", str(p))
+    assert r.returncode == 0 and "PASS:" in r.stdout and "Traceback" not in r.stderr
+    doc = json.loads(cli("pose", "--json", str(p)).stdout)
+    c = doc["captures"][0]
+    assert c["verdict"] == "pass" and c["closest"]["usable"] >= treadlab.POSE_MIN_FRAMES
+    assert c["summary"][0].startswith("PASS")
