@@ -40,6 +40,10 @@ struct TreadDepthEstimator {
     var ransacInlierMM: Double = 0.6
     var minSurfacePoints: Int = 60
     var minGroovePoints: Int = 12
+    /// The groove-floor cluster must sit this many surface-noise sigmas above the groove
+    /// threshold. The noise tail of a bald surface hugs the threshold; a real floor clears it.
+    /// Below this the frame is refused rather than reported from the tail (which reads deep).
+    var separationSigmas: Double = 1.5
     var seed: UInt64 = 0x5EED
 
     // MARK: Per frame
@@ -50,17 +54,30 @@ struct TreadDepthEstimator {
         // Depth below the tread surface in mm. The normal points toward the camera, so points
         // farther away (groove floors) have a negative signed distance; flip the sign so that
         // positive = deeper into the tire.
-        var dist = points.map { -plane.signedDistance($0) * 1000.0 }
+        let planeDist = points.map { -plane.signedDistance($0) * 1000.0 }
+        var dist = planeDist
 
         if surfaceModel == .quadratic, let quad = fitQuadratic(points: points, plane: plane, residuals: dist) {
             // Re-measure every point against the curved surface instead of the plane.
             dist = zip(points, dist).map { p, d in d + quad.height(at: p) }
+            // The asymmetric fit band (2x above, 1x below) pulls the quadratic's constant term
+            // toward the camera by ~0.1 mm at 0.5 mm noise and ~0.23 mm at 1 mm noise, which
+            // every groove then reads as extra depth. Re-centre on the symmetric RANSAC inlier
+            // set: its median is unbiased for symmetric noise and unaffected by groove walls.
+            var sym: [Double] = []
+            for i in 0..<points.count where abs(planeDist[i]) <= ransacInlierMM { sym.append(dist[i]) }
+            if sym.count >= 30 {
+                let offset = median(sym.sorted())
+                dist = dist.map { $0 - offset }
+            }
         }
 
         // Surface noise from the points ABOVE the plane (negative depth). Those can never be
         // groove, so the estimate is not polluted by shallow grooves the way a two-sided band is.
         // Robust MAD estimate; the groove threshold then adapts to the device's noise.
-        let above = dist.filter { $0 < 0 && $0 > -3 * ransacInlierMM }.map { -$0 }.sorted()
+        // Not capped at a few x inlier: a cap of 1.8 mm made the estimate saturate near 1.2 mm
+        // however noisy the frame, and the threshold then sat inside the noise tail.
+        let above = dist.filter { $0 < 0 && $0 > -maxTreadDepthMM }.map { -$0 }.sorted()
         guard above.count >= minSurfacePoints / 2 else { return nil }
         let sigma = 1.4826 * median(above)
         let threshold = max(grooveThresholdMM, 3 * sigma)
@@ -87,6 +104,10 @@ struct TreadDepthEstimator {
         let floor = candidates[bestStart..<bestEnd]
         guard floor.count >= minGroovePoints else { return nil }
         let depth = floor.reduce(0, +) / Double(floor.count)
+        // Refuse a "floor" that is just the upper tail of the surface noise: on a bald tire at
+        // 1 mm noise the tail alone produced a confident 3.5/32 reading. A floor that is not
+        // clearly separated from the threshold is also truncated by it and reads deep.
+        guard depth - threshold >= separationSigmas * sigma else { return nil }
         return FrameEstimate(depthMM: depth, groovePointCount: floor.count, surfacePointCount: surface)
     }
 
@@ -100,11 +121,14 @@ struct TreadDepthEstimator {
         let trim = sorted.count >= 10 ? sorted.count / 10 : 0
         let trimmed = Array(sorted[trim..<(sorted.count - trim)])
         let mean = trimmed.reduce(0, +) / Double(trimmed.count)
-        let variance = trimmed.count > 1
-            ? trimmed.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(trimmed.count - 1)
+        // The +/- band is the spread of ALL frames. Trimming before the SD shrinks it to about
+        // 0.7x (central 80% of a normal sample), which overstates confidence.
+        let fullMean = sorted.reduce(0, +) / Double(sorted.count)
+        let variance = sorted.count > 1
+            ? sorted.reduce(0) { $0 + ($1 - fullMean) * ($1 - fullMean) } / Double(sorted.count - 1)
             : 0
         // Single-frame fallback still reports some uncertainty so the UI does not overclaim.
-        let sd = trimmed.count > 1 ? variance.squareRoot() : 1.5
+        let sd = sorted.count > 1 ? variance.squareRoot() : 1.5
         return DepthResult(
             depthMM: mean,
             uncertaintyMM: sd,

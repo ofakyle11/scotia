@@ -124,6 +124,57 @@ def test_accuracy_flat_tire_within_half_32nd(tmp_path, depth32):
     assert abs(err) < TOL_32
 
 
+SHALLOW_TOL_32 = 0.25   # at the 2/32 pull point a -0.6/32 bias flips WATCH to REPLACE on every trailer tire
+
+
+@pytest.mark.parametrize("curved", [True, False])
+@pytest.mark.parametrize("depth32", [2, 2.5])
+def test_shallow_groove_at_low_noise_reads_true(tmp_path, depth32, curved):
+    """The groove-floor window must not be clipped by the 1.0 mm threshold: before the estimator
+    fixes 2/32 read 1.3-1.6/32 with a 0.02/32 band. Pinned to a quarter of a 32nd at 0.3 mm noise."""
+    p = tmp_path / f"shallow_{depth32}_{curved}.treadcap"
+    make_synthetic.write_capture(p, depth32=depth32, noise=0.3, frames=8, curved=curved)
+    _, res, per = measure(p)
+    assert res is not None, f"{depth32}/32 produced no result"
+    err = res["depth_mm"] / MM - depth32
+    print(f"\n  {depth32}/32 {'curved' if curved else 'flat'}: error {err:+.3f}/32 ({sum(1 for x in per if x)}/{len(per)} frames)")
+    assert abs(err) < SHALLOW_TOL_32, f"{depth32}/32: error {err:+.3f}/32"
+
+
+def write_step_capture(path, step32, noise, frames=8, recess_frac=0.35, roi=0.35, seed=1):
+    """'Plate on quarters' bench rig: a flat plate covers the left (1 - recess_frac) of the ROI and
+    sits step32/32 closer to the camera than the flat base, so the base is the only 'groove'."""
+    w, h = make_synthetic.W, make_synthetic.H
+    fx = make_synthetic.INTRINSICS[0] * w / make_synthetic.IMAGE_W
+    z0 = 0.20
+    rng = np.random.default_rng(seed)
+    hdr = json.dumps({"version": 1, "label": "step", "gauge32": step32, "device": "synthetic"}).encode()
+    out = bytearray(b"TREADCAP") + struct.pack("<I", len(hdr)) + hdr
+    ys, xs = np.mgrid[0:h, 0:w]
+    X = (xs - w / 2) / fx * z0
+    xcut = (w * (0.5 - roi / 2) + (1 - recess_frac) * roi * w - w / 2) / fx * z0
+    for i in range(frames):
+        z = np.where(X < xcut, z0 - step32 * MM / 1000, z0) + rng.normal(0, noise / 1000, X.shape)
+        meta = json.dumps({"index": i, "timestamp": i / 60, "width": w, "height": h,
+                           "imageWidth": make_synthetic.IMAGE_W, "imageHeight": make_synthetic.IMAGE_H,
+                           "intrinsics": make_synthetic.INTRINSICS, "smoothed": True}).encode()
+        out += struct.pack("<I", len(meta)) + meta + z.astype("<f4").tobytes() + np.full((h, w), 2, np.uint8).tobytes() + struct.pack("<I", 0)
+    path.write_bytes(bytes(out))
+
+
+@pytest.mark.parametrize("step32", [2, 2.5, 3])
+def test_shallow_step_is_honest_or_absent(tmp_path, step32):
+    """Bench step at the pull point. A single edge is a worse case than a tread: a plane tilted
+    ~1 degree through both levels out-votes the plate in RANSAC at 2/32 and the quadratic then
+    smears across the step, so the estimator may refuse the frame. It must never report the
+    smear (1.33/32 for a 2/32 step before the separation gate)."""
+    p = tmp_path / f"step_{step32}.treadcap"
+    write_step_capture(p, step32, noise=0.3)
+    _, res, _ = measure(p)
+    if res is not None:
+        assert abs(res["depth_mm"] / MM - step32) < SHALLOW_TOL_32
+
+
 def test_curvature_quadratic_beats_plane_on_a_curved_tire(tmp_path):
     """The whole reason for the quadratic model: a 0.5 m radius sags ~1 mm across the patch.
 
@@ -157,7 +208,46 @@ def test_repeatability_is_deterministic(caps):
     assert a["depth_mm"] == b["depth_mm"]
 
 
+def test_ransac_rng_matches_the_phone_splitmix64():
+    """RANSAC must draw the same three points per iteration here as TreadDepthEstimator.swift does,
+    or a parameter tuned by `sweep` can lose on the phone. Vigna's splitmix64.c reference output for
+    seed 1234567; a 'tidy-up' of either generator fails this."""
+    rng = treadlab.SplitMix64(1234567)
+    assert [rng.next() for _ in range(5)] == [6457827717110365317, 3203168211198807973,
+                                              9817491932198370423, 4593380528125082431,
+                                              16408922859458223821]
+    assert all(0 <= treadlab.SplitMix64(s).next() < 2**64 for s in (0, 0x5EED, 2**64 - 1))
+
+
 # ---------------------------------------------------------------- degenerate inputs
+
+@pytest.mark.parametrize("noise", [1.0, 1.5, 2.0, 3.0])
+def test_bald_tire_at_realistic_noise_returns_none(tmp_path, noise):
+    """The surface noise tail must never be reported as a groove floor. Before the separation
+    gate a bald curved tire read +1.4/32 at 1 mm pixel noise and +3.7/32 at 3 mm, with a 0.1/32 SD."""
+    p = tmp_path / f"bald{noise}.treadcap"
+    make_synthetic.write_capture(p, depth32=0, noise=noise, frames=8, curved=True, grooves=False)
+    _, res, per = measure(p)
+    assert res is None, f"bald tire at {noise} mm noise read {res['depth_mm'] / MM:+.2f}/32"
+    assert all(x is None for x in per)
+
+
+@pytest.mark.parametrize("noise", [1.5, 2.0, 3.0])
+def test_shallow_groove_in_high_noise_is_honest_or_absent(tmp_path, noise):
+    """2/32 under heavy noise: either within tolerance or no reading. Never the truncated tail."""
+    p = tmp_path / f"shallow{noise}.treadcap"
+    make_synthetic.write_capture(p, depth32=2, noise=noise, frames=8, curved=True)
+    _, res, _ = measure(p)
+    if res is not None:
+        assert abs(res["depth_mm"] / MM - 2) < TOL_32
+
+
+def test_uncertainty_is_spread_of_all_frames():
+    frames = [{"depth_mm": float(i)} for i in range(45)]
+    r = Estimator().combine(frames)
+    assert r["sd_mm"] == pytest.approx(np.std(np.arange(45.0), ddof=1))   # not the trimmed 10.82
+    assert r["depth_mm"] == pytest.approx(22.0)
+
 
 def test_flat_surface_with_no_grooves_returns_none(tmp_path):
     p = tmp_path / "nogroove.treadcap"
@@ -466,3 +556,21 @@ def test_near_full_coverage_still_competes_on_rmse(monkeypatch, tmp_path):
     monkeypatch.setattr(treadlab, "cmd_report", fake_report)
     combos = treadlab.sweep(Args(files))
     assert combos[0]["n"] == 9 and combos[0]["eligible"]
+
+
+def test_sweep_skips_inlier_bands_at_or_above_the_groove_threshold(monkeypatch, tmp_path):
+    """inlier=1.2 against the 1.0 mm threshold under-reads 4/32 by 0.5/32 (the mode window straddles
+    wall and floor); it must not be offered as a winner however good its RMSE looks."""
+    files = [tmp_path / f"t{i}.treadcap" for i in range(4)]
+    for f in files:
+        f.touch()
+
+    def fake_report(a, model=None, roi=None, smooth=None, inlier=None, quiet=True):
+        rmse = 0.01 if inlier >= 1.0 else 0.30
+        return {"rmse": rmse, "bias": 0.0, "within": 100.0, "dis": 0, "n": 4, "skipped": 0}
+
+    monkeypatch.setattr(treadlab, "cmd_report", fake_report)
+    combos = treadlab.sweep(Args(files))
+    assert combos
+    assert all(c["inlier_mm"] < Estimator().thr0 for c in combos)
+    assert combos[0]["rmse"] == pytest.approx(0.30)
