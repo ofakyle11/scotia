@@ -22,6 +22,7 @@ struct ScanGuidance: Equatable {
         case tilted = "Hold the phone flat to the tire"
         case moving = "Hold still"
         case lowConfidence = "Clean, dry tread reads best"
+        case lowConfidenceClose = "Move back a little"
         case ready = "Hold…"
     }
 
@@ -31,7 +32,12 @@ struct ScanGuidance: Equatable {
         if distanceM > ScanGuidance.maxDistanceM { return .tooFar }
         if tiltDegrees > ScanGuidance.maxTiltDegrees { return .tilted }
         if motionMPerS > ScanGuidance.maxMotionMPerS { return .moving }
-        if highConfidenceFraction < ScanGuidance.minHighConfidenceFraction { return .lowConfidence }
+        if highConfidenceFraction < ScanGuidance.minHighConfidenceFraction {
+            // The sensor loses confidence before the distance gate closes: inside the gate but
+            // under `closeRangeM`, poor quality is far more likely to be range than dirt, and
+            // telling the technician to clean the tire sends them the wrong way.
+            return distanceM < ScanSettings.closeRangeM ? .lowConfidenceClose : .lowConfidence
+        }
         return .ready
     }
 

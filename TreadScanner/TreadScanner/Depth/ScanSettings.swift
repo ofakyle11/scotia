@@ -34,6 +34,11 @@ enum ScanSettings {
     static let minDistanceM = 0.12
     static let maxDistanceM = 0.30
 
+    /// Inside the gate but closer than this, low depth confidence is read as "too close" rather
+    /// than "dirty tread". iPhone LiDAR is generally reported to thin out under about 20 cm; the
+    /// `pose` analysis of real captures will say where this phone actually stops reading.
+    static let closeRangeM = 0.20
+
     /// Phone tilt relative to the tread surface, degrees.
     static let maxTiltDegrees = 10.0
 

@@ -5,8 +5,8 @@ import ARKit
 import Combine
 
 /// Wraps ARSession with sceneDepth and turns each frame into a camera-space point cloud
-/// restricted to the centre scan region. Runs on the main actor for SwiftUI friendliness;
-/// the per-frame maths is cheap (about 6k points).
+/// restricted to the centre scan region. Published state lives on the main actor for SwiftUI;
+/// the per-frame extraction runs on `frameQueue` and hands its result back.
 @MainActor
 final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
     let session = ARSession()
@@ -21,7 +21,12 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
     /// 5x5 blurs groove edges and reads shallow. Confirmed by tools/treadlab sweep on synthetic
     /// tires; re-check against real captures.
     nonisolated let smoothingRadius = 1
+    /// ARKit calls the delegate on the main queue unless told otherwise. The per-frame extraction
+    /// (box filter + RANSAC over ~6k points, 60 times a second) belongs off the thread that draws
+    /// the camera preview and the guidance overlay, or both stutter.
+    nonisolated private let frameQueue = DispatchQueue(label: "ca.scotiatire.treadscanner.lidar", qos: .userInteractive)
     private var lastCameraPosition: SIMD3<Float>?
+    private var lastMedianDistance: Double?
     private var lastTimestamp: TimeInterval?
 
     func start() {
@@ -32,6 +37,7 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
         config.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? [.smoothedSceneDepth] : [.sceneDepth]
         config.environmentTexturing = .none
         session.delegate = self
+        session.delegateQueue = frameQueue
         session.run(config, options: [.resetTracking, .removeExistingAnchors])
     }
 
@@ -58,13 +64,23 @@ final class LiDARSession: NSObject, ObservableObject, ARSessionDelegate {
         latestPoints = e.points
         latestImage = frame.capturedImage
 
-        // Motion estimate from camera translation between frames.
+        // Motion estimate from camera translation between frames. World tracking needs visual
+        // features to hold a pose, and a tread face filling the view at 15 cm gives it few; when
+        // tracking is not `.normal` the pose can freeze or jump, which would either wave frames
+        // through or make "Hold still" permanent. In that state fall back to how fast the
+        // measured distance to the tread is changing, which comes from the depth sensor alone.
         let pos = SIMD3<Float>(frame.camera.transform.columns.3.x, frame.camera.transform.columns.3.y, frame.camera.transform.columns.3.z)
         var motion = 0.0
-        if let last = lastCameraPosition, let lastT = lastTimestamp, frame.timestamp > lastT {
-            motion = Double(simd_length(pos - last)) / (frame.timestamp - lastT)
+        if let lastT = lastTimestamp, frame.timestamp > lastT {
+            let dt = frame.timestamp - lastT
+            if case .normal = frame.camera.trackingState, let last = lastCameraPosition {
+                motion = Double(simd_length(pos - last)) / dt
+            } else if let now = e.medianDistance, let last = lastMedianDistance {
+                motion = abs(now - last) / dt
+            }
         }
         lastCameraPosition = pos
+        lastMedianDistance = e.medianDistance
         lastTimestamp = frame.timestamp
 
         guidance = ScanGuidance(
