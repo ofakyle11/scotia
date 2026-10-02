@@ -32,6 +32,13 @@ targets:
         NSCameraUsageDescription: Tread Scanner uses the camera and LiDAR scanner to measure tire tread depth and photograph tires.
         NSPhotoLibraryAddUsageDescription: Tread Scanner can save tire photos to your library.
         ITSAppUsesNonExemptEncryption: false
+        # Expose Documents/ (where .treadcap captures and photos live) to the Files app and to
+        # iTunes / Apple Devices file sharing on a PC. Without these a 45 MB capture has no
+        # cable route off the phone to a Windows machine.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        # Short git commit of the build; CI passes TREAD_BUILD_COMMIT on the xcodebuild line.
+        TreadBuildCommit: $(TREAD_BUILD_COMMIT)
         CFBundleURLTypes:
           - CFBundleURLName: ca.scotiatire.treadscanner.oauth
             CFBundleURLSchemes:
@@ -43,6 +50,7 @@ targets:
         # OAuth redirect URL scheme. CI derives it from the GOOGLE_CLIENT_ID secret; locally,
         # export GOOGLE_REVERSED_CLIENT_ID (and DEVELOPMENT_TEAM) before `xcodegen generate`.
         GOOGLE_REVERSED_CLIENT_ID: ${GOOGLE_REVERSED_CLIENT_ID}
+        TREAD_BUILD_COMMIT: local
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
   TreadScannerTests:

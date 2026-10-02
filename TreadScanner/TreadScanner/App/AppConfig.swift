@@ -38,6 +38,15 @@ enum AppConfig {
     }
 }
 
+/// Which build is on the phone. Every capture and the Settings screen carry it, so a result can
+/// always be tied to the exact estimator that produced it.
+enum BuildInfo {
+    static var version: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?" }
+    static var build: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?" }
+    static var commit: String { Bundle.main.infoDictionary?["TreadBuildCommit"] as? String ?? "?" }
+    static var summary: String { "\(version) (\(build)) \(commit)" }
+}
+
 enum DefaultsKey {
     static let spreadsheetID = "spreadsheetID"
     static let technicianName = "technicianName"

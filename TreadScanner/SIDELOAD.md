@@ -9,7 +9,18 @@ $130/year enrolment removes it and switches you to TestFlight, where builds last
 90 days and install over the air.
 
 **You need:** a Windows PC, the USB cable, an iPhone 12 Pro or newer (the LiDAR
-scanner only exists on Pro models), and any Apple ID.
+scanner only exists on Pro models), and an Apple ID.
+
+**Which Apple ID.** Use the one you would later enrol in the Developer Program
+with. Signing claims the app's bundle id `ca.scotiatire.treadscanner` for that
+Apple ID's free "personal team", and Apple will not let a *different* team
+register the same id afterwards (the paid TestFlight build would then fail at
+"An App ID with Identifier ... is not available").
+
+**Free Apple ID limits (Apple's, not ours):** apps stop opening after 7 days;
+at most 3 sideloaded apps on the phone at once; at most 10 new App IDs per 7
+days. Leave Sideloadly's "Change Bundle ID" option off: each change burns one
+of the 10 and loses the inspections stored on the phone.
 
 ---
 
@@ -19,34 +30,44 @@ scanner only exists on Pro models), and any Apple ID.
 2. Click the newest run at the top. Wait for the green tick if it is still going.
 3. Scroll to **Artifacts** at the bottom and click **TreadScanner-unsigned-ipa**.
    A zip downloads.
-4. Unzip it. Inside is `TreadScanner-unsigned.ipa`. That is the app.
+4. Unzip it. Inside is `TreadScanner-unsigned-b<build>-<commit>.ipa`. That is the
+   app. The build number and commit in the name are also shown in the app under
+   Settings → Scanner → Build, and written into every raw capture, so a reading
+   can always be tied to the exact build that produced it.
 
 ## 2. Install Sideloadly (once)
 
 1. Go to https://sideloadly.io and download the Windows version.
-2. Run the installer. It installs Apple's iTunes drivers if you do not have them.
-   Say yes.
-3. Restart the PC if it asks.
+2. Sideloadly needs the **web version of iTunes**, not the Microsoft Store one.
+   If iTunes or "Apple Devices" was installed from the Microsoft Store,
+   uninstall it first (Settings → Apps). The Sideloadly page links the right
+   iTunes download; install that.
+3. Run the Sideloadly installer. Restart the PC if it asks.
 
 ## 3. Put it on the phone
 
 1. Plug the iPhone into the PC. On the phone, tap **Trust** and enter your passcode.
 2. Open Sideloadly.
-3. Drag `TreadScanner-unsigned.ipa` onto the Sideloadly window.
+3. Drag the `TreadScanner-unsigned-b<build>-<commit>.ipa` file onto the Sideloadly window.
 4. In **Apple ID**, type your Apple ID email. Click **Start**.
 5. Enter your Apple ID password when asked. It goes to Apple, not to us.
-   - If you use two-factor authentication, Apple may reject the normal password.
-     Create an app-specific password at https://account.apple.com under Sign-In
-     and Security, and paste that instead.
+   - With two-factor authentication, Sideloadly then asks for the 6-digit code
+     that appears on the iPhone. Type it in. **Do not use an app-specific
+     password**: Sideloadly only accepts those with a paid developer account.
 6. Wait for **Done**.
 
-## 4. Trust it on the phone
+## 4. Turn on Developer Mode, then trust it on the phone
 
-iOS will not open an app from an unknown developer until you say so.
+iOS 16 and later refuse to run a sideloaded app until Developer Mode is on.
+The switch only appears after the first app has been installed.
 
-1. On the iPhone: **Settings → General → VPN & Device Management**.
-2. Tap your Apple ID under *Developer App*, then **Trust**.
-3. Open **Tread Scanner** from the home screen.
+1. On the iPhone: **Settings → Privacy & Security**, scroll to the bottom,
+   **Developer Mode** → on. The phone asks to **restart**; let it. After the
+   restart it asks once more to turn Developer Mode on; confirm.
+2. **Settings → General → VPN & Device Management**. Tap your Apple ID under
+   *Developer App*, then **Trust**.
+3. Open **Tread Scanner** from the home screen. Settings → Scanner → Build
+   should show the build number from the file you installed.
 
 ## 5. Check the scanner actually works
 
@@ -83,9 +104,18 @@ the on-screen frame was green. That matters: the green limits are my estimates,
 not measurements. If iPhone LiDAR turns out to need 20 cm rather than the 12 cm
 I assumed, the recording still captures it and the analysis says so.
 
-Share the file to the PC and run:
+Each capture is about 45 MB, so email will not carry it. Two ways to the PC:
+
+- **Cable:** plug in, open the **Apple Devices** app (or iTunes) on the PC,
+  pick the phone, **Files** tab, **Tread Scanner**, drag the `Captures` folder
+  to the desktop.
+- **No cable:** on the phone, open **Files → On My iPhone → Tread Scanner →
+  Captures** and share the file to Google Drive or OneDrive.
+
+Then run:
 
 ```bash
+python3 tools/treadlab/treadlab.py info capture.treadcap   # confirms which app build recorded it
 python3 tools/treadlab/treadlab.py pose capture.treadcap
 ```
 

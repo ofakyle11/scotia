@@ -77,10 +77,34 @@ jobs:
           # tee swallowed the status; re-check from the log
           if grep -q "\*\* TEST FAILED \*\*\|\*\* BUILD FAILED \*\*" build.log; then exit 1; fi
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
+          # TEST SUCCEEDED is also printed when zero tests run (test target dropped from the
+          # generated scheme, a filter typo). Hold the count at what we know is there.
+          n=$(grep -Eo "Executed [0-9]+ tests?" build.log | tail -1 | grep -Eo "[0-9]+")
+          echo "tests executed: ${n:-0}"
+          [ "${n:-0}" -ge 40 ] || { echo "::error::only ${n:-0} tests executed; expected at least 40"; exit 1; }
+
+      - name: Compile app and tests for a real iPhone (device SDK, unsigned)
+        # The simulator never compiles the !targetEnvironment(simulator) branches, and the IPA
+        # workflow only builds on a code change. This compiles the device code on every push.
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project TreadScanner.xcodeproj \
+            -scheme TreadScanner \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            | tee device.log | grep -E "error:|BUILD" || true
+          if grep -q "\*\* TEST BUILD FAILED \*\*\|\*\* BUILD FAILED \*\*" device.log; then exit 1; fi
+          grep -q "\*\* TEST BUILD SUCCEEDED \*\*" device.log
 
       - name: Upload results on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: TreadScanner/build.log
+          path: |
+            TreadScanner/build.log
+            TreadScanner/device.log

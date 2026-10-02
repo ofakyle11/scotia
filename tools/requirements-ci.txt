@@ -1,0 +1,4 @@
+# Pinned for tools-ci.yml so the accuracy numbers in tools/treadlab/test_treadlab.py are
+# reproduced on the same numpy. Bump deliberately; a bump that moves a result is a finding.
+numpy==2.4.6
+pytest==9.1.1

@@ -58,6 +58,7 @@ struct SettingsView: View {
                 }
                 Section("Scanner") {
                     LabeledContent("LiDAR", value: LiDARAvailability.isSupported ? "Available" : "Not on this device")
+                    LabeledContent("Build", value: BuildInfo.summary)
                     Text("Scans measure groove depth relative to the tread surface and report a ± band. Readings over ±1.5/32 are flagged. Verify against a gauge from the main menu to build up accuracy data.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }

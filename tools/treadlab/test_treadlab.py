@@ -39,6 +39,20 @@ def caps(tmp_path_factory):
     return out
 
 
+@pytest.fixture(scope="module")
+def sweep_caps(tmp_path_factory):
+    """Two short captures for the sweep tests. A sweep measures every file 72 times (and the
+    ranking test measures each again independently), so on the 12-frame `caps` set those two
+    tests took 160 s of a 175 s suite; the CI budget for the whole tools job is two minutes."""
+    d = tmp_path_factory.mktemp("sweep_caps")
+    out = {}
+    for depth in (3, 9):
+        p = d / f"tire_{depth}.treadcap"
+        make_synthetic.write_capture(p, depth32=depth, noise=0.5, frames=3, curved=True)
+        out[depth] = p
+    return out
+
+
 # ---------------------------------------------------------------- units
 
 def test_32nds_conversion_is_exact():
@@ -310,9 +324,9 @@ def test_cli_report_skips_bad_files_and_summarises_the_rest(tmp_path, caps):
     assert "n=2" in r.stdout and "RMSE" in r.stdout
 
 
-def test_cli_sweep_skips_bad_files_and_still_ranks(tmp_path, caps):
+def test_cli_sweep_skips_bad_files_and_still_ranks(tmp_path, sweep_caps):
     make_bad_files(tmp_path)
-    files = [str(tmp_path / "notes.txt"), str(caps[2]), str(caps[8])]
+    files = [str(tmp_path / "notes.txt"), str(sweep_caps[3]), str(sweep_caps[9])]
     r = cli("sweep", *files)
     assert r.returncode == 0
     assert "Traceback" not in r.stderr
@@ -399,11 +413,12 @@ def test_report_rmse_matches_an_independent_computation(caps):
         assert got["rmse"] == pytest.approx(want, rel=1e-9)
 
 
-def test_sweep_ranking_is_a_true_rmse_ordering_among_eligible_combos(caps):
-    combos = treadlab.sweep(Args(list(caps.values())))
+def test_sweep_ranking_is_a_true_rmse_ordering_among_eligible_combos(sweep_caps):
+    files = list(sweep_caps.values())
+    combos = treadlab.sweep(Args(files))
     assert combos
     for c in combos:
-        want, n = independent_rmse(list(caps.values()), c["model"], c["roi"], c["smooth"], c["inlier_mm"])
+        want, n = independent_rmse(files, c["model"], c["roi"], c["smooth"], c["inlier_mm"])
         assert c["n"] == n
         assert c["rmse"] == pytest.approx(want, rel=1e-9)
     eligible = [c for c in combos if c["eligible"]]

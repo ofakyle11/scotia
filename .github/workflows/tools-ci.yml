@@ -1,0 +1,56 @@
+name: Tools CI
+
+# The iOS job runs the Swift unit tests in a simulator that has no LiDAR, and nothing ran the
+# Python tools at all: a push to tools/** triggered no workflow. This job runs on ubuntu in
+# about a minute and gates three things the simulator cannot:
+#   - tools/treadlab: the offline estimator (a port of TreadDepthEstimator.swift) on synthetic
+#     captures of known depth, its CLI error handling, and the sweep ranking;
+#   - tools/yardcheck: the CSV -> Yard Check report builder and the shared renderer test.
+
+on:
+  push:
+    paths:
+      - "tools/**"
+      - "web/yardcheck.js"
+      - "spreadsheet/sample_inspection.csv"
+      - "TreadScanner/TreadScanner/Depth/**"
+      - ".github/workflows/tools-ci.yml"
+  pull_request:
+    paths:
+      - "tools/**"
+      - "web/yardcheck.js"
+      - "spreadsheet/sample_inspection.csv"
+      - "TreadScanner/TreadScanner/Depth/**"
+      - ".github/workflows/tools-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: tools-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tools:
+    name: treadlab + yardcheck (ubuntu)
+    runs-on: ubuntu-latest
+    # Measured 33 s for the treadlab suite on 4 cores plus ~25 s of setup. Anything near this
+    # limit means a test grew; see the sweep_caps fixture note in test_treadlab.py.
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: tools/requirements-ci.txt
+
+      - name: Install
+        run: python3 -m pip install --quiet -r tools/requirements-ci.txt
+
+      - name: treadlab tests (synthetic accuracy, CLI, sweep ranking)
+        run: python3 -m pytest tools/treadlab -q -p no:cacheprovider -rs --durations=5
+
+      - name: yardcheck tests
+        run: |
+          python3 -m pytest tools/yardcheck -q -p no:cacheprovider
+          node tools/yardcheck/test_renderer.js

@@ -34,7 +34,10 @@ final class FrameRecorder {
             // 15 Pro Max from a 16 Pro Max. The hardware identifier can, and different
             // sensor generations may well read differently.
             "device": FrameRecorder.deviceName, "deviceID": FrameRecorder.deviceIdentifier,
-            "system": UIDevice.current.systemVersion, "created": ISO8601DateFormatter().string(from: Date())
+            "system": UIDevice.current.systemVersion, "created": ISO8601DateFormatter().string(from: Date()),
+            // Which build recorded it, so a gauge-vs-scan pair can be tied to the estimator that
+            // produced it across weekly re-sideloads. Same values as Settings > Scanner > Build.
+            "appVersion": BuildInfo.version, "appBuild": BuildInfo.build, "appCommit": BuildInfo.commit
         ]
         let headerData = try JSONSerialization.data(withJSONObject: header)
         h.write(Data("TREADCAP".utf8))

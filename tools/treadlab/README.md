@@ -12,6 +12,7 @@ python3 treadlab.py info    *.treadcap          # what is in each file
 python3 treadlab.py measure capture.treadcap    # depth estimate for one capture
 python3 treadlab.py report  *.treadcap --csv results.csv   # scan vs gauge across many
 python3 treadlab.py sweep   *.treadcap          # try model/ROI/smoothing combos, best first
+python3 treadlab.py pose    capture.treadcap    # depth vs gauge per 2 cm of holding distance
 ```
 
 Every command takes `--json`, which prints the same numbers as a single JSON
@@ -46,8 +47,11 @@ importable, which is how the tests make their captures.
 
 ```bash
 pip install numpy pytest
-python3 -m pytest tools/treadlab -q      # ~100 s, no phone required
+python3 -m pytest tools/treadlab -q      # ~35 s, no phone required
 ```
+
+CI runs this on every push to `tools/**` (`.github/workflows/tools-ci.yml`, ubuntu, about a
+minute), with numpy and pytest pinned in `tools/requirements-ci.txt`.
 
 `test_treadlab.py` runs entirely on synthetic captures: file round-trip
 (frame count, dimensions, gauge and header fields), accuracy at 2/32, 4/32,

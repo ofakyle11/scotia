@@ -12,14 +12,15 @@ on:
   workflow_dispatch:
   push:
     tags: ["sideload-*"]
-    branches: ["claude/truck-tire-depth-scanner-3fsnpo"]
+    # Any branch: a build pinned to one branch name silently stops when the work moves.
+    branches: ["**"]
     paths:
       - "TreadScanner/**"
       - "!TreadScanner/**/*.md"
       - ".github/workflows/ios-unsigned-ipa.yml"
 
 concurrency:
-  group: ios-unsigned-ipa
+  group: ios-unsigned-ipa-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -81,6 +82,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            TREAD_BUILD_COMMIT=${GITHUB_SHA::7} \
             | tee archive.log | grep -E "error:|ARCHIVE|BUILD" || true
           if grep -q "\*\* ARCHIVE FAILED \*\*\|\*\* BUILD FAILED \*\*" archive.log; then exit 1; fi
           grep -q "\*\* ARCHIVE SUCCEEDED \*\*" archive.log
@@ -94,16 +97,33 @@ jobs:
           # Strip any stale signature so the sideloader signs it cleanly.
           rm -rf build/Payload/TreadScanner.app/_CodeSignature
           rm -rf build/Payload/TreadScanner.app/embedded.mobileprovision
-          (cd build && zip -qry TreadScanner-unsigned.ipa Payload)
-          ls -lh build/TreadScanner-unsigned.ipa
-          echo "Minimum iOS: $(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' build/Payload/TreadScanner.app/Info.plist)"
-          echo "Bundle id:   $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Payload/TreadScanner.app/Info.plist)"
+          PL=build/Payload/TreadScanner.app/Info.plist
+          MIN=$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$PL")
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PL")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PL")
+          COMMIT=$(/usr/libexec/PlistBuddy -c 'Print :TreadBuildCommit' "$PL")
+          SHARE=$(/usr/libexec/PlistBuddy -c 'Print :UIFileSharingEnabled' "$PL")
+          # Loud checks: the phone will not explain any of these.
+          [ "$MIN" = "17.0" ] || { echo "::error::MinimumOSVersion is $MIN, expected 17.0"; exit 1; }
+          [ "$BID" = "ca.scotiatire.treadscanner" ] || { echo "::error::bundle id is $BID"; exit 1; }
+          [ "$BUILD" = "${{ github.run_number }}" ] || { echo "::error::CFBundleVersion is $BUILD, expected ${{ github.run_number }}"; exit 1; }
+          [ "$SHARE" = "true" ] || { echo "::error::UIFileSharingEnabled is off: captures cannot be copied to a Windows PC over USB"; exit 1; }
+          IPA="TreadScanner-unsigned-b${{ github.run_number }}-$COMMIT.ipa"
+          (cd build && zip -qry "$IPA" Payload)
+          ls -lh "build/$IPA"
+          echo "ipa=$IPA" >> "$GITHUB_ENV"
+          {
+            echo "### Unsigned IPA"
+            echo "- file: \`$IPA\`"
+            echo "- build: $BUILD, commit $COMMIT (shown in the app under Settings > Scanner, and in every .treadcap header)"
+            echo "- bundle id: $BID, minimum iOS $MIN"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: TreadScanner-unsigned-ipa
-          path: TreadScanner/build/TreadScanner-unsigned.ipa
+          path: TreadScanner/build/${{ env.ipa }}
           retention-days: 90
           if-no-files-found: error
 
